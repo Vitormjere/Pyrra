@@ -1,4 +1,4 @@
-﻿namespace Chama.Domain.Focos {
+﻿namespace Pyrra.Domain.Focos {
     public enum FocusCategory {
         Hidratacao,
         Medicacao,

@@ -4,7 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 
-namespace Chama.Domain.Focos {
+namespace Pyrra.Domain.Focos {
     public static class FocusCategoryMapper {
         private static readonly Dictionary<FocusCategory, int> PesoPadrao = new()
         {
