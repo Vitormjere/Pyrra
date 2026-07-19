@@ -1,6 +1,24 @@
-@Chama.Api_HostAddress = http://localhost:5104
+@Pyrra.Api_HostAddress = http://localhost:5104
 
-GET {{Chama.Api_HostAddress}}/weatherforecast/
-Accept: application/json
+### Cadastrar um usuário novo
+POST {{Pyrra.Api_HostAddress}}/api/auth/register
+Content-Type: application/json
 
-###
+{
+  "email": "teste2@pyrra.com",
+  "password": "senha12345",
+  "name": "Vitor"
+}
+
+### Fazer login
+POST {{Pyrra.Api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "teste@pyrra.com",
+  "password": "senha12345"
+}
+
+### Acessar rota protegida (troque TOKEN_AQUI pelo token retornado no login)
+GET {{Pyrra.Api_HostAddress}}/api/auth/me
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6ImQzZjY2NzAxLWMyODEtNDVhNC04OTY1LTg0YmJiODg2YjY3MyIsImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL2VtYWlsYWRkcmVzcyI6InRlc3RlQHB5cnJhLmNvbSIsInN1YiI6ImQzZjY2NzAxLWMyODEtNDVhNC04OTY1LTg0YmJiODg2YjY3MyIsImp0aSI6IjhiYzI1N2RhLTJkNmUtNDNlYy1hZTY1LWUyOGQ2MDFiMTQwNyIsImV4cCI6MTc4NDQzMTU2OCwiaXNzIjoiUHlycmEuQXBpIiwiYXVkIjoiUHlycmEuQ2xpZW50In0.i3yNTye_rV_FbwpQ4CG7WRBv7gFsA4rdT-MiNDhRBwA

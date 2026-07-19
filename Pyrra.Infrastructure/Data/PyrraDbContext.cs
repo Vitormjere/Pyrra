@@ -10,5 +10,11 @@ namespace Pyrra.Infrastructure.Data {
         public DbSet<User> Users => Set<User>();
         public DbSet<DailyFocus> DailyFocuses => Set<DailyFocus>();
         public DbSet<FocusLog> FocusLogs => Set<FocusLog>();
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder) {
+            modelBuilder.Entity<User>()
+                .HasIndex(u => u.Email)
+                .IsUnique();
+        }
     }
 }
