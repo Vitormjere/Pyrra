@@ -83,10 +83,14 @@ namespace Pyrra.Api.Controllers {
             }
 
             try {
-                var result = await _checkInService.ToggleCheckInAsync(userId, id, date ?? Today(), cancellationToken);
+                var result = await _checkInService.ToggleCheckInAsync(userId, id, date, cancellationToken);
                 return Ok(DailyScoreResponse.FromResult(result));
             } catch (NotFoundException ex) {
                 return NotFound(new { message = ex.Message });
+            } catch (FutureDateException ex) {
+                return BadRequest(new { message = ex.Message });
+            } catch (PastCheckInDateException ex) {
+                return BadRequest(new { message = ex.Message });
             }
         }
 
@@ -96,12 +100,15 @@ namespace Pyrra.Api.Controllers {
                 return Unauthorized();
             }
 
-            var result = await _checkInService.GetDailyScoreAsync(userId, date ?? Today(), cancellationToken);
-            return Ok(DailyScoreResponse.FromResult(result));
+            try {
+                var result = await _checkInService.GetDailyScoreAsync(userId, date, cancellationToken);
+                return Ok(DailyScoreResponse.FromResult(result));
+            } catch (NotFoundException ex) {
+                return NotFound(new { message = ex.Message });
+            } catch (FutureDateException ex) {
+                return BadRequest(new { message = ex.Message });
+            }
         }
-
-        // Datas são gravadas e comparadas sempre em UTC, igual ao CompletedAt dos logs.
-        private static DateOnly Today() => DateOnly.FromDateTime(DateTime.UtcNow);
 
         // O userId vem SEMPRE do token (claim NameIdentifier), nunca do corpo da requisição,
         // impedindo que um usuário manipule focos de outro passando outro id no payload.

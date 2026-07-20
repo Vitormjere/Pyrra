@@ -8,6 +8,7 @@ using Pyrra.Application.Common.Interfaces;
 using Pyrra.Application.Focos;
 using Pyrra.Domain.Users;
 using Pyrra.Infrastructure.Auth;
+using Pyrra.Infrastructure.Common;
 using Pyrra.Infrastructure.Data;
 using Pyrra.Infrastructure.Repositories;
 
@@ -55,6 +56,7 @@ builder.Services.AddScoped<IDailyFocusService, DailyFocusService>();
 builder.Services.AddScoped<IFocusLogRepository, FocusLogRepository>();
 builder.Services.AddScoped<IDailyScoreRepository, DailyScoreRepository>();
 builder.Services.AddScoped<IFocusCheckInService, FocusCheckInService>();
+builder.Services.AddSingleton<IClockService, SystemClockService>();
 
 var app = builder.Build();
 
