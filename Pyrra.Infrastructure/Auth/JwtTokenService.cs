@@ -28,10 +28,10 @@ namespace Pyrra.Infrastructure.Auth {
             var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(
-                issuer: _settings.Issuer,
-                audience: _settings.Audience,
-                claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(_settings.ExpirationMinutes),
+                issuer:             _settings.Issuer,
+                audience:           _settings.Audience,
+                claims:             claims,
+                expires:            DateTime.UtcNow.AddMinutes(_settings.ExpirationMinutes),
                 signingCredentials: credentials);
 
             return new JwtSecurityTokenHandler().WriteToken(token);

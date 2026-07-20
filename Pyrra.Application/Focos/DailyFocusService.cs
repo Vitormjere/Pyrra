@@ -19,12 +19,12 @@ namespace Pyrra.Application.Focos {
             var (category, weight) = FocusCategoryMapper.Categorize(name);
 
             var focus = new DailyFocus {
-                Id = Guid.NewGuid(),
-                UserId = userId,
-                Name = name,
-                Category = category,
-                Weight = weight,
-                Active = true,
+                Id        = Guid.NewGuid(),
+                UserId    = userId,
+                Name      = name,
+                Category  = category,
+                Weight    = weight,
+                Active    = true,
                 CreatedAt = DateTime.UtcNow
             };
 

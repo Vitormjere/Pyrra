@@ -52,6 +52,10 @@ builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddScoped<IDailyFocusRepository, DailyFocusRepository>();
 builder.Services.AddScoped<IDailyFocusService, DailyFocusService>();
 
+builder.Services.AddScoped<IFocusLogRepository, FocusLogRepository>();
+builder.Services.AddScoped<IDailyScoreRepository, DailyScoreRepository>();
+builder.Services.AddScoped<IFocusCheckInService, FocusCheckInService>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

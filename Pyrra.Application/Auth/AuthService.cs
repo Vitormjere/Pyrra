@@ -21,8 +21,8 @@ namespace Pyrra.Application.Auth {
             IOptions<JwtSettings> jwtOptions) {
             _userRepository = userRepository;
             _passwordHasher = passwordHasher;
-            _tokenService = tokenService;
-            _jwtSettings = jwtOptions.Value;
+            _tokenService   = tokenService;
+            _jwtSettings    = jwtOptions.Value;
         }
 
         public async Task<AuthResult> RegisterAsync(string email, string password, string name, CancellationToken cancellationToken = default) {
@@ -38,16 +38,16 @@ namespace Pyrra.Application.Auth {
             }
 
             var user = new User {
-                Id = Guid.NewGuid(),
-                Email = normalizedEmail,
-                Name = name,
+                Id        = Guid.NewGuid(),
+                Email     = normalizedEmail,
+                Name      = name,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
             user.PasswordHash = _passwordHasher.HashPassword(user, password);
 
             // O repositório persiste o User e, em caso de corrida no índice único de Email,
-            // lança EmailAlreadyRegisteredException — o detalhe de EF Core fica na Infrastructure.
+            // lança EmailAlreadyRegisteredException, o detalhe de EF Core fica na Infrastructure.
             await _userRepository.AddAsync(user, cancellationToken);
 
             return BuildAuthResult(user);

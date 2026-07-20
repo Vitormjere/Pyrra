@@ -16,9 +16,11 @@ namespace Pyrra.Api.Controllers {
     [Route("api/focos")]
     public class DailyFocusController : ControllerBase {
         private readonly IDailyFocusService _focusService;
+        private readonly IFocusCheckInService _checkInService;
 
-        public DailyFocusController(IDailyFocusService focusService) {
-            _focusService = focusService;
+        public DailyFocusController(IDailyFocusService focusService, IFocusCheckInService checkInService) {
+            _focusService   = focusService;
+            _checkInService = checkInService;
         }
 
         [HttpPost]
@@ -69,6 +71,33 @@ namespace Pyrra.Api.Controllers {
                 return NotFound(new { message = ex.Message });
             }
         }
+
+        [HttpPost("{id:guid}/checkin")]
+        public async Task<ActionResult<DailyScoreResponse>> ToggleCheckIn(Guid id, [FromQuery] DateOnly? date, CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            try {
+                var result = await _checkInService.ToggleCheckInAsync(userId, id, date ?? Today(), cancellationToken);
+                return Ok(DailyScoreResponse.FromResult(result));
+            } catch (NotFoundException ex) {
+                return NotFound(new { message = ex.Message });
+            }
+        }
+
+        [HttpGet("score")]
+        public async Task<ActionResult<DailyScoreResponse>> GetScore([FromQuery] DateOnly? date, CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            var result = await _checkInService.GetDailyScoreAsync(userId, date ?? Today(), cancellationToken);
+            return Ok(DailyScoreResponse.FromResult(result));
+        }
+
+        // Datas são gravadas e comparadas sempre em UTC, igual ao CompletedAt dos logs.
+        private static DateOnly Today() => DateOnly.FromDateTime(DateTime.UtcNow);
 
         // O userId vem SEMPRE do token (claim NameIdentifier), nunca do corpo da requisição,
         // impedindo que um usuário manipule focos de outro passando outro id no payload.
