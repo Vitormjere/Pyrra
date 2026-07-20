@@ -16,12 +16,17 @@ namespace Pyrra.Application.Focos {
         }
 
         public async Task<DailyFocus> CreateAsync(Guid userId, string name, CancellationToken cancellationToken = default) {
-            var (category, weight) = FocusCategoryMapper.Categorize(name);
+            // Normaliza antes de comparar E de gravar: " Beber Agua " e "beber agua" são o mesmo foco.
+            var normalizedName = name.Trim();
+
+            await EnsureNameIsNotTakenAsync(userId, normalizedName, cancellationToken);
+
+            var (category, weight) = FocusCategoryMapper.Categorize(normalizedName);
 
             var focus = new DailyFocus {
                 Id        = Guid.NewGuid(),
                 UserId    = userId,
-                Name      = name,
+                Name      = normalizedName,
                 Category  = category,
                 Weight    = weight,
                 Active    = true,
@@ -50,6 +55,19 @@ namespace Pyrra.Application.Focos {
 
             focus.Active = false;
             await _repository.UpdateAsync(focus, cancellationToken);
+        }
+
+        // A duplicidade só considera focos ATIVOS: um foco desativado não bloqueia recriar o mesmo
+        // nome depois. Comparação em memória com OrdinalIgnoreCase para não depender do collation do banco.
+        private async Task EnsureNameIsNotTakenAsync(Guid userId, string normalizedName, CancellationToken cancellationToken) {
+            var focuses = await _repository.GetAllByUserIdAsync(userId, cancellationToken);
+
+            var duplicated = focuses.Any(f =>
+                f.Active && string.Equals(f.Name.Trim(), normalizedName, StringComparison.OrdinalIgnoreCase));
+
+            if (duplicated) {
+                throw new DuplicateFocusException(normalizedName);
+            }
         }
 
         // Carrega o foco garantindo a posse: se não existir OU pertencer a outro usuário,

@@ -19,7 +19,7 @@ namespace Pyrra.Application.Focos {
 
         public FocusCheckInService(
             IDailyFocusRepository focusRepository,
-            IFocusLogRepository logRepository,
+            IFocusLogRepository   logRepository,
             IDailyScoreRepository scoreRepository) {
             _focusRepository = focusRepository;
             _logRepository   = logRepository;

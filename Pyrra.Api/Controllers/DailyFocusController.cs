@@ -29,9 +29,13 @@ namespace Pyrra.Api.Controllers {
                 return Unauthorized();
             }
 
-            var focus = await _focusService.CreateAsync(userId, request.Name, cancellationToken);
-            var response = FocusResponse.FromEntity(focus);
-            return Created($"/api/focos/{focus.Id}", response);
+            try {
+                var focus = await _focusService.CreateAsync(userId, request.Name, cancellationToken);
+                var response = FocusResponse.FromEntity(focus);
+                return Created($"/api/focos/{focus.Id}", response);
+            } catch (DuplicateFocusException ex) {
+                return Conflict(new { message = ex.Message });
+            }
         }
 
         [HttpGet]

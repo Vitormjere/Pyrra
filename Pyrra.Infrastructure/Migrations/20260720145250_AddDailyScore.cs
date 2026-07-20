@@ -15,13 +15,13 @@ namespace Pyrra.Infrastructure.Migrations
                 name: "DailyScores",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Date = table.Column<DateOnly>(type: "date", nullable: false),
-                    PointsEarned = table.Column<int>(type: "int", nullable: false),
+                    Id             = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId         = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Date           = table.Column<DateOnly>(type: "date", nullable: false),
+                    PointsEarned   = table.Column<int>(type: "int", nullable: false),
                     PointsPossible = table.Column<int>(type: "int", nullable: false),
-                    Percentage = table.Column<decimal>(type: "decimal(5,4)", precision: 5, scale: 4, nullable: false),
-                    GoalMet = table.Column<bool>(type: "bit", nullable: false)
+                    Percentage     = table.Column<decimal>(type: "decimal(5,4)", precision: 5, scale: 4, nullable: false),
+                    GoalMet        = table.Column<bool>(type: "bit", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -29,10 +29,10 @@ namespace Pyrra.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_DailyScores_UserId_Date",
-                table: "DailyScores",
+                name:    "IX_DailyScores_UserId_Date",
+                table:   "DailyScores",
                 columns: new[] { "UserId", "Date" },
-                unique: true);
+                unique:  true);
         }
 
         /// <inheritdoc />
