@@ -21,12 +21,12 @@ namespace Pyrra.Domain.Focos {
         private static readonly Dictionary<FocusCategory, string[]> PalavrasChave = new()
         {
             { FocusCategory.Hidratacao, new[] { "agua", "hidrat" } },
-            { FocusCategory.Medicacao, new[] { "remedio", "medicament", "vitamin" } },
-            { FocusCategory.Exercicio, new[] { "trein", "academia", "malh", "corr", "musculacao" } },
-            { FocusCategory.Sono, new[] { "dorm", "sono", "descans" } },
-            { FocusCategory.Estudo, new[] { "estud", "faculdade", "materia" } },
-            { FocusCategory.Leitura, new[] { "ler", "leitura", "livro" } },
-            { FocusCategory.Mental, new[] { "medit", "respir" } }
+            { FocusCategory.Medicacao,  new[] { "remedio", "medicament", "vitamin" } },
+            { FocusCategory.Exercicio,  new[] { "trein", "academia", "malh", "corr", "musculacao" } },
+            { FocusCategory.Sono,       new[] { "dorm", "sono", "descans" } },
+            { FocusCategory.Estudo,     new[] { "estud", "faculdade", "materia" } },
+            { FocusCategory.Leitura,    new[] { "ler", "leitura", "livro" } },
+            { FocusCategory.Mental,     new[] { "medit", "respir" } }
         };
 
         public static (FocusCategory Category, int Weight) Categorize(string focusName) {

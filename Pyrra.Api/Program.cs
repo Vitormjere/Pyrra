@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Pyrra.Application.Auth;
 using Pyrra.Application.Common.Interfaces;
+using Pyrra.Application.Focos;
 using Pyrra.Domain.Users;
 using Pyrra.Infrastructure.Auth;
 using Pyrra.Infrastructure.Data;
@@ -47,6 +48,9 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ITokenService, JwtTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
+
+builder.Services.AddScoped<IDailyFocusRepository, DailyFocusRepository>();
+builder.Services.AddScoped<IDailyFocusService, DailyFocusService>();
 
 var app = builder.Build();
 
