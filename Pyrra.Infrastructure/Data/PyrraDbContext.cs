@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Pyrra.Domain.Focos;
+using Pyrra.Domain.Planejamento;
 using Pyrra.Domain.Treinos;
 using Pyrra.Domain.Users;
 
@@ -16,6 +17,7 @@ namespace Pyrra.Infrastructure.Data {
         public DbSet<FreezeBank> FreezeBanks => Set<FreezeBank>();
         public DbSet<PendingMilestone> PendingMilestones => Set<PendingMilestone>();
         public DbSet<WorkoutLog> WorkoutLogs => Set<WorkoutLog>();
+        public DbSet<DailyPlanNote> DailyPlanNotes => Set<DailyPlanNote>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder) {
             modelBuilder.Entity<User>()
@@ -78,6 +80,12 @@ namespace Pyrra.Infrastructure.Data {
 
             modelBuilder.Entity<WorkoutLog>()
                 .HasIndex(w => new { w.UserId, w.Type, w.ExerciseName });
+
+            // Uma única nota por usuário/dia: garante no banco a semântica de upsert do
+            // DailyPlanNoteRepository, mesmo critério do DailyScore.
+            modelBuilder.Entity<DailyPlanNote>()
+                .HasIndex(n => new { n.UserId, n.Date })
+                .IsUnique();
         }
     }
 }

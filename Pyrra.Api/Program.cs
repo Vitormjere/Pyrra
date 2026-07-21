@@ -7,6 +7,7 @@ using Microsoft.IdentityModel.Tokens;
 using Pyrra.Application.Auth;
 using Pyrra.Application.Common.Interfaces;
 using Pyrra.Application.Focos;
+using Pyrra.Application.Planejamento;
 using Pyrra.Application.Streaks;
 using Pyrra.Application.Treinos;
 using Pyrra.Domain.Users;
@@ -76,6 +77,9 @@ builder.Services.AddScoped<IStreakService, StreakService>();
 
 builder.Services.AddScoped<IWorkoutLogRepository, WorkoutLogRepository>();
 builder.Services.AddScoped<IWorkoutService, WorkoutService>();
+
+builder.Services.AddScoped<IDailyPlanNoteRepository, DailyPlanNoteRepository>();
+builder.Services.AddScoped<IDailyPlanNoteService, DailyPlanNoteService>();
 
 var app = builder.Build();
 
