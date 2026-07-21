@@ -118,3 +118,39 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hc
 {
   "content": "Texto atualizado - testando upsert"
 }
+
+### Criar uma tarefa urgente para hoje
+POST {{Pyrra.Api_HostAddress}}/api/tarefas
+Content-Type: application/json
+Authorization: Bearer SEU_TOKEN_AQUI
+
+{
+  "title": "Revisar modulo de tarefas",
+  "priority": "Urgente"
+}
+
+### Criar uma tarefa de baixa prioridade
+POST {{Pyrra.Api_HostAddress}}/api/tarefas
+Content-Type: application/json
+Authorization: Bearer SEU_TOKEN_AQUI
+
+{
+  "title": "Organizar mesa",
+  "priority": "Baixa"
+}
+
+### Ver tarefas de hoje
+GET {{Pyrra.Api_HostAddress}}/api/tarefas
+Authorization: Bearer SEU_TOKEN_AQUI
+
+### Marcar a primeira como concluída (troque o ID)
+PATCH {{Pyrra.Api_HostAddress}}/api/tarefas/ID_AQUI/concluir
+Authorization: Bearer SEU_TOKEN_AQUI
+
+### Ver tarefas de hoje de novo (a concluída deve aparecer riscada/marcada)
+GET {{Pyrra.Api_HostAddress}}/api/tarefas
+Authorization: Bearer SEU_TOKEN_AQUI
+
+### Ver tarefas pendentes da semana atual (deve vir vazia hoje, é esperado)
+GET {{Pyrra.Api_HostAddress}}/api/tarefas/semana
+Authorization: Bearer SEU_TOKEN_AQUI

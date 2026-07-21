@@ -9,6 +9,7 @@ using Pyrra.Application.Common.Interfaces;
 using Pyrra.Application.Focos;
 using Pyrra.Application.Planejamento;
 using Pyrra.Application.Streaks;
+using Pyrra.Application.Tarefas;
 using Pyrra.Application.Treinos;
 using Pyrra.Domain.Users;
 using Pyrra.Infrastructure.Auth;
@@ -80,6 +81,9 @@ builder.Services.AddScoped<IWorkoutService, WorkoutService>();
 
 builder.Services.AddScoped<IDailyPlanNoteRepository, DailyPlanNoteRepository>();
 builder.Services.AddScoped<IDailyPlanNoteService, DailyPlanNoteService>();
+
+builder.Services.AddScoped<IPriorityTaskRepository, PriorityTaskRepository>();
+builder.Services.AddScoped<IPriorityTaskService, PriorityTaskService>();
 
 var app = builder.Build();
 

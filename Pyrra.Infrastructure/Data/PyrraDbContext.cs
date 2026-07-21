@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Pyrra.Domain.Focos;
 using Pyrra.Domain.Planejamento;
+using Pyrra.Domain.Tarefas;
 using Pyrra.Domain.Treinos;
 using Pyrra.Domain.Users;
 
@@ -18,6 +19,7 @@ namespace Pyrra.Infrastructure.Data {
         public DbSet<PendingMilestone> PendingMilestones => Set<PendingMilestone>();
         public DbSet<WorkoutLog> WorkoutLogs => Set<WorkoutLog>();
         public DbSet<DailyPlanNote> DailyPlanNotes => Set<DailyPlanNote>();
+        public DbSet<PriorityTask> PriorityTasks => Set<PriorityTask>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder) {
             modelBuilder.Entity<User>()
@@ -86,6 +88,16 @@ namespace Pyrra.Infrastructure.Data {
             modelBuilder.Entity<DailyPlanNote>()
                 .HasIndex(n => new { n.UserId, n.Date })
                 .IsUnique();
+
+            // NÃO é único: o dia tem várias tarefas. O índice serve às duas leituras do módulo —
+            // as tarefas de um dia e as pendentes de um intervalo de dias.
+            modelBuilder.Entity<PriorityTask>()
+                .HasIndex(t => new { t.UserId, t.Date });
+
+            // Título é texto curto de tela; sem limite viraria nvarchar(max) à toa.
+            modelBuilder.Entity<PriorityTask>()
+                .Property(t => t.Title)
+                .HasMaxLength(500);
         }
     }
 }
