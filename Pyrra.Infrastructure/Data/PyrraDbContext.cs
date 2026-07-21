@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Pyrra.Domain.Financas;
 using Pyrra.Domain.Focos;
+using Pyrra.Domain.Nutricao;
 using Pyrra.Domain.Planejamento;
 using Pyrra.Domain.Tarefas;
 using Pyrra.Domain.Treinos;
@@ -23,6 +24,7 @@ namespace Pyrra.Infrastructure.Data {
         public DbSet<PriorityTask> PriorityTasks => Set<PriorityTask>();
         public DbSet<FinanceCategory> FinanceCategories => Set<FinanceCategory>();
         public DbSet<FinanceEntry> FinanceEntries => Set<FinanceEntry>();
+        public DbSet<NutritionEntry> NutritionEntries => Set<NutritionEntry>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder) {
             modelBuilder.Entity<User>()
@@ -124,6 +126,18 @@ namespace Pyrra.Infrastructure.Data {
             // Cobre a listagem, que busca as padrão (UserId null) e as do usuário numa query só.
             modelBuilder.Entity<FinanceCategory>()
                 .HasIndex(c => c.UserId);
+
+            // Cobre as duas leituras do módulo: o dia (igualdade) e a semana (intervalo).
+            modelBuilder.Entity<NutritionEntry>()
+                .HasIndex(e => new { e.UserId, e.Date });
+
+            modelBuilder.Entity<NutritionEntry>()
+                .Property(e => e.ItemName)
+                .HasMaxLength(200);
+
+            modelBuilder.Entity<NutritionEntry>()
+                .Property(e => e.Quantity)
+                .HasMaxLength(100);
         }
     }
 }
