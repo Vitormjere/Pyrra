@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Pyrra.Application.Common;
 using Pyrra.Application.Common.Exceptions;
 using Pyrra.Application.Common.Interfaces;
 using Pyrra.Domain.Tarefas;
@@ -62,7 +63,7 @@ namespace Pyrra.Application.Tarefas {
         // atrasaram. Numa semana passada isso abrange os 7 dias; na semana atual, até ontem.
         public async Task<WeeklyTasksResult> GetPendingForWeekAsync(Guid userId, DateOnly? weekStart = null, CancellationToken cancellationToken = default) {
             var today = await TodayAsync(userId, cancellationToken);
-            var start = StartOfWeek(weekStart ?? today);
+            var start = WeekRange.StartOfWeek(weekStart ?? today);
 
             var tasks = await _repository.GetPendingByUserAndWeekAsync(userId, start, today, cancellationToken);
             return new WeeklyTasksResult(start, start.AddDays(6), tasks);
@@ -75,13 +76,6 @@ namespace Pyrra.Application.Tarefas {
             await _repository.UpdateAsync(task, cancellationToken);
             return task;
         }
-
-        // Normaliza qualquer data para a segunda-feira da SUA semana, em vez de recusar o que não
-        // for segunda. Assim ?inicio=2026-07-22 (quarta) devolve a semana que contém essa quarta —
-        // que é o que quem digitou a data quis dizer — e o intervalo nunca fica torto, atravessando
-        // duas semanas. A resposta devolve o weekStart efetivo, então o cliente vê a normalização.
-        private static DateOnly StartOfWeek(DateOnly date) =>
-            date.AddDays(-(((int)date.DayOfWeek + 6) % 7));
 
         // Mesmo NotFoundException genérico dos outros módulos: tarefa inexistente ou de outro
         // usuário são indistinguíveis para quem chama.

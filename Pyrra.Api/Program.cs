@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Pyrra.Application.Auth;
 using Pyrra.Application.Common.Interfaces;
+using Pyrra.Application.Financas;
 using Pyrra.Application.Focos;
 using Pyrra.Application.Planejamento;
 using Pyrra.Application.Streaks;
@@ -84,6 +85,10 @@ builder.Services.AddScoped<IDailyPlanNoteService, DailyPlanNoteService>();
 
 builder.Services.AddScoped<IPriorityTaskRepository, PriorityTaskRepository>();
 builder.Services.AddScoped<IPriorityTaskService, PriorityTaskService>();
+
+builder.Services.AddScoped<IFinanceCategoryRepository, FinanceCategoryRepository>();
+builder.Services.AddScoped<IFinanceEntryRepository, FinanceEntryRepository>();
+builder.Services.AddScoped<IFinanceService, FinanceService>();
 
 var app = builder.Build();
 

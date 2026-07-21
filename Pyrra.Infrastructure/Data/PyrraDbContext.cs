@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
+using Pyrra.Domain.Financas;
 using Pyrra.Domain.Focos;
 using Pyrra.Domain.Planejamento;
 using Pyrra.Domain.Tarefas;
@@ -20,6 +21,8 @@ namespace Pyrra.Infrastructure.Data {
         public DbSet<WorkoutLog> WorkoutLogs => Set<WorkoutLog>();
         public DbSet<DailyPlanNote> DailyPlanNotes => Set<DailyPlanNote>();
         public DbSet<PriorityTask> PriorityTasks => Set<PriorityTask>();
+        public DbSet<FinanceCategory> FinanceCategories => Set<FinanceCategory>();
+        public DbSet<FinanceEntry> FinanceEntries => Set<FinanceEntry>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder) {
             modelBuilder.Entity<User>()
@@ -98,6 +101,29 @@ namespace Pyrra.Infrastructure.Data {
             modelBuilder.Entity<PriorityTask>()
                 .Property(t => t.Title)
                 .HasMaxLength(500);
+
+            // Dinheiro: (18,2) explícito. O default do SQL Server para decimal também é (18,2),
+            // mas aqui a escala é regra de negócio (centavos), não coincidência de default.
+            modelBuilder.Entity<FinanceEntry>()
+                .Property(e => e.Amount)
+                .HasPrecision(18, 2);
+
+            modelBuilder.Entity<FinanceEntry>()
+                .HasIndex(e => new { e.UserId, e.Date });
+
+            // Mesmo limite que o DTO já impõe: sem isso a coluna viraria nvarchar(max) e o
+            // banco aceitaria o que a API recusa.
+            modelBuilder.Entity<FinanceEntry>()
+                .Property(e => e.Description)
+                .HasMaxLength(500);
+
+            modelBuilder.Entity<FinanceCategory>()
+                .Property(c => c.Name)
+                .HasMaxLength(100);
+
+            // Cobre a listagem, que busca as padrão (UserId null) e as do usuário numa query só.
+            modelBuilder.Entity<FinanceCategory>()
+                .HasIndex(c => c.UserId);
         }
     }
 }
