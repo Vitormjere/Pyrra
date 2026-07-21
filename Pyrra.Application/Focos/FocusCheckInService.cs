@@ -5,18 +5,17 @@ using System.Threading;
 using System.Threading.Tasks;
 using Pyrra.Application.Common.Exceptions;
 using Pyrra.Application.Common.Interfaces;
+using Pyrra.Application.Streaks;
 using Pyrra.Domain.Focos;
 
 namespace Pyrra.Application.Focos {
     public class FocusCheckInService : IFocusCheckInService {
-        // Fração mínima do peso do dia para considerar a meta batida. Fixo por enquanto;
-        // vira configuração por usuário quando o app tiver metas personalizadas.
-        private const decimal GoalThreshold = 0.70m;
-
         private readonly IDailyFocusRepository _focusRepository;
         private readonly IFocusLogRepository   _logRepository;
         private readonly IDailyScoreRepository _scoreRepository;
         private readonly IUserRepository       _userRepository;
+        private readonly IDailyScoreCalculator _calculator;
+        private readonly IStreakService        _streakService;
         private readonly IClockService         _clock;
 
         public FocusCheckInService(
@@ -24,11 +23,15 @@ namespace Pyrra.Application.Focos {
             IFocusLogRepository   logRepository,
             IDailyScoreRepository scoreRepository,
             IUserRepository       userRepository,
+            IDailyScoreCalculator calculator,
+            IStreakService        streakService,
             IClockService         clock) {
             _focusRepository = focusRepository;
             _logRepository   = logRepository;
             _scoreRepository = scoreRepository;
             _userRepository  = userRepository;
+            _calculator      = calculator;
+            _streakService   = streakService;
             _clock           = clock;
         }
 
@@ -64,7 +67,14 @@ namespace Pyrra.Application.Focos {
                 await _logRepository.UpdateAsync(log, cancellationToken);
             }
 
-            return await RecalculateScoreAsync(userId, targetDate, cancellationToken);
+            var result = await RecalculateScoreAsync(userId, targetDate, cancellationToken);
+
+            // Acerta dias pendentes após qualquer interação, para o streak não depender de o
+            // usuário abrir a tela de streak. Só mexe em dias passados — o check-in de hoje ainda
+            // não entra na contagem.
+            await _streakService.SettleStreakAsync(userId, cancellationToken);
+
+            return result;
         }
 
         public async Task<DailyScoreResult> GetDailyScoreAsync(Guid userId, DateOnly? date, CancellationToken cancellationToken = default) {
@@ -74,17 +84,7 @@ namespace Pyrra.Application.Focos {
             // os focos/pesos de agora. Só o dia corrente reflete o estado atual ao vivo.
             return targetDate < today
                 ? await GetHistoricalScoreAsync(userId, targetDate, cancellationToken)
-                : await GetLiveScoreAsync(userId, targetDate, cancellationToken);
-        }
-
-        // Estado atual: focos ativos de agora cruzados com os logs do dia. Não persiste nada.
-        private async Task<DailyScoreResult> GetLiveScoreAsync(Guid userId, DateOnly date, CancellationToken cancellationToken) {
-            var activeFocuses = await GetActiveFocusesAsync(userId, cancellationToken);
-            var logsByFocus   = await GetLogsByFocusAsync(activeFocuses, date, cancellationToken);
-
-            return new DailyScoreResult(
-                CalculateScore(userId, date, activeFocuses, logsByFocus),
-                BuildStatuses(activeFocuses, logsByFocus));
+                : await _calculator.CalculateLiveAsync(userId, targetDate, cancellationToken);
         }
 
         // Histórico: agregado vem do DailyScore salvo e a lista é remontada a partir dos FocusLog
@@ -118,15 +118,12 @@ namespace Pyrra.Application.Focos {
         }
 
         // Recalcula o dia inteiro a partir dos logs, em vez de somar/subtrair o foco alternado:
-        // o score converge para o estado real mesmo se um log for alterado por fora.
+        // o score converge para o estado real mesmo se um log for alterado por fora. Único caminho
+        // que persiste DailyScore.
         private async Task<DailyScoreResult> RecalculateScoreAsync(Guid userId, DateOnly date, CancellationToken cancellationToken) {
-            var activeFocuses = await GetActiveFocusesAsync(userId, cancellationToken);
-            var logsByFocus   = await GetLogsByFocusAsync(activeFocuses, date, cancellationToken);
-
-            var score = CalculateScore(userId, date, activeFocuses, logsByFocus);
-
-            var saved = await _scoreRepository.UpsertAsync(score, cancellationToken);
-            return new DailyScoreResult(saved, BuildStatuses(activeFocuses, logsByFocus));
+            var live  = await _calculator.CalculateLiveAsync(userId, date, cancellationToken);
+            var saved = await _scoreRepository.UpsertAsync(live.Score, cancellationToken);
+            return new DailyScoreResult(saved, live.Focuses);
         }
 
         // Resolve a data alvo no fuso do usuário e barra datas futuras. Devolve também o "hoje"
@@ -147,43 +144,6 @@ namespace Pyrra.Application.Focos {
             return (targetDate, today);
         }
 
-        // Peso do foco NAQUELE dia: se houve check-in, vale o peso congelado no log; senão, o peso
-        // atual do foco. As duas somas do score usam esta mesma régua — usar o peso do log só em
-        // PointsEarned e o atual em PointsPossible permitiria earned > possible (percentual > 100%).
-        private static int EffectiveWeight(DailyFocus focus, FocusLog? log) =>
-            log?.WeightAtTimeOfLog ?? focus.Weight;
-
-        // Única fonte da regra de pontuação: consulta e check-in passam por aqui, então não há
-        // como os dois caminhos divergirem. Puro — não toca em repositório.
-        private static DailyScore CalculateScore(Guid userId, DateOnly date, IReadOnlyList<DailyFocus> activeFocuses, IReadOnlyDictionary<Guid, FocusLog> logsByFocus) {
-            var pointsPossible = 0;
-            var pointsEarned   = 0;
-
-            foreach (var focus in activeFocuses) {
-                logsByFocus.TryGetValue(focus.Id, out var log);
-                var weight = EffectiveWeight(focus, log);
-
-                pointsPossible += weight;
-                if (log is { Completed: true }) {
-                    pointsEarned += weight;
-                }
-            }
-
-            // Sem focos ativos não há divisão possível: o dia vale 0% em vez de estourar.
-            var percentage = pointsPossible == 0
-                ? 0m
-                : (decimal)pointsEarned / pointsPossible;
-
-            return new DailyScore {
-                UserId         = userId,
-                Date           = date,
-                PointsEarned   = pointsEarned,
-                PointsPossible = pointsPossible,
-                Percentage     = decimal.Round(percentage, 4),
-                GoalMet        = pointsPossible > 0 && percentage >= GoalThreshold
-            };
-        }
-
         private static DailyScore EmptyScore(Guid userId, DateOnly date) =>
             new() {
                 Id             = Guid.Empty,
@@ -194,26 +154,6 @@ namespace Pyrra.Application.Focos {
                 Percentage     = 0m,
                 GoalMet        = false
             };
-
-        private async Task<IReadOnlyList<DailyFocus>> GetActiveFocusesAsync(Guid userId, CancellationToken cancellationToken) {
-            var focuses = await _focusRepository.GetAllByUserIdAsync(userId, cancellationToken);
-            return focuses.Where(f => f.Active).ToList();
-        }
-
-        private async Task<IReadOnlyDictionary<Guid, FocusLog>> GetLogsByFocusAsync(IReadOnlyList<DailyFocus> focuses, DateOnly date, CancellationToken cancellationToken) {
-            var focusIds = focuses.Select(f => f.Id).ToList();
-            var logs = await _logRepository.GetByFocusIdsAndDateAsync(focusIds, date, cancellationToken);
-            return logs.ToDictionary(l => l.DailyFocusId);
-        }
-
-        // Um foco ativo sem log naquela data não tem entrada no mapa -> Completed = false e peso atual.
-        private static IReadOnlyList<FocusStatus> BuildStatuses(IReadOnlyList<DailyFocus> activeFocuses, IReadOnlyDictionary<Guid, FocusLog> logsByFocus) =>
-            activeFocuses
-                .Select(f => {
-                    logsByFocus.TryGetValue(f.Id, out var log);
-                    return new FocusStatus(f.Id, f.Name, EffectiveWeight(f, log), log is { Completed: true });
-                })
-                .ToList();
 
         // Mesmo NotFoundException genérico usado no DailyFocusService: foco inexistente,
         // de outro usuário ou desativado são indistinguíveis para quem chama.

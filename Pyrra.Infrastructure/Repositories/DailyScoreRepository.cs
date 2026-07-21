@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -16,6 +18,12 @@ namespace Pyrra.Infrastructure.Repositories {
 
         public Task<DailyScore?> GetByUserAndDateAsync(Guid userId, DateOnly date, CancellationToken cancellationToken = default) =>
             _context.DailyScores.FirstOrDefaultAsync(s => s.UserId == userId && s.Date == date, cancellationToken);
+
+        public async Task<IReadOnlyList<DailyScore>> GetByUserAndDateRangeAsync(Guid userId, DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken = default) =>
+            await _context.DailyScores
+                .Where(s => s.UserId == userId && s.Date >= startDate && s.Date <= endDate)
+                .OrderBy(s => s.Date)
+                .ToListAsync(cancellationToken);
 
         public async Task<DailyScore> UpsertAsync(DailyScore score, CancellationToken cancellationToken = default) {
             var existing = await GetByUserAndDateAsync(score.UserId, score.Date, cancellationToken);

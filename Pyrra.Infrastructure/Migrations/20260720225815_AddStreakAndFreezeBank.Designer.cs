@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Pyrra.Infrastructure.Data;
 
@@ -11,9 +12,11 @@ using Pyrra.Infrastructure.Data;
 namespace Pyrra.Infrastructure.Migrations
 {
     [DbContext(typeof(PyrraDbContext))]
-    partial class PyrraDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260720225815_AddStreakAndFreezeBank")]
+    partial class AddStreakAndFreezeBank
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -134,38 +137,6 @@ namespace Pyrra.Infrastructure.Migrations
                     b.ToTable("FreezeBanks");
                 });
 
-            modelBuilder.Entity("Pyrra.Domain.Focos.PendingMilestone", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime?>("AcknowledgedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<decimal>("AveragePercentage")
-                        .HasPrecision(5, 4)
-                        .HasColumnType("decimal(5,4)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("Milestone")
-                        .HasColumnType("int");
-
-                    b.Property<DateOnly>("ReachedDate")
-                        .HasColumnType("date");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId", "AcknowledgedAt");
-
-                    b.ToTable("PendingMilestones");
-                });
-
             modelBuilder.Entity("Pyrra.Domain.Focos.Streak", b =>
                 {
                     b.Property<Guid>("Id")
@@ -196,61 +167,6 @@ namespace Pyrra.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("Streaks");
-                });
-
-            modelBuilder.Entity("Pyrra.Domain.Treinos.WorkoutLog", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateOnly>("Date")
-                        .HasColumnType("date");
-
-                    b.Property<decimal?>("DistanceKm")
-                        .HasPrecision(6, 3)
-                        .HasColumnType("decimal(6,3)");
-
-                    b.Property<int?>("DurationMinutes")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ExerciseName")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<decimal?>("LoadKg")
-                        .HasPrecision(6, 2)
-                        .HasColumnType("decimal(6,2)");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<decimal?>("PaceMinPerKm")
-                        .HasPrecision(5, 3)
-                        .HasColumnType("decimal(5,3)");
-
-                    b.Property<int?>("Reps")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("Sets")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Type")
-                        .HasColumnType("int");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId", "Date");
-
-                    b.HasIndex("UserId", "Type", "ExerciseName");
-
-                    b.ToTable("WorkoutLogs");
                 });
 
             modelBuilder.Entity("Pyrra.Domain.Users.User", b =>

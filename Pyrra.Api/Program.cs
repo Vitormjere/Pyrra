@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -6,6 +7,8 @@ using Microsoft.IdentityModel.Tokens;
 using Pyrra.Application.Auth;
 using Pyrra.Application.Common.Interfaces;
 using Pyrra.Application.Focos;
+using Pyrra.Application.Streaks;
+using Pyrra.Application.Treinos;
 using Pyrra.Domain.Users;
 using Pyrra.Infrastructure.Auth;
 using Pyrra.Infrastructure.Common;
@@ -17,7 +20,14 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
-builder.Services.AddControllers();
+// Enums trafegam como NOME ("Academia"), não como índice. As respostas já faziam isso à mão
+// (FocusResponse.Category, UserResponse.Plan, WorkoutResponse.Type usam .ToString()); o converter
+// fecha o outro lado do contrato, deixando o corpo da requisição aceitar o mesmo texto que a
+// resposta devolve. Sem ele, System.Text.Json só aceitaria o número.
+builder.Services.AddControllers()
+    .AddJsonOptions(options => {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 
 builder.Services.AddDbContext<PyrraDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -55,8 +65,17 @@ builder.Services.AddScoped<IDailyFocusService, DailyFocusService>();
 
 builder.Services.AddScoped<IFocusLogRepository, FocusLogRepository>();
 builder.Services.AddScoped<IDailyScoreRepository, DailyScoreRepository>();
+builder.Services.AddScoped<IDailyScoreCalculator, DailyScoreCalculator>();
 builder.Services.AddScoped<IFocusCheckInService, FocusCheckInService>();
 builder.Services.AddSingleton<IClockService, SystemClockService>();
+
+builder.Services.AddScoped<IStreakRepository, StreakRepository>();
+builder.Services.AddScoped<IFreezeBankRepository, FreezeBankRepository>();
+builder.Services.AddScoped<IPendingMilestoneRepository, PendingMilestoneRepository>();
+builder.Services.AddScoped<IStreakService, StreakService>();
+
+builder.Services.AddScoped<IWorkoutLogRepository, WorkoutLogRepository>();
+builder.Services.AddScoped<IWorkoutService, WorkoutService>();
 
 var app = builder.Build();
 
