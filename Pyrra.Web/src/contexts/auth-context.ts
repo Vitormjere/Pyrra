@@ -17,6 +17,8 @@ export interface AuthContextValue {
   /** true enquanto a sessão salva ainda está sendo verificada no backend. */
   loading: boolean
   login: (email: string, password: string) => Promise<void>
+  /** Cria a conta e já deixa o usuário autenticado — não exige login depois. */
+  register: (name: string, email: string, password: string) => Promise<void>
   logout: () => void
 }
 

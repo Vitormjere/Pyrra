@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import * as authService from '../services/authService'
 import { clearToken, getToken, setToken } from '../services/tokenStorage'
-import type { UserResponse } from '../types/auth'
+import type { AuthResponse, UserResponse } from '../types/auth'
 import { AuthContext } from './auth-context'
 
 // Este arquivo exporta APENAS o AuthProvider. O objeto de contexto vive em
@@ -47,15 +47,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const login = useCallback(async (email: string, password: string) => {
-    const auth = await authService.login({ email, password })
+  // Ponto único onde uma sessão nasce. Login e cadastro terminam iguais — os dois
+  // endpoints devolvem AuthResponse —, então a gravação do token e a busca do
+  // usuário completo ficam aqui, e não repetidas nos dois fluxos.
+  //
+  // Busca o usuário via /auth/me em vez de aproveitar o AuthResponse: ele traz só
+  // userId/email/name, enquanto /auth/me traz timezone, tom e plano. Assim toda
+  // sessão — recém-criada, recém-cadastrada ou restaurada — expõe a mesma forma
+  // de user.
+  const startSession = useCallback(async (auth: AuthResponse) => {
     setToken(auth.token)
-
-    // Busca o usuário completo em vez de aproveitar o AuthResponse: ele traz só
-    // userId/email/name, enquanto /auth/me traz timezone, tom e plano. Assim a
-    // sessão recém-criada e a restaurada expõem exatamente a mesma forma de user.
     setUser(await authService.me())
   }, [])
+
+  const login = useCallback(
+    async (email: string, password: string) => {
+      await startSession(await authService.login({ email, password }))
+    },
+    [startSession],
+  )
+
+  const register = useCallback(
+    async (name: string, email: string, password: string) => {
+      await startSession(await authService.register({ name, email, password }))
+    },
+    [startSession],
+  )
 
   const logout = useCallback(() => {
     clearToken()
@@ -65,8 +82,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo(
-    () => ({ user, loading, login, logout }),
-    [user, loading, login, logout],
+    () => ({ user, loading, login, register, logout }),
+    [user, loading, login, register, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

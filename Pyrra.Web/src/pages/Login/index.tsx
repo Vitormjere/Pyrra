@@ -1,31 +1,8 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { isAxiosError } from 'axios'
 import { useAuth } from '../../hooks/useAuth'
-
-// Traduz a falha técnica em algo acionável. O backend responde { message } nos
-// erros tratados, então quando ele explica o motivo preferimos a mensagem dele.
-function getErrorMessage(error: unknown): string {
-  if (isAxiosError(error)) {
-    // Sem response = a requisição nem chegou: API fora do ar, CORS ou o
-    // certificado self-signed do https://localhost ainda não aceito no navegador.
-    if (!error.response) {
-      return 'Não foi possível falar com o servidor. Verifique se a API está no ar.'
-    }
-
-    if (error.response.status === 401) {
-      return 'E-mail ou senha incorretos.'
-    }
-
-    const data = error.response.data as { message?: string } | undefined
-    if (data?.message) {
-      return data.message
-    }
-  }
-
-  return 'Não foi possível entrar. Tente novamente.'
-}
+import { getApiErrorMessage } from '../../services/apiError'
 
 export function Login() {
   const { login } = useAuth()
@@ -58,7 +35,13 @@ export function Login() {
       // /hoje levaria de volta a um formulário que não faz mais sentido.
       navigate('/hoje', { replace: true })
     } catch (err) {
-      setError(getErrorMessage(err))
+      setError(
+        getApiErrorMessage(
+          err,
+          { 401: 'E-mail ou senha incorretos.' },
+          'Não foi possível entrar. Tente novamente.',
+        ),
+      )
     } finally {
       setSubmitting(false)
     }
