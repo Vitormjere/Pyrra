@@ -55,15 +55,7 @@ namespace Pyrra.Api.Controllers {
                 return NotFound();
             }
 
-            return Ok(new UserResponse(
-                user.Id,
-                user.Email,
-                user.Name,
-                user.Timezone,
-                user.CommunicationTone.ToString(),
-                user.EveningNotificationTime.ToString("HH:mm"),
-                user.Plan.ToString(),
-                user.CreatedAt));
+            return Ok(UserResponse.FromEntity(user));
         }
 
         private static AuthResponse ToResponse(AuthResult result) =>

@@ -231,3 +231,17 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hc
 ### Ver a semana agrupada por dia e refeicao
 GET {{Pyrra.Api_HostAddress}}/api/nutricao/semana
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6ImQzZjY2NzAxLWMyODEtNDVhNC04OTY1LTg0YmJiODg2YjY3MyIsImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL2VtYWlsYWRkcmVzcyI6InRlc3RlQHB5cnJhLmNvbSIsInN1YiI6ImQzZjY2NzAxLWMyODEtNDVhNC04OTY1LTg0YmJiODg2YjY3MyIsImp0aSI6ImY1ZTlhOWZhLWU2ZjgtNDcyNC04NmJmLTFkZjU5MGU4NmU5OSIsImV4cCI6MTc4NDY3NzQzNCwiaXNzIjoiUHlycmEuQXBpIiwiYXVkIjoiUHlycmEuQ2xpZW50In0.LeOaXkMKFibWqAOexG7J6d1wI5TDh_0CLoCgizNywi4
+
+### Atualizar preferencias (tom Desafiador, notificacao as 21h)
+PATCH {{Pyrra.Api_HostAddress}}/api/usuario/preferencias
+Content-Type: application/json
+Authorization: Bearer SEU_TOKEN_AQUI
+
+{
+  "communicationTone": "Desafiador",
+  "eveningNotificationTime": "21:00"
+}
+
+### Ver preview da mensagem noturna (com o estado atual dos focos)
+GET {{Pyrra.Api_HostAddress}}/api/notificacoes/preview
+Authorization: Bearer SEU_TOKEN_AQUI

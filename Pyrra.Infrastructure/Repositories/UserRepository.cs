@@ -34,6 +34,11 @@ namespace Pyrra.Infrastructure.Repositories {
             }
         }
 
+        public async Task UpdateAsync(User user, CancellationToken cancellationToken = default) {
+            _context.Users.Update(user);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+
         private static bool IsEmailUniqueViolation(DbUpdateException ex) {
             // A mensagem do SQL Server para chave duplicada inclui o nome do índice violado
             // (ex.: "...with unique index 'IX_Users_Email'..."), definido na migration

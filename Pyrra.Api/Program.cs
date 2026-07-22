@@ -8,8 +8,10 @@ using Pyrra.Application.Auth;
 using Pyrra.Application.Common.Interfaces;
 using Pyrra.Application.Financas;
 using Pyrra.Application.Focos;
+using Pyrra.Application.Notificacoes;
 using Pyrra.Application.Nutricao;
 using Pyrra.Application.Planejamento;
+using Pyrra.Application.Usuario;
 using Pyrra.Application.Streaks;
 using Pyrra.Application.Tarefas;
 using Pyrra.Application.Treinos;
@@ -93,6 +95,9 @@ builder.Services.AddScoped<IFinanceService, FinanceService>();
 
 builder.Services.AddScoped<INutritionEntryRepository, NutritionEntryRepository>();
 builder.Services.AddScoped<INutritionService, NutritionService>();
+
+builder.Services.AddScoped<IUserPreferencesService, UserPreferencesService>();
+builder.Services.AddScoped<INightlyMessageService, NightlyMessageService>();
 
 var app = builder.Build();
 
