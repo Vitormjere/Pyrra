@@ -19,6 +19,9 @@ export interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>
   /** Cria a conta e já deixa o usuário autenticado — não exige login depois. */
   register: (name: string, email: string, password: string) => Promise<void>
+  /** Recarrega o usuário do servidor. Usado após editar preferências, para o
+   *  contexto não ficar com dados antigos ao navegar de volta à tela. */
+  refreshUser: () => Promise<void>
   logout: () => void
 }
 

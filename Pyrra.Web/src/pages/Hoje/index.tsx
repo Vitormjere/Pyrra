@@ -28,6 +28,7 @@ import { getBalance } from '../../services/financeService'
 import { getWorkouts } from '../../services/workoutService'
 import { getTasksForDay } from '../../services/taskService'
 import { getApiErrorMessage } from '../../services/apiError'
+import { formatCurrency, formatDayLabel, formatNumber } from '../../utils/format'
 import type { DailyScoreResponse } from '../../types/focus'
 import type {
   PendingMilestoneResponse,
@@ -37,31 +38,9 @@ import type { BalanceResponse } from '../../types/finance'
 import type { WorkoutResponse } from '../../types/workout'
 import type { TaskResponse } from '../../types/task'
 
-// Formata "YYYY-MM-DD" sem passar por new Date(string): o parser trataria a
-// string como UTC e, em fusos negativos como o Brasil, exibiria o dia anterior.
-// Montar com os componentes numéricos mantém a data no calendário local.
-function formatDayLabel(isoDate: string): string {
-  const [year, month, day] = isoDate.split('-').map(Number)
-  return new Intl.DateTimeFormat('pt-BR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  }).format(new Date(year, month - 1, day))
-}
-
 function toPercent(fraction: number): number {
   return Math.round(fraction * 100)
 }
-
-const currencyFormatter = new Intl.NumberFormat('pt-BR', {
-  style: 'currency',
-  currency: 'BRL',
-})
-
-// Sem casas fixas: 5 km sai "5 km" e não "5,00 km"; 7,5 km continua "7,5 km".
-const numberFormatter = new Intl.NumberFormat('pt-BR', {
-  maximumFractionDigits: 2,
-})
 
 // Uma prévia que falha não deve derrubar o dashboard inteiro. Converter a
 // rejeição em null deixa o Promise.all resolver e cada card decide o que
@@ -76,14 +55,14 @@ function describeWorkout(workout: WorkoutResponse): string {
   if (workout.type === 'Academia') {
     const parts = [workout.exerciseName ?? 'Treino']
     if (workout.loadKg !== null) {
-      parts.push(`${numberFormatter.format(workout.loadKg)} kg`)
+      parts.push(`${formatNumber(workout.loadKg)} kg`)
     }
     return parts.join(' · ')
   }
 
   const parts: string[] = []
   if (workout.distanceKm !== null) {
-    parts.push(`${numberFormatter.format(workout.distanceKm)} km`)
+    parts.push(`${formatNumber(workout.distanceKm)} km`)
   }
   if (workout.durationMinutes !== null) {
     parts.push(`${workout.durationMinutes} min`)
@@ -614,7 +593,7 @@ export function Hoje() {
           {balance ? (
             <p className="text-2xl font-semibold tabular-nums">
               {balanceVisible
-                ? currencyFormatter.format(balance.currentBalance)
+                ? formatCurrency(balance.currentBalance)
                 : 'R$ ••••••'}
             </p>
           ) : (

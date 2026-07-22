@@ -28,3 +28,24 @@ export interface FinanceEntryResponse {
   description: string | null
   createdAt: string
 }
+
+// GET /api/financas/semana
+// Os totais aqui são DO PERÍODO, não acumulados — diferente do BalanceResponse.
+// E, ao contrário do saldo, a semana inclui lançamentos com data futura.
+export interface WeeklyFinanceSummaryResponse {
+  weekStart: string
+  weekEnd: string
+  periodTotalIn: number
+  periodTotalOut: number
+  periodBalance: number
+  entries: FinanceEntryResponse[]
+}
+
+// POST /api/financas/lancamentos. amount é sempre POSITIVO: o sinal vem do type.
+export interface CreateFinanceEntryPayload {
+  categoryId: string
+  amount: number
+  type: FinanceEntryType
+  date?: string | null
+  description?: string | null
+}

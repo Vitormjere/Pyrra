@@ -24,3 +24,17 @@ export interface WorkoutResponse {
   notes: string | null
   createdAt: string
 }
+
+// POST /api/treinos. date nula = hoje no fuso do usuário; paceMinPerKm omitido
+// faz o backend derivá-lo de duração ÷ distância.
+export interface CreateWorkoutPayload {
+  type: WorkoutType
+  date?: string | null
+  exerciseName?: string | null
+  loadKg?: number | null
+  sets?: number | null
+  reps?: number | null
+  distanceKm?: number | null
+  durationMinutes?: number | null
+  notes?: string | null
+}
