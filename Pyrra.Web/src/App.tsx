@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import AppLayout from './components/AppLayout'
 import ProtectedRoute from './components/ProtectedRoute'
 import { AuthProvider } from './contexts/AuthContext'
 import Cadastro from './pages/Cadastro'
@@ -21,15 +22,21 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/cadastro" element={<Cadastro />} />
 
-          {/* Protegidas: o ProtectedRoute é rota de layout, então o guard vale
-              para todas as filhas sem precisar repeti-lo em cada uma. */}
+          {/* Duas rotas de layout aninhadas, e a ordem importa: o guard vem por
+              FORA da casca. Assim, para quem não tem sessão, o AppLayout nunca
+              chega a montar — sem isso a navegação inferior apareceria por um
+              instante antes do redirect, entregando a estrutura do app a quem
+              não está logado. O ProtectedRoute também segura a renderização
+              enquanto a sessão está sendo verificada, então nem a casca pisca. */}
           <Route element={<ProtectedRoute />}>
-            <Route path="/hoje" element={<Hoje />} />
-            <Route path="/treino" element={<Treino />} />
-            <Route path="/tarefas" element={<Tarefas />} />
-            <Route path="/financas" element={<Financas />} />
-            <Route path="/nutricao" element={<Nutricao />} />
-            <Route path="/perfil" element={<Perfil />} />
+            <Route element={<AppLayout />}>
+              <Route path="/hoje" element={<Hoje />} />
+              <Route path="/treino" element={<Treino />} />
+              <Route path="/tarefas" element={<Tarefas />} />
+              <Route path="/financas" element={<Financas />} />
+              <Route path="/nutricao" element={<Nutricao />} />
+              <Route path="/perfil" element={<Perfil />} />
+            </Route>
           </Route>
 
           {/* "/" e rotas desconhecidas caem em /hoje, que por ser protegida
