@@ -29,3 +29,10 @@ export async function getFocuses(): Promise<FocusResponse[]> {
   const { data } = await api.get<FocusResponse[]>('/api/focos')
   return data
 }
+
+// A resposta já traz category e weight: quem classifica o foco pelo nome é o
+// FocusCategoryMapper no backend, o front só envia o texto.
+export async function createFocus(name: string): Promise<FocusResponse> {
+  const { data } = await api.post<FocusResponse>('/api/focos', { name })
+  return data
+}

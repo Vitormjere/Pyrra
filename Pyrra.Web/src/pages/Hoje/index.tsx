@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import type { FormEvent } from 'react'
 import {
   Check,
   Dumbbell,
@@ -6,13 +7,18 @@ import {
   EyeOff,
   Flame,
   ListChecks,
+  Plus,
   Snowflake,
   Sparkles,
   Wallet,
 } from 'lucide-react'
 import MilestoneCelebration from '../../components/MilestoneCelebration'
 import PreviewCard from '../../components/PreviewCard'
-import { getDailyScore, toggleCheckIn } from '../../services/focusService'
+import {
+  createFocus,
+  getDailyScore,
+  toggleCheckIn,
+} from '../../services/focusService'
 import {
   acknowledgeMilestones,
   getPendingMilestones,
@@ -117,6 +123,15 @@ export function Hoje() {
   // público. Estado só de sessão, não persistido.
   const [balanceVisible, setBalanceVisible] = useState(false)
 
+  // Criação de foco.
+  const [formOpen, setFormOpen] = useState(false)
+  const [newFocusName, setNewFocusName] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+  // Devolve o cursor ao campo depois de salvar, para o próximo foco ser digitado
+  // sem tocar na tela de novo.
+  const nameInputRef = useRef<HTMLInputElement>(null)
+
   // Só busca, não mexe em estado: assim o efeito abaixo consegue adiar todo
   // setState para depois do await, como a regra react-hooks/set-state-in-effect
   // exige, e a mesma função serve ao "tentar de novo".
@@ -217,6 +232,72 @@ export function Hoje() {
     } finally {
       setPendingFocusId(null)
     }
+  }
+
+  async function handleCreateFocus(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    const name = newFocusName.trim()
+    if (!name) return
+
+    setCreating(true)
+    setCreateError(null)
+
+    try {
+      const created = await createFocus(name)
+
+      // Entra na lista imediatamente, a partir da própria resposta: o foco nasce
+      // sempre não concluído, e category/weight já vêm calculados pelo backend.
+      setScore((current) =>
+        current
+          ? {
+              ...current,
+              focuses: [
+                ...current.focuses,
+                {
+                  focusId: created.id,
+                  name: created.name,
+                  weight: created.weight,
+                  completed: false,
+                },
+              ],
+            }
+          : current,
+      )
+
+      setNewFocusName('')
+      nameInputRef.current?.focus()
+
+      // O foco novo entra em pointsPossible e derruba a porcentagem do dia, então
+      // a barra de progresso ficaria mentindo se parássemos aqui. Recalcular a
+      // conta no cliente duplicaria o DailyScoreCalculator (pesos e piso de 70%),
+      // então buscamos o score de novo — só ele, não a tela inteira.
+      //
+      // Tolerante de propósito: se esta parte falhar, o foco JÁ foi criado e está
+      // na lista; só os totais ficam defasados até a próxima carga. Deixar o erro
+      // subir mostraria "não foi possível criar o foco" para algo que deu certo.
+      try {
+        setScore(await getDailyScore())
+      } catch {
+        /* mantém o estado local otimista */
+      }
+    } catch (err) {
+      setCreateError(
+        getApiErrorMessage(
+          err,
+          { 409: 'Você já tem um foco com esse nome.' },
+          'Não foi possível criar o foco.',
+        ),
+      )
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  function closeFocusForm() {
+    setFormOpen(false)
+    setNewFocusName('')
+    setCreateError(null)
   }
 
   async function handleAcknowledgeMilestone() {
@@ -441,6 +522,72 @@ export function Hoje() {
               primeiro para o seu foguinho começar a contar.
             </p>
           </div>
+        )}
+
+        {/*
+          O formulário PERMANECE aberto após salvar, com o campo limpo e o cursor
+          de volta nele. Quem chega aqui costuma cadastrar vários focos de uma vez
+          (é literalmente o passo de onboarding), e fechar a cada item obrigaria a
+          reabrir a cada novo foco. Sair é explícito, pelo botão Fechar.
+        */}
+        {formOpen ? (
+          <form
+            onSubmit={handleCreateFocus}
+            className="flex flex-col gap-2 rounded-xl bg-white/5 p-3 ring-1 ring-white/10"
+          >
+            <label htmlFor="novo-foco" className="sr-only">
+              Nome do foco
+            </label>
+            <input
+              id="novo-foco"
+              ref={nameInputRef}
+              type="text"
+              value={newFocusName}
+              onChange={(event) => {
+                setNewFocusName(event.target.value)
+                if (createError !== null) setCreateError(null)
+              }}
+              autoFocus
+              maxLength={100}
+              placeholder="Ex: beber água"
+              className="w-full rounded-xl bg-white/5 px-4 py-3 text-slate-100 ring-1 ring-white/10 transition outline-none placeholder:text-slate-500 focus:ring-2 focus:ring-brand-green"
+            />
+
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                // Campo vazio não chega a virar requisição.
+                disabled={creating || newFocusName.trim().length === 0}
+                className="flex-1 rounded-xl bg-brand-green px-4 py-2.5 font-semibold text-brand-dark transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {creating ? 'Salvando...' : 'Adicionar'}
+              </button>
+              <button
+                type="button"
+                onClick={closeFocusForm}
+                className="rounded-xl px-4 py-2.5 font-medium text-slate-400 transition hover:bg-white/5 hover:text-slate-200"
+              >
+                Fechar
+              </button>
+            </div>
+
+            {createError && (
+              <p role="alert" className="text-sm text-red-300">
+                {createError}
+              </p>
+            )}
+          </form>
+        ) : (
+          // Borda tracejada: lê como "espaço a preencher", diferente dos cards de
+          // conteúdo, e não compete com o verde do botão primário.
+          <button
+            type="button"
+            onClick={() => setFormOpen(true)}
+            className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-white/15 text-sm font-medium text-slate-400 transition hover:border-white/25 hover:bg-white/5 hover:text-slate-200"
+          >
+            <Plus size={18} aria-hidden="true" />
+            Adicionar foco
+          </button>
         )}
       </section>
 
