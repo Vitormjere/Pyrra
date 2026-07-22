@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+/*
+  Tema do Pyrra.
+
+  No Tailwind v4 a configuração é CSS-first: não existe mais tailwind.config.js.
+  Tokens declarados em @theme viram utilitários automaticamente — por exemplo,
+  --color-brand-500 passa a valer como bg-brand-500, text-brand-500 etc.
+
+  Quando a identidade visual do Pyrra estiver definida, ela entra aqui:
+
+  @theme {
+    --color-brand-500: #7c3aed;
+    --font-sans: "Inter", system-ui, sans-serif;
+  }
+*/
+
+@layer base {
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+}

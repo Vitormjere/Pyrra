@@ -38,6 +38,28 @@ builder.Services.AddControllers()
 builder.Services.AddDbContext<PyrraDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+// Origins vêm da configuração, nunca do código: trocar o do frontend em produção é editar o
+// appsettings do ambiente, sem recompilar. Falha alto se a seção sumir — uma lista vazia
+// registraria uma política que bloqueia tudo silenciosamente, o pior modo de descobrir o erro
+// (o navegador só diria "CORS blocked", sem apontar a configuração ausente).
+const string FrontendCorsPolicy = "AllowFrontendDev";
+
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+if (allowedOrigins is null || allowedOrigins.Length == 0) {
+    throw new InvalidOperationException("Seção 'Cors:AllowedOrigins' não encontrada ou vazia em appsettings.json.");
+}
+
+builder.Services.AddCors(options => {
+    options.AddPolicy(FrontendCorsPolicy, policy =>
+        policy.WithOrigins(allowedOrigins)
+              // AllowCredentials é o que faz o header Authorization atravessar; ele é incompatível
+              // com AllowAnyOrigin, então a lista explícita de WithOrigins não é só preferência —
+              // é requisito para os dois funcionarem juntos.
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials());
+});
+
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
 
 var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>()
@@ -105,6 +127,13 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment()) {
     app.MapOpenApi();
 }
+
+// ANTES do UseHttpsRedirection, não só antes do UseAuthorization: o preflight OPTIONS que o
+// navegador dispara não segue redirecionamento. Se o React chamar o endpoint http (5104), o
+// redirect 307 para https mataria o preflight com "Redirect is not allowed for a preflight
+// request", antes de qualquer middleware de CORS ser consultado. Aqui o CORS responde o
+// preflight e encerra a requisição sem passar pelo redirect.
+app.UseCors(FrontendCorsPolicy);
 
 app.UseHttpsRedirection();
 
