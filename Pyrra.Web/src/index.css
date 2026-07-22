@@ -1,24 +1,43 @@
+/* Fontes antes de tudo: regras @import precisam vir no topo do arquivo CSS.
+   Panchang (Fontshare) para marca/títulos, Inter (Google Fonts) para interface. */
+@import url('https://api.fontshare.com/v2/css?f[]=panchang@700,600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
 @import "tailwindcss";
 
 /*
-  Tema do Pyrra.
+  Identidade visual do Pyrra.
 
-  No Tailwind v4 a configuração é CSS-first: não existe mais tailwind.config.js.
-  Tokens declarados em @theme viram utilitários automaticamente — por exemplo,
-  --color-brand-500 passa a valer como bg-brand-500, text-brand-500 etc.
-
-  Quando a identidade visual do Pyrra estiver definida, ela entra aqui:
-
-  @theme {
-    --color-brand-500: #7c3aed;
-    --font-sans: "Inter", system-ui, sans-serif;
-  }
+  No Tailwind v4 a configuração é CSS-first: cada token declarado aqui vira
+  utilitário automaticamente. --color-brand-green gera bg-brand-green,
+  text-brand-green, ring-brand-green etc.; --font-display gera font-display.
+  --font-sans SOBRESCREVE o padrão do Tailwind, então Inter passa a ser a fonte
+  de todo o app sem precisar aplicar font-sans em cada elemento.
 */
+@theme {
+  --color-brand-green: #02F5A1;
+  --color-brand-dark: #07191E;
+
+  --font-display: 'Panchang', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
 
 @layer base {
   html,
   body,
   #root {
     min-height: 100%;
+  }
+
+  /* App é dark-only por enquanto: o fundo escuro e o texto claro vivem no body,
+     e nenhuma tela precisa repetir isso. color-scheme: dark faz o navegador
+     acompanhar — scrollbar, autofill e controles nativos saem escuros também,
+     que é o detalhe que denuncia um dark mode meia-boca. */
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-brand-dark font-sans text-slate-100 antialiased;
   }
 }
