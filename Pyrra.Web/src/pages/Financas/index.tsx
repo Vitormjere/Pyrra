@@ -1,11 +1,22 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { ArrowDownRight, ArrowUpRight, Eye, EyeOff, Plus } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  Eye,
+  EyeOff,
+  Plus,
+  TrendingDown,
+  TrendingUp,
+} from 'lucide-react'
 import Segmented from '../../components/Segmented'
+import SectionHeader from '../../components/SectionHeader'
 import {
   createCategory,
   createEntry,
   getBalance,
+  getBalanceHistory,
   getCategories,
   getWeeklySummary,
 } from '../../services/financeService'
@@ -13,11 +24,19 @@ import { getApiErrorMessage } from '../../services/apiError'
 import { formatCurrency, formatShortDate, todayIso } from '../../utils/format'
 import type {
   BalanceResponse,
+  DailyBalanceResponse,
   FinanceCategoryResponse,
   FinanceEntryResponse,
   FinanceEntryType,
   WeeklyFinanceSummaryResponse,
 } from '../../types/finance'
+
+// Carregado sob demanda: o recharts sozinho dobra o bundle, e só esta tela usa
+// gráfico. Assim ele vira um chunk separado, buscado ao abrir Finanças, e não
+// pesa no primeiro carregamento do app.
+const BalanceChart = lazy(() => import('../../components/BalanceChart'))
+
+const BALANCE_HISTORY_DAYS = 30
 
 const ENTRY_TYPES: readonly FinanceEntryType[] = ['Entrada', 'Saida']
 
@@ -32,16 +51,16 @@ const ENTRY_TYPE_COLORS: Record<FinanceEntryType, string> = {
 }
 
 const inputClasses =
-  'w-full rounded-xl bg-white/5 px-4 py-3 text-slate-100 ring-1 ring-white/10 transition outline-none placeholder:text-slate-500 focus:ring-2 focus:ring-brand-green'
+  'w-full rounded-md bg-surface px-4 py-3 text-ink ring-1 ring-line transition outline-none placeholder:text-slate-500 focus:ring-2 focus:ring-brand-green'
 
 const labelClasses = 'text-xs font-medium text-slate-400'
 
 function LoadingState() {
   return (
     <div className="flex flex-col gap-3" aria-busy="true" aria-label="Carregando">
-      <div className="h-24 animate-pulse rounded-2xl bg-white/5" />
-      <div className="h-20 animate-pulse rounded-2xl bg-white/5" />
-      <div className="h-16 animate-pulse rounded-xl bg-white/5" />
+      <div className="h-24 animate-pulse rounded-md bg-surface" />
+      <div className="h-20 animate-pulse rounded-md bg-surface" />
+      <div className="h-16 animate-pulse rounded-md bg-surface" />
     </div>
   )
 }
@@ -52,17 +71,22 @@ export function Financas() {
     null,
   )
   const [categories, setCategories] = useState<FinanceCategoryResponse[]>([])
+  const [history, setHistory] = useState<DailyBalanceResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   // Começa oculto: a tela pode ser aberta em público.
   const [balanceVisible, setBalanceVisible] = useState(false)
 
+  // ?data= vem da Agenda: abre já com o formulário pronto naquela data.
+  const [searchParams] = useSearchParams()
+  const prefillDate = searchParams.get('data')
+
   // Formulário de lançamento.
-  const [formOpen, setFormOpen] = useState(false)
+  const [formOpen, setFormOpen] = useState(prefillDate !== null)
   const [amount, setAmount] = useState('')
   const [entryType, setEntryType] = useState<FinanceEntryType>('Saida')
   const [categoryId, setCategoryId] = useState('')
-  const [date, setDate] = useState(todayIso())
+  const [date, setDate] = useState(prefillDate ?? todayIso())
   const [description, setDescription] = useState('')
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
@@ -75,12 +99,14 @@ export function Financas() {
   const [categoryError, setCategoryError] = useState<string | null>(null)
 
   const fetchAll = useCallback(async () => {
-    const [balanceData, summaryData, categoriesData] = await Promise.all([
-      getBalance(),
-      getWeeklySummary(),
-      getCategories(),
-    ])
-    return { balanceData, summaryData, categoriesData }
+    const [balanceData, summaryData, categoriesData, historyData] =
+      await Promise.all([
+        getBalance(),
+        getWeeklySummary(),
+        getCategories(),
+        getBalanceHistory(BALANCE_HISTORY_DAYS),
+      ])
+    return { balanceData, summaryData, categoriesData, historyData }
   }, [])
 
   useEffect(() => {
@@ -93,6 +119,7 @@ export function Financas() {
         setBalance(result.balanceData)
         setSummary(result.summaryData)
         setCategories(result.categoriesData)
+        setHistory(result.historyData)
         // Pré-seleciona a primeira categoria para o formulário nunca abrir sem
         // seleção — o backend exige categoryId.
         setCategoryId((current) => current || (result.categoriesData[0]?.id ?? ''))
@@ -121,6 +148,7 @@ export function Financas() {
       setBalance(result.balanceData)
       setSummary(result.summaryData)
       setCategories(result.categoriesData)
+      setHistory(result.historyData)
       setCategoryId((current) => current || (result.categoriesData[0]?.id ?? ''))
     } catch (err) {
       setError(
@@ -160,12 +188,15 @@ export function Financas() {
       // Rebusca em vez de inserir na lista: o lançamento muda saldo e totais da
       // semana, e recalcular isso no cliente duplicaria a soma do backend. Só
       // não recarrego as categorias, que o lançamento não altera.
-      const [balanceData, summaryData] = await Promise.all([
+      const [balanceData, summaryData, historyData] = await Promise.all([
         getBalance(),
         getWeeklySummary(),
+        getBalanceHistory(BALANCE_HISTORY_DAYS),
       ])
       setBalance(balanceData)
       setSummary(summaryData)
+      // A série também muda: o lançamento desloca o saldo do seu dia em diante.
+      setHistory(historyData)
 
       setAmount('')
       setDescription('')
@@ -244,25 +275,25 @@ export function Financas() {
   return (
     <div className="flex flex-col gap-5">
       <header>
-        <h1 className="font-display text-3xl tracking-tight">Finanças</h1>
+        <h1 className="glow-ink font-display text-3xl font-semibold tracking-tight text-ink">Finanças</h1>
       </header>
 
       {/* SALDO ATUAL */}
-      <section className="rounded-2xl bg-white/5 px-5 py-4 ring-1 ring-white/10">
+      <section className="rounded-md bg-surface px-5 py-4 ring-1 ring-line">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-medium text-slate-300">Saldo atual</h2>
+          <SectionHeader>Saldo atual</SectionHeader>
           <button
             type="button"
             onClick={() => setBalanceVisible((visible) => !visible)}
             aria-pressed={balanceVisible}
             aria-label={balanceVisible ? 'Ocultar saldo' : 'Mostrar saldo'}
-            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-white/10 hover:text-slate-200"
+            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-surface-hi hover:text-slate-200"
           >
             {balanceVisible ? <Eye size={16} /> : <EyeOff size={16} />}
           </button>
         </div>
 
-        <p className="mt-1 text-3xl font-semibold tabular-nums">
+        <p className="mt-1 text-3xl font-semibold text-ink tabular-nums glow-ink">
           {balanceVisible && balance
             ? formatCurrency(balance.currentBalance)
             : 'R$ ••••••'}
@@ -271,45 +302,65 @@ export function Financas() {
 
       {/* RESUMO DA SEMANA */}
       {summary && (
-        <section className="rounded-2xl bg-white/5 px-5 py-4 ring-1 ring-white/10">
-          <h2 className="text-sm font-medium text-slate-300">
+        <section className="rounded-md bg-surface px-5 py-4 ring-1 ring-line">
+          <SectionHeader>
             Semana de {formatShortDate(summary.weekStart)} a{' '}
             {formatShortDate(summary.weekEnd)}
-          </h2>
+          </SectionHeader>
 
-          <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-            <div>
-              <p className="text-xs text-slate-400">Entradas</p>
-              <p className="mt-0.5 font-semibold text-brand-green tabular-nums">
+          {/* Saldo do período em destaque, entradas e saídas menores ao lado —
+              mesma hierarquia do card do dashboard, com o ícone de tendência
+              colado ao valor. */}
+          <p
+            className={[
+              'mt-2 text-3xl font-semibold tabular-nums',
+              summary.periodBalance < 0 ? 'text-red-400' : 'glow-ink text-ink',
+            ].join(' ')}
+          >
+            {formatCurrency(summary.periodBalance)}
+          </p>
+
+          <div className="mt-2 flex items-center gap-4 text-sm">
+            <span className="flex items-center gap-1">
+              <TrendingUp
+                size={15}
+                className="shrink-0 text-brand-green"
+                aria-hidden="true"
+              />
+              <span className="sr-only">Entradas:</span>
+              <span className="text-slate-300 tabular-nums">
                 {formatCurrency(summary.periodTotalIn)}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-400">Saídas</p>
-              <p className="mt-0.5 font-semibold text-red-400 tabular-nums">
+              </span>
+            </span>
+
+            <span className="flex items-center gap-1">
+              <TrendingDown
+                size={15}
+                className="shrink-0 text-red-400"
+                aria-hidden="true"
+              />
+              <span className="sr-only">Saídas:</span>
+              <span className="text-slate-300 tabular-nums">
                 {formatCurrency(summary.periodTotalOut)}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-400">Do período</p>
-              <p
-                className={[
-                  'mt-0.5 font-semibold tabular-nums',
-                  summary.periodBalance < 0 ? 'text-red-400' : 'text-slate-100',
-                ].join(' ')}
-              >
-                {formatCurrency(summary.periodBalance)}
-              </p>
-            </div>
+              </span>
+            </span>
           </div>
         </section>
       )}
+
+      <Suspense
+        fallback={
+          <div className="h-64 animate-pulse rounded-md bg-surface" aria-hidden="true" />
+        }
+      >
+        <BalanceChart history={history} days={BALANCE_HISTORY_DAYS} />
+      </Suspense>
 
       {/* FORMULÁRIO DE LANÇAMENTO */}
       {formOpen ? (
         <form
           onSubmit={handleCreateEntry}
-          className="flex flex-col gap-3 rounded-xl bg-white/5 p-3 ring-1 ring-white/10"
+          className="flex flex-col gap-3 rounded-md bg-surface p-3 ring-1 ring-line"
         >
           <Segmented
             label="Tipo de lançamento"
@@ -415,7 +466,7 @@ export function Financas() {
                 setDescription('')
                 setCreateError(null)
               }}
-              className="rounded-xl px-4 py-2.5 font-medium text-slate-400 transition hover:bg-white/5 hover:text-slate-200"
+              className="rounded-md px-4 py-2.5 font-medium text-slate-400 transition hover:bg-surface hover:text-slate-200"
             >
               Fechar
             </button>
@@ -431,7 +482,7 @@ export function Financas() {
         <button
           type="button"
           onClick={() => setFormOpen(true)}
-          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-white/15 text-sm font-medium text-slate-400 transition hover:border-white/25 hover:bg-white/5 hover:text-slate-200"
+          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-md border-2 border-dashed border-line text-sm font-medium text-slate-400 transition hover:border-slate-600 hover:bg-surface hover:text-slate-200"
         >
           <Plus size={18} aria-hidden="true" />
           Novo lançamento
@@ -442,7 +493,7 @@ export function Financas() {
       {categoryFormOpen && (
         <form
           onSubmit={handleCreateCategory}
-          className="flex flex-col gap-2 rounded-xl bg-white/5 p-3 ring-1 ring-white/10"
+          className="flex flex-col gap-2 rounded-md bg-surface p-3 ring-1 ring-line"
         >
           <label htmlFor="nova-categoria" className={labelClasses}>
             Nome da nova categoria
@@ -478,31 +529,26 @@ export function Financas() {
 
       {/* LANÇAMENTOS DA SEMANA */}
       <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-medium text-slate-300">
-          Lançamentos da semana
-        </h2>
+        <SectionHeader>Lançamentos da semana</SectionHeader>
 
         {summary && summary.entries.length > 0 ? (
-          <ul className="flex flex-col gap-2">
+          <ul className="divide-y divide-line overflow-hidden rounded-md bg-surface ring-1 ring-line">
             {summary.entries.map((entry) => {
               const isIncome = entry.type === 'Entrada'
               const Arrow = isIncome ? ArrowUpRight : ArrowDownRight
               return (
                 <li
                   key={entry.id}
-                  className="flex items-center gap-3 rounded-xl bg-white/5 px-4 py-3.5 ring-1 ring-white/10"
+                  className="flex items-center gap-3 px-4 py-3.5"
                 >
+                  {/* O disco é neutro nos dois casos; quem carrega o sinal é a
+                      seta e o valor. Antes o fundo era tingido de verde/vermelho
+                      e criava manchas de cor ao longo da lista inteira. */}
                   <span
                     aria-hidden="true"
-                    className={[
-                      'flex size-8 shrink-0 items-center justify-center rounded-full',
-                      isIncome ? 'bg-brand-green/10' : 'bg-red-400/10',
-                    ].join(' ')}
+                    className="flex size-8 shrink-0 items-center justify-center rounded-full bg-surface-hi"
                   >
-                    <Arrow
-                      size={16}
-                      className={ENTRY_TYPE_COLORS[entry.type]}
-                    />
+                    <Arrow size={16} className={ENTRY_TYPE_COLORS[entry.type]} />
                   </span>
 
                   <div className="min-w-0 flex-1">
@@ -528,7 +574,7 @@ export function Financas() {
             })}
           </ul>
         ) : (
-          <div className="rounded-2xl bg-white/5 px-5 py-8 text-center ring-1 ring-white/10">
+          <div className="rounded-md bg-surface px-5 py-8 text-center ring-1 ring-line">
             <p className="font-medium text-slate-200">
               Nenhum lançamento nesta semana.
             </p>

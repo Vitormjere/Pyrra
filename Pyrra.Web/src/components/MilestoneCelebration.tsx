@@ -41,23 +41,29 @@ export function MilestoneCelebration({
       aria-modal="true"
       aria-labelledby="milestone-title"
     >
-      <div className="w-full max-w-sm rounded-2xl bg-brand-green px-6 py-8 text-center text-brand-dark">
-        <Flame
-          size={56}
-          strokeWidth={2}
+      {/* Card escuro com contorno verde, não mais preenchido de verde. O
+          destaque vem do anel e do número — suficiente para marcar o momento
+          sem que a única tela colorida do app seja um bloco chapado. */}
+      <div className="w-full max-w-sm rounded-md bg-surface px-6 py-8 text-center ring-1 ring-brand-green/40">
+        <span
           aria-hidden="true"
-          className="mx-auto"
-        />
+          className="mx-auto flex size-16 items-center justify-center rounded-full ring-1 ring-brand-green/30"
+        >
+          <Flame size={30} strokeWidth={1.75} className="text-brand-green" />
+        </span>
 
         <h2
           id="milestone-title"
-          className="mt-4 font-display text-3xl tracking-tight"
+          className="mt-4 font-display text-3xl font-semibold tracking-tight text-brand-green"
         >
-          {milestone.milestone} dias seguidos!
+          {milestone.milestone} dias seguidos
         </h2>
 
-        <p className="mt-2 text-sm text-brand-dark/70">
-          Média de <span className="font-semibold tabular-nums">{averagePercent}%</span>{' '}
+        <p className="mt-2 text-sm text-slate-400">
+          Média de{' '}
+          <span className="font-semibold text-slate-200 tabular-nums">
+            {averagePercent}%
+          </span>{' '}
           no período.
         </p>
 
@@ -66,13 +72,13 @@ export function MilestoneCelebration({
           autoFocus
           disabled={submitting}
           onClick={onConfirm}
-          className="mt-6 w-full rounded-xl bg-brand-dark px-4 py-3 font-semibold text-brand-green transition hover:brightness-125 disabled:cursor-not-allowed disabled:opacity-60"
+          className="mt-6 w-full rounded-xl bg-brand-green px-4 py-3 font-semibold text-brand-dark transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {submitting ? 'Fechando...' : 'Continuar'}
         </button>
 
         {remaining > 0 && (
-          <p className="mt-3 text-xs text-brand-dark/60">
+          <p className="mt-3 text-xs text-slate-500">
             Mais {remaining} {remaining === 1 ? 'conquista' : 'conquistas'} para
             ver
           </p>

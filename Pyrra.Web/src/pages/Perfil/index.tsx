@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { LogOut } from 'lucide-react'
 import Segmented from '../../components/Segmented'
+import SectionHeader from '../../components/SectionHeader'
 import { useAuth } from '../../hooks/useAuth'
 import { updatePreferences } from '../../services/userService'
 import { getApiErrorMessage } from '../../services/apiError'
@@ -70,12 +71,12 @@ export function Perfil() {
   return (
     <div className="flex flex-col gap-5">
       <header>
-        <h1 className="font-display text-3xl tracking-tight">Perfil</h1>
+        <h1 className="glow-ink font-display text-3xl font-semibold tracking-tight text-ink">Perfil</h1>
       </header>
 
       {/* DADOS DA CONTA */}
-      <section className="rounded-2xl bg-white/5 px-5 py-4 ring-1 ring-white/10">
-        <p className="text-lg font-semibold">{user.name}</p>
+      <section className="rounded-md bg-surface px-5 py-4 ring-1 ring-line">
+        <p className="text-lg font-semibold text-ink">{user.name}</p>
         <p className="mt-0.5 text-sm text-slate-400">{user.email}</p>
         <span className="mt-3 inline-block rounded-full bg-brand-green/10 px-3 py-1 text-xs font-medium text-brand-green">
           Plano {user.plan}
@@ -85,9 +86,9 @@ export function Perfil() {
       {/* PREFERÊNCIAS */}
       <form
         onSubmit={handleSubmit}
-        className="flex flex-col gap-4 rounded-2xl bg-white/5 px-5 py-4 ring-1 ring-white/10"
+        className="flex flex-col gap-4 rounded-md bg-surface px-5 py-4 ring-1 ring-line"
       >
-        <h2 className="text-sm font-medium text-slate-300">Preferências</h2>
+        <SectionHeader>Preferências</SectionHeader>
 
         <div className="flex flex-col gap-2">
           <p className="text-xs font-medium text-slate-400">
@@ -121,7 +122,7 @@ export function Perfil() {
               setSaved(false)
             }}
             required
-            className="w-full rounded-xl bg-white/5 px-4 py-3 text-slate-100 ring-1 ring-white/10 transition outline-none focus:ring-2 focus:ring-brand-green"
+            className="w-full rounded-md bg-surface px-4 py-3 text-ink ring-1 ring-line transition outline-none focus:ring-2 focus:ring-brand-green"
           />
         </div>
 
@@ -154,7 +155,7 @@ export function Perfil() {
       <button
         type="button"
         onClick={handleLogout}
-        className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-medium text-red-400 ring-1 ring-red-400/20 transition hover:bg-red-500/10"
+        className="flex min-h-12 w-full items-center justify-center gap-2 rounded-md text-sm font-medium text-red-400 ring-1 ring-red-400/20 transition hover:bg-red-500/10"
       >
         <LogOut size={18} aria-hidden="true" />
         Sair da conta

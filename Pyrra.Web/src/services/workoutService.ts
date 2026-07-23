@@ -1,9 +1,12 @@
 import api from './api'
 import type {
   CreateWorkoutPayload,
+  WorkoutPlanDayResponse,
+  WorkoutPlanExerciseResponse,
   WorkoutResponse,
   WorkoutType,
 } from '../types/workout'
+import type { WeekDay } from '../types/plan'
 
 // O backend valida quais campos combinam com o Type e calcula o pace quando ele
 // não vem informado — por isso o payload carrega os campos das duas modalidades.
@@ -34,4 +37,51 @@ export async function getWorkoutHistory(
     `/api/treinos/exercicio/${encodeURIComponent(exerciseName)}`,
   )
   return data
+}
+
+// Intervalo arbitrário — base da Agenda.
+export async function getWorkoutsForRange(
+  start: string,
+  end: string,
+): Promise<WorkoutResponse[]> {
+  const { data } = await api.get<WorkoutResponse[]>('/api/treinos/intervalo', {
+    params: { inicio: start, fim: end },
+  })
+  return data
+}
+
+// Sempre os 7 dias, mesmo os sem label.
+export async function getWorkoutPlan(): Promise<WorkoutPlanDayResponse[]> {
+  const { data } = await api.get<WorkoutPlanDayResponse[]>('/api/treinos/plano')
+  return data
+}
+
+// Envia o plano inteiro: a tela salva o que está na tela, sem diffs.
+export async function saveWorkoutPlan(
+  days: WorkoutPlanDayResponse[],
+): Promise<WorkoutPlanDayResponse[]> {
+  const { data } = await api.put<WorkoutPlanDayResponse[]>(
+    '/api/treinos/plano',
+    { days },
+  )
+  return data
+}
+
+// sets/reps são ignorados pelo backend quando type é Corrida.
+export async function addPlanExercise(
+  day: WeekDay,
+  type: WorkoutType,
+  exerciseName: string,
+  sets?: number | null,
+  reps?: number | null,
+): Promise<WorkoutPlanExerciseResponse> {
+  const { data } = await api.post<WorkoutPlanExerciseResponse>(
+    `/api/treinos/plano/${day}/exercicios`,
+    { type, exerciseName, sets: sets ?? null, reps: reps ?? null },
+  )
+  return data
+}
+
+export async function removePlanExercise(exerciseId: string): Promise<void> {
+  await api.delete(`/api/treinos/plano/exercicios/${exerciseId}`)
 }

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Plus, X } from 'lucide-react'
+import SectionHeader from '../../components/SectionHeader'
+import NutritionPlanSection from '../../components/NutritionPlanSection'
 import {
   addItem,
   getForDay,
@@ -38,19 +40,19 @@ const MEAL_ORDER: readonly MealType[] = [
 ]
 
 const inputClasses =
-  'w-full rounded-xl bg-white/5 px-3 py-2.5 text-sm text-slate-100 ring-1 ring-white/10 transition outline-none placeholder:text-slate-500 focus:ring-2 focus:ring-brand-green'
+  'w-full rounded-md bg-surface px-3 py-2.5 text-sm text-ink ring-1 ring-line transition outline-none placeholder:text-slate-500 focus:ring-2 focus:ring-brand-green'
 
 function LoadingState() {
   return (
     <div className="flex flex-col gap-3" aria-busy="true" aria-label="Carregando">
-      <div className="h-10 animate-pulse rounded-xl bg-white/5" />
-      <div className="h-28 animate-pulse rounded-2xl bg-white/5" />
-      <div className="h-28 animate-pulse rounded-2xl bg-white/5" />
+      <div className="h-10 animate-pulse rounded-md bg-surface" />
+      <div className="h-28 animate-pulse rounded-md bg-surface" />
+      <div className="h-28 animate-pulse rounded-md bg-surface" />
     </div>
   )
 }
 
-type Tab = 'hoje' | 'semana'
+type Tab = 'hoje' | 'semana' | 'plano'
 
 export function Nutricao() {
   const [day, setDay] = useState<DayNutritionResponse | null>(null)
@@ -221,11 +223,11 @@ export function Nutricao() {
   return (
     <div className="flex flex-col gap-5">
       <header>
-        <h1 className="font-display text-3xl tracking-tight">Nutrição</h1>
+        <h1 className="glow-ink font-display text-3xl font-semibold tracking-tight text-ink">Nutrição</h1>
       </header>
 
-      <div role="tablist" className="flex gap-1 rounded-xl bg-white/5 p-1">
-        {(['hoje', 'semana'] as const).map((option) => (
+      <div role="tablist" className="flex gap-1 rounded-md bg-surface p-1">
+        {(['hoje', 'semana', 'plano'] as const).map((option) => (
           <button
             key={option}
             type="button"
@@ -235,11 +237,11 @@ export function Nutricao() {
             className={[
               'flex-1 rounded-lg px-3 py-2 text-sm font-medium transition',
               tab === option
-                ? 'bg-white/10 text-slate-100'
+                ? 'bg-surface-hi text-ink'
                 : 'text-slate-400 hover:text-slate-200',
             ].join(' ')}
           >
-            {option === 'hoje' ? 'Hoje' : 'Semana'}
+            {option === 'hoje' ? 'Hoje' : option === 'semana' ? 'Semana' : 'Plano'}
           </button>
         ))}
       </div>
@@ -249,10 +251,10 @@ export function Nutricao() {
           {day?.meals.map((group) => (
             <section
               key={group.meal}
-              className="rounded-2xl bg-white/5 px-4 py-3.5 ring-1 ring-white/10"
+              className="rounded-md bg-surface px-4 py-3.5 ring-1 ring-line"
             >
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-medium text-slate-200">
+                <h2 className="text-[11px] font-semibold tracking-[0.14em] text-slate-500 uppercase">
                   {MEAL_LABELS[group.meal]}
                 </h2>
                 <button
@@ -261,18 +263,20 @@ export function Nutricao() {
                     openMeal === group.meal ? setOpenMeal(null) : openForm(group.meal)
                   }
                   aria-label={`Adicionar item em ${MEAL_LABELS[group.meal]}`}
-                  className="rounded-lg p-1.5 text-slate-400 transition hover:bg-white/10 hover:text-brand-green"
+                  className="rounded-lg p-1.5 text-slate-400 transition hover:bg-surface-hi hover:text-brand-green"
                 >
                   <Plus size={18} />
                 </button>
               </div>
 
+              {/* Os itens já vivem dentro do card da refeição: divisórias
+                  bastam para separá-los, sem cada um virar um bloco. */}
               {group.items.length > 0 ? (
-                <ul className="mt-2 flex flex-col gap-1.5">
+                <ul className="mt-2 divide-y divide-line border-t border-line">
                   {group.items.map((item) => (
                     <li
                       key={item.id}
-                      className="flex items-center gap-2 rounded-lg bg-white/5 px-3 py-2"
+                      className="flex items-center gap-2 py-2.5"
                     >
                       <span className="min-w-0 flex-1 truncate text-sm">
                         {item.itemName}
@@ -285,7 +289,7 @@ export function Nutricao() {
                         disabled={removingId === item.id}
                         onClick={() => handleRemove(item.id, group.meal)}
                         aria-label={`Remover ${item.itemName}`}
-                        className="shrink-0 rounded p-1 text-slate-500 transition hover:bg-white/10 hover:text-red-400 disabled:opacity-50"
+                        className="shrink-0 rounded p-1 text-slate-500 transition hover:bg-surface-hi hover:text-red-400 disabled:opacity-50"
                       >
                         <X size={14} />
                       </button>
@@ -345,7 +349,7 @@ export function Nutricao() {
                     <button
                       type="button"
                       onClick={() => setOpenMeal(null)}
-                      className="rounded-xl px-3 py-2 text-sm font-medium text-slate-400 transition hover:bg-white/5 hover:text-slate-200"
+                      className="rounded-md px-3 py-2 text-sm font-medium text-slate-400 transition hover:bg-surface hover:text-slate-200"
                     >
                       Fechar
                     </button>
@@ -361,10 +365,16 @@ export function Nutricao() {
             </section>
           ))}
         </div>
+      ) : tab === 'plano' ? (
+        <section className="flex flex-col gap-2">
+          <SectionHeader>Plano da semana</SectionHeader>
+          <NutritionPlanSection />
+        </section>
       ) : (
         <section className="flex flex-col gap-2">
-          <p className="text-sm text-slate-400">
-            Itens registrados por refeição em cada dia da semana.
+          <SectionHeader>Semana</SectionHeader>
+          <p className="text-sm text-slate-500">
+            Itens registrados por refeição em cada dia.
           </p>
 
           {week?.days.map((weekDay) => {
@@ -375,7 +385,7 @@ export function Nutricao() {
             return (
               <div
                 key={weekDay.date}
-                className="rounded-xl bg-white/5 px-4 py-3 ring-1 ring-white/10"
+                className="rounded-md bg-surface px-4 py-3 ring-1 ring-line"
               >
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-medium first-letter:uppercase">
@@ -397,7 +407,7 @@ export function Nutricao() {
                           key={meal}
                           className={[
                             'rounded-lg px-1 py-1.5',
-                            count > 0 ? 'bg-brand-green/10' : 'bg-white/5',
+                            count > 0 ? 'bg-surface-hi' : 'bg-surface',
                           ].join(' ')}
                         >
                           <p className="text-[10px] text-slate-400">

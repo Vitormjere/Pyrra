@@ -2,7 +2,9 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import AppLayout from './components/AppLayout'
 import ProtectedRoute from './components/ProtectedRoute'
 import { AuthProvider } from './contexts/AuthContext'
+import Agenda from './pages/Agenda'
 import Cadastro from './pages/Cadastro'
+import Diario from './pages/Diario'
 import Financas from './pages/Financas'
 import Hoje from './pages/Hoje'
 import Login from './pages/Login'
@@ -31,10 +33,12 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
               <Route path="/hoje" element={<Hoje />} />
+              <Route path="/agenda" element={<Agenda />} />
               <Route path="/treino" element={<Treino />} />
               <Route path="/tarefas" element={<Tarefas />} />
               <Route path="/financas" element={<Financas />} />
               <Route path="/nutricao" element={<Nutricao />} />
+              <Route path="/diario" element={<Diario />} />
               <Route path="/perfil" element={<Perfil />} />
             </Route>
           </Route>

@@ -38,7 +38,7 @@ function validate(name: string, email: string, password: string): FieldErrors {
 }
 
 const inputClasses =
-  'w-full rounded-xl bg-white/5 px-4 py-3 text-slate-100 ring-1 ring-white/10 transition outline-none placeholder:text-slate-500 focus:ring-2 focus:ring-brand-green'
+  'w-full rounded-md bg-surface px-4 py-3 text-ink ring-1 ring-line transition outline-none placeholder:text-slate-500 focus:ring-2 focus:ring-brand-green'
 
 export function Cadastro() {
   const { register } = useAuth()
@@ -106,7 +106,7 @@ export function Cadastro() {
     <main className="flex min-h-screen flex-col items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm">
         <header className="mb-10 text-center">
-          <h1 className="font-display text-5xl tracking-tight text-brand-green">
+          <h1 className="font-display text-5xl font-semibold tracking-tight text-ink">
             Pyrra
           </h1>
           <p className="mt-2 text-sm text-slate-400">Crie sua conta.</p>

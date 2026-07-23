@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { CalendarDays, Check, Plus } from 'lucide-react'
+import CheckCircle from '../../components/CheckCircle'
+import SectionHeader from '../../components/SectionHeader'
 import {
   createTask,
   getPendingTasksForWeek,
@@ -58,7 +61,7 @@ function compareTasks(a: TaskResponse, b: TaskResponse): number {
 }
 
 const inputClasses =
-  'w-full rounded-xl bg-white/5 px-4 py-3 text-slate-100 ring-1 ring-white/10 transition outline-none placeholder:text-slate-500 focus:ring-2 focus:ring-brand-green'
+  'w-full rounded-md bg-surface px-4 py-3 text-ink ring-1 ring-line transition outline-none placeholder:text-slate-500 focus:ring-2 focus:ring-brand-green'
 
 interface TaskRowProps {
   task: TaskResponse
@@ -78,25 +81,17 @@ function TaskRow({ task, pending, showDate = false, onToggle }: TaskRowProps) {
       aria-checked={task.completed}
       disabled={pending}
       onClick={() => onToggle(task.id)}
-      className="flex w-full items-center gap-3 rounded-xl bg-white/5 px-4 py-3.5 text-left ring-1 ring-white/10 transition hover:bg-white/10 disabled:opacity-50"
+      // Sem fundo/contorno próprios: a linha vive dentro da superfície da
+      // seção e é separada das vizinhas por divisória, não por espaçamento.
+      className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition hover:bg-surface-hi disabled:opacity-50"
     >
-      <span
-        aria-hidden="true"
-        className={[
-          'flex size-6 shrink-0 items-center justify-center rounded-md border-2 transition',
-          task.completed
-            ? 'border-brand-green bg-brand-green text-brand-dark'
-            : 'border-white/25',
-        ].join(' ')}
-      >
-        {task.completed && <Check size={16} strokeWidth={3} />}
-      </span>
+      <CheckCircle checked={task.completed} />
 
       <span className="flex-1">
         <span
           className={[
             'block transition',
-            task.completed ? 'text-slate-400 line-through' : 'text-slate-100',
+            task.completed ? 'text-slate-400 line-through' : 'text-ink',
           ].join(' ')}
         >
           {task.title}
@@ -124,10 +119,10 @@ function TaskRow({ task, pending, showDate = false, onToggle }: TaskRowProps) {
 function LoadingState() {
   return (
     <div className="flex flex-col gap-3" aria-busy="true" aria-label="Carregando">
-      <div className="h-10 animate-pulse rounded-xl bg-white/5" />
-      <div className="h-16 animate-pulse rounded-xl bg-white/5" />
-      <div className="h-16 animate-pulse rounded-xl bg-white/5" />
-      <div className="h-16 animate-pulse rounded-xl bg-white/5" />
+      <div className="h-10 animate-pulse rounded-md bg-surface" />
+      <div className="h-16 animate-pulse rounded-md bg-surface" />
+      <div className="h-16 animate-pulse rounded-md bg-surface" />
+      <div className="h-16 animate-pulse rounded-md bg-surface" />
     </div>
   )
 }
@@ -145,9 +140,16 @@ export function Tarefas() {
   const [tab, setTab] = useState<Tab>('hoje')
   const [pendingTaskId, setPendingTaskId] = useState<string | null>(null)
 
-  const [formOpen, setFormOpen] = useState(false)
+  // ?data= vem da Agenda: abre já com o formulário pronto naquela data.
+  const [searchParams] = useSearchParams()
+  const prefillDate = searchParams.get('data')
+
+  const [formOpen, setFormOpen] = useState(prefillDate !== null)
   const [title, setTitle] = useState('')
   const [priority, setPriority] = useState<TaskPriority>('Media')
+  // Campo de data acrescentado junto com a Agenda: antes a tarefa nascia sempre
+  // no dia corrente, o que impedia agendar para outro dia.
+  const [taskDate, setTaskDate] = useState(prefillDate ?? todayIso())
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
@@ -244,11 +246,16 @@ export function Tarefas() {
     setCreateError(null)
 
     try {
-      const created = await createTask(trimmedTitle, priority)
+      const created = await createTask(trimmedTitle, priority, taskDate)
 
-      // Insere na posição correta em vez de anexar no fim: com prioridade DESC,
-      // uma tarefa Urgente criada agora pertence ao topo, não ao rodapé.
-      setTodayTasks((tasks) => [...tasks, created].sort(compareTasks))
+      // Só entra na lista visível se for do dia mostrado. Uma tarefa agendada
+      // para outra data existe, mas não pertence a esta lista — aparecer aqui
+      // sugeriria que é de hoje.
+      if (created.date === todayIso()) {
+        // Insere na posição correta em vez de anexar no fim: com prioridade DESC,
+        // uma tarefa Urgente criada agora pertence ao topo, não ao rodapé.
+        setTodayTasks((tasks) => [...tasks, created].sort(compareTasks))
+      }
 
       setTitle('')
       // Prioridade permanece escolhida: quem cadastra várias de uma vez costuma
@@ -300,7 +307,7 @@ export function Tarefas() {
   return (
     <div className="flex flex-col gap-5">
       <header>
-        <h1 className="font-display text-3xl tracking-tight">Tarefas</h1>
+        <h1 className="glow-ink font-display text-3xl font-semibold tracking-tight text-ink">Tarefas</h1>
       </header>
 
       {/*
@@ -308,7 +315,7 @@ export function Tarefas() {
         contador na aba é o que evita o risco do formato — atrasada escondida é
         atrasada esquecida, então o número aparece mesmo sem trocar de aba.
       */}
-      <div role="tablist" className="flex gap-1 rounded-xl bg-white/5 p-1">
+      <div role="tablist" className="flex gap-1 rounded-md bg-surface p-1">
         <button
           type="button"
           role="tab"
@@ -317,7 +324,7 @@ export function Tarefas() {
           className={[
             'flex-1 rounded-lg px-3 py-2 text-sm font-medium transition',
             tab === 'hoje'
-              ? 'bg-white/10 text-slate-100'
+              ? 'bg-surface-hi text-ink'
               : 'text-slate-400 hover:text-slate-200',
           ].join(' ')}
         >
@@ -331,7 +338,7 @@ export function Tarefas() {
           className={[
             'flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition',
             tab === 'atrasadas'
-              ? 'bg-white/10 text-slate-100'
+              ? 'bg-surface-hi text-ink'
               : 'text-slate-400 hover:text-slate-200',
           ].join(' ')}
         >
@@ -346,8 +353,12 @@ export function Tarefas() {
 
       {tab === 'hoje' ? (
         <section className="flex flex-col gap-3">
+          <SectionHeader>Tarefas de hoje</SectionHeader>
+
           {todayTasks.length > 0 ? (
-            <ul className="flex flex-col gap-2">
+            // Uma superfície para a lista inteira; divide-y desenha as
+            // divisórias entre os itens sem precisar de borda em cada um.
+            <ul className="divide-y divide-line overflow-hidden rounded-md bg-surface ring-1 ring-line">
               {todayTasks.map((task) => (
                 <li key={task.id}>
                   <TaskRow
@@ -359,7 +370,7 @@ export function Tarefas() {
               ))}
             </ul>
           ) : (
-            <div className="rounded-2xl bg-white/5 px-5 py-8 text-center ring-1 ring-white/10">
+            <div className="rounded-md bg-surface px-5 py-8 text-center ring-1 ring-line">
               <p className="font-medium text-slate-200">
                 Nenhuma tarefa para hoje.
               </p>
@@ -375,7 +386,7 @@ export function Tarefas() {
           {formOpen ? (
             <form
               onSubmit={handleCreate}
-              className="flex flex-col gap-3 rounded-xl bg-white/5 p-3 ring-1 ring-white/10"
+              className="flex flex-col gap-3 rounded-md bg-surface p-3 ring-1 ring-line"
             >
               <label htmlFor="nova-tarefa" className="sr-only">
                 Título da tarefa
@@ -395,11 +406,27 @@ export function Tarefas() {
                 className={inputClasses}
               />
 
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor="data-tarefa"
+                  className="text-xs font-medium text-slate-400"
+                >
+                  Data
+                </label>
+                <input
+                  id="data-tarefa"
+                  type="date"
+                  value={taskDate}
+                  onChange={(event) => setTaskDate(event.target.value)}
+                  className={inputClasses}
+                />
+              </div>
+
               {/* Segmentado, não dropdown: escolher prioridade vira um toque só,
                   contra dois (abrir + selecionar) no select nativo. */}
               <fieldset>
                 <legend className="sr-only">Prioridade</legend>
-                <div className="flex gap-1 rounded-xl bg-white/5 p-1">
+                <div className="flex gap-1 rounded-md bg-surface p-1">
                   {PRIORITIES.map((option) => (
                     <button
                       key={option}
@@ -409,7 +436,7 @@ export function Tarefas() {
                       className={[
                         'flex-1 rounded-lg px-2 py-2 text-xs font-medium transition',
                         priority === option
-                          ? `bg-white/10 ${PRIORITY_COLORS[option]}`
+                          ? `bg-surface-hi ${PRIORITY_COLORS[option]}`
                           : 'text-slate-400 hover:text-slate-200',
                       ].join(' ')}
                     >
@@ -430,7 +457,7 @@ export function Tarefas() {
                 <button
                   type="button"
                   onClick={closeForm}
-                  className="rounded-xl px-4 py-2.5 font-medium text-slate-400 transition hover:bg-white/5 hover:text-slate-200"
+                  className="rounded-md px-4 py-2.5 font-medium text-slate-400 transition hover:bg-surface hover:text-slate-200"
                 >
                   Fechar
                 </button>
@@ -446,7 +473,7 @@ export function Tarefas() {
             <button
               type="button"
               onClick={() => setFormOpen(true)}
-              className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-white/15 text-sm font-medium text-slate-400 transition hover:border-white/25 hover:bg-white/5 hover:text-slate-200"
+              className="flex min-h-12 w-full items-center justify-center gap-2 rounded-md border-2 border-dashed border-line text-sm font-medium text-slate-400 transition hover:border-slate-600 hover:bg-surface hover:text-slate-200"
             >
               <Plus size={18} aria-hidden="true" />
               Adicionar tarefa
@@ -457,10 +484,11 @@ export function Tarefas() {
         <section className="flex flex-col gap-3">
           {overdueTasks.length > 0 ? (
             <>
-              <p className="text-sm text-slate-400">
-                Pendentes de dias anteriores desta semana.
+              <SectionHeader>Pendentes da semana</SectionHeader>
+              <p className="text-sm text-slate-500">
+                De dias anteriores desta semana.
               </p>
-              <ul className="flex flex-col gap-2">
+              <ul className="divide-y divide-line overflow-hidden rounded-md bg-surface ring-1 ring-line">
                 {overdueTasks.map((task) => (
                   <li key={task.id}>
                     <TaskRow
@@ -474,7 +502,7 @@ export function Tarefas() {
               </ul>
             </>
           ) : (
-            <div className="rounded-2xl bg-white/5 px-5 py-8 text-center ring-1 ring-white/10">
+            <div className="rounded-md bg-surface px-5 py-8 text-center ring-1 ring-line">
               {isFirstDayOfWeek ? (
                 // Neutro, e sem o verde: não houve conquista a celebrar, a
                 // semana apenas começou.

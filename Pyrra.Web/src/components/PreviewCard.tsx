@@ -23,7 +23,7 @@ export function PreviewCard({
   children,
 }: PreviewCardProps) {
   return (
-    <section className="relative rounded-2xl bg-white/5 px-5 py-4 ring-1 ring-white/10 transition hover:bg-white/10">
+    <section className="relative rounded-md bg-surface px-5 py-4 ring-1 ring-line transition hover:bg-surface-hi">
       <div className="flex items-center gap-2">
         <Icon size={16} className="text-slate-400" aria-hidden="true" />
 

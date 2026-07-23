@@ -3,8 +3,11 @@ import type {
   DayNutritionResponse,
   MealType,
   NutritionItemResponse,
+  NutritionPlanItemResponse,
+  PlanDayResponse,
   WeekNutritionResponse,
 } from '../types/nutrition'
+import type { WeekDay } from '../types/plan'
 
 // date omitida = hoje no fuso do usuário, resolvido no backend.
 export async function addItem(
@@ -43,4 +46,27 @@ export async function getForWeek(
 // Remoção é definitiva — não há soft delete no backend.
 export async function removeItem(itemId: string): Promise<void> {
   await api.delete(`/api/nutricao/${itemId}`)
+}
+
+// Grade completa 7x4 do plano semanal.
+export async function getPlan(): Promise<PlanDayResponse[]> {
+  const { data } = await api.get<PlanDayResponse[]>('/api/nutricao/plano')
+  return data
+}
+
+export async function addPlanItem(
+  day: WeekDay,
+  mealType: MealType,
+  itemName: string,
+  quantity: string,
+): Promise<NutritionPlanItemResponse> {
+  const { data } = await api.post<NutritionPlanItemResponse>(
+    '/api/nutricao/plano',
+    { day, mealType, itemName, quantity },
+  )
+  return data
+}
+
+export async function removePlanItem(itemId: string): Promise<void> {
+  await api.delete(`/api/nutricao/plano/${itemId}`)
 }

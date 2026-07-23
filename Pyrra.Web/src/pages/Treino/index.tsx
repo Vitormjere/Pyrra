@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Dumbbell, Footprints, Plus } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { Footprints, Plus } from 'lucide-react'
 import Segmented from '../../components/Segmented'
+import WorkoutPlanSection from '../../components/WorkoutPlanSection'
+import GymHistorySection from '../../components/GymHistorySection'
+import SectionHeader from '../../components/SectionHeader'
 import { createWorkout, getWorkouts } from '../../services/workoutService'
 import { getApiErrorMessage } from '../../services/apiError'
 import { formatNumber, formatShortDate, todayIso } from '../../utils/format'
@@ -10,7 +14,7 @@ import type { WorkoutResponse, WorkoutType } from '../../types/workout'
 const WORKOUT_TYPES: readonly WorkoutType[] = ['Academia', 'Corrida']
 
 const inputClasses =
-  'w-full rounded-xl bg-white/5 px-4 py-3 text-slate-100 ring-1 ring-white/10 transition outline-none placeholder:text-slate-500 focus:ring-2 focus:ring-brand-green'
+  'w-full rounded-md bg-surface px-4 py-3 text-ink ring-1 ring-line transition outline-none placeholder:text-slate-500 focus:ring-2 focus:ring-brand-green'
 
 const labelClasses = 'text-xs font-medium text-slate-400'
 
@@ -47,9 +51,9 @@ function parseNumber(value: string): number | null {
 function LoadingState() {
   return (
     <div className="flex flex-col gap-3" aria-busy="true" aria-label="Carregando">
-      <div className="h-10 animate-pulse rounded-xl bg-white/5" />
-      <div className="h-16 animate-pulse rounded-xl bg-white/5" />
-      <div className="h-16 animate-pulse rounded-xl bg-white/5" />
+      <div className="h-10 animate-pulse rounded-md bg-surface" />
+      <div className="h-16 animate-pulse rounded-md bg-surface" />
+      <div className="h-16 animate-pulse rounded-md bg-surface" />
     </div>
   )
 }
@@ -58,14 +62,19 @@ export function Treino() {
   const [workouts, setWorkouts] = useState<WorkoutResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Aba do histórico.
+  const [historyTab, setHistoryTab] = useState<WorkoutType>('Academia')
 
-  const [formOpen, setFormOpen] = useState(false)
+  // ?data= vem da Agenda. Inicializar o estado a partir dele (em vez de um
+  // efeito) já abre a tela com o formulário pronto na data escolhida.
+  const [searchParams] = useSearchParams()
+  const prefillDate = searchParams.get('data')
+
+  const [formOpen, setFormOpen] = useState(prefillDate !== null)
   const [type, setType] = useState<WorkoutType>('Academia')
-  const [date, setDate] = useState(todayIso())
+  const [date, setDate] = useState(prefillDate ?? todayIso())
   const [exerciseName, setExerciseName] = useState('')
   const [loadKg, setLoadKg] = useState('')
-  const [sets, setSets] = useState('')
-  const [reps, setReps] = useState('')
   const [distanceKm, setDistanceKm] = useState('')
   const [durationMinutes, setDurationMinutes] = useState('')
   const [creating, setCreating] = useState(false)
@@ -115,8 +124,6 @@ export function Treino() {
   function resetFields() {
     setExerciseName('')
     setLoadKg('')
-    setSets('')
-    setReps('')
     setDistanceKm('')
     setDurationMinutes('')
   }
@@ -159,8 +166,6 @@ export function Treino() {
               date,
               exerciseName: exerciseName.trim(),
               loadKg: parseNumber(loadKg),
-              sets: parseNumber(sets),
-              reps: parseNumber(reps),
             }
           : {
               type,
@@ -188,6 +193,8 @@ export function Treino() {
     setCreateError(null)
   }
 
+  const runWorkouts = workouts.filter((w) => w.type === 'Corrida')
+
   if (loading) return <LoadingState />
 
   if (error && workouts.length === 0) {
@@ -208,13 +215,15 @@ export function Treino() {
   return (
     <div className="flex flex-col gap-5">
       <header>
-        <h1 className="font-display text-3xl tracking-tight">Treino</h1>
+        <h1 className="glow-ink font-display text-3xl font-semibold tracking-tight text-ink">Treino</h1>
       </header>
+
+      <WorkoutPlanSection />
 
       {formOpen ? (
         <form
           onSubmit={handleCreate}
-          className="flex flex-col gap-3 rounded-xl bg-white/5 p-3 ring-1 ring-white/10"
+          className="flex flex-col gap-3 rounded-md bg-surface p-3 ring-1 ring-line"
         >
           <Segmented
             label="Tipo de treino"
@@ -261,50 +270,22 @@ export function Treino() {
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="carga" className={labelClasses}>
-                    Carga (kg)
-                  </label>
-                  <input
-                    id="carga"
-                    type="number"
-                    inputMode="decimal"
-                    step="0.5"
-                    min="0"
-                    value={loadKg}
-                    onChange={(event) => setLoadKg(event.target.value)}
-                    className={inputClasses}
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="series" className={labelClasses}>
-                    Séries
-                  </label>
-                  <input
-                    id="series"
-                    type="number"
-                    inputMode="numeric"
-                    min="1"
-                    value={sets}
-                    onChange={(event) => setSets(event.target.value)}
-                    className={inputClasses}
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="repeticoes" className={labelClasses}>
-                    Reps
-                  </label>
-                  <input
-                    id="repeticoes"
-                    type="number"
-                    inputMode="numeric"
-                    min="1"
-                    value={reps}
-                    onChange={(event) => setReps(event.target.value)}
-                    className={inputClasses}
-                  />
-                </div>
+              {/* Só carga: séries e repetições agora vivem no PLANO, e o
+                  registro real serve para acompanhar evolução de carga. */}
+              <div className="flex flex-col gap-1">
+                <label htmlFor="carga" className={labelClasses}>
+                  Carga (kg)
+                </label>
+                <input
+                  id="carga"
+                  type="number"
+                  inputMode="decimal"
+                  step="0.5"
+                  min="0"
+                  value={loadKg}
+                  onChange={(event) => setLoadKg(event.target.value)}
+                  className={inputClasses}
+                />
               </div>
             </>
           ) : (
@@ -359,7 +340,7 @@ export function Treino() {
             <button
               type="button"
               onClick={closeForm}
-              className="rounded-xl px-4 py-2.5 font-medium text-slate-400 transition hover:bg-white/5 hover:text-slate-200"
+              className="rounded-md px-4 py-2.5 font-medium text-slate-400 transition hover:bg-surface hover:text-slate-200"
             >
               Fechar
             </button>
@@ -375,7 +356,7 @@ export function Treino() {
         <button
           type="button"
           onClick={() => setFormOpen(true)}
-          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-white/15 text-sm font-medium text-slate-400 transition hover:border-white/25 hover:bg-white/5 hover:text-slate-200"
+          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-md border-2 border-dashed border-line text-sm font-medium text-slate-400 transition hover:border-slate-600 hover:bg-surface hover:text-slate-200"
         >
           <Plus size={18} aria-hidden="true" />
           Registrar treino
@@ -383,45 +364,71 @@ export function Treino() {
       )}
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-medium text-slate-300">Histórico</h2>
+        <SectionHeader>Histórico</SectionHeader>
 
-        {workouts.length > 0 ? (
-          <ul className="flex flex-col gap-2">
-            {workouts.map((workout) => {
-              const Icon = workout.type === 'Academia' ? Dumbbell : Footprints
-              return (
-                <li
-                  key={workout.id}
-                  className="flex items-center gap-3 rounded-xl bg-white/5 px-4 py-3.5 ring-1 ring-white/10"
-                >
-                  <Icon
-                    size={18}
-                    className="shrink-0 text-brand-green"
-                    aria-hidden="true"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium">
-                      {workout.type === 'Academia'
-                        ? (workout.exerciseName ?? 'Academia')
-                        : 'Corrida'}
-                    </p>
-                    <p className="mt-0.5 text-xs text-slate-400">
-                      {describeWorkout(workout)}
-                    </p>
-                  </div>
-                  <span className="shrink-0 text-xs text-slate-500 tabular-nums">
-                    {formatShortDate(workout.date)}
+        {/* Abas por modalidade: as duas respondem a perguntas diferentes.
+            Academia é "quanto eu levantava neste movimento?" (agrupado por
+            exercício); Corrida é "como foram meus últimos treinos?"
+            (cronológico). Uma lista só não servia bem a nenhuma das duas. */}
+        <div role="tablist" className="flex gap-1 rounded-md bg-surface p-1">
+          {WORKOUT_TYPES.map((option) => {
+            const count = workouts.filter((w) => w.type === option).length
+
+            return (
+              <button
+                key={option}
+                type="button"
+                role="tab"
+                aria-selected={historyTab === option}
+                onClick={() => setHistoryTab(option)}
+                className={[
+                  'flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition',
+                  historyTab === option
+                    ? 'bg-surface-hi text-ink'
+                    : 'text-slate-400 hover:text-slate-200',
+                ].join(' ')}
+              >
+                {option}
+                {count > 0 && (
+                  <span className="rounded-full bg-surface px-1.5 py-0.5 text-[10px] font-semibold tabular-nums">
+                    {count}
                   </span>
-                </li>
-              )
-            })}
+                )}
+              </button>
+            )
+          })}
+        </div>
+
+        {historyTab === 'Academia' ? (
+          <GymHistorySection workouts={workouts} />
+        ) : runWorkouts.length > 0 ? (
+          <ul className="divide-y divide-line overflow-hidden rounded-md bg-surface ring-1 ring-line">
+            {runWorkouts.map((workout) => (
+              <li
+                key={workout.id}
+                className="flex items-center gap-3 px-4 py-3.5"
+              >
+                <Footprints
+                  size={18}
+                  className="shrink-0 text-brand-green"
+                  aria-hidden="true"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium text-ink">Corrida</p>
+                  <p className="mt-0.5 text-xs text-slate-400">
+                    {describeWorkout(workout)}
+                  </p>
+                </div>
+                <span className="shrink-0 text-xs text-slate-500 tabular-nums">
+                  {formatShortDate(workout.date)}
+                </span>
+              </li>
+            ))}
           </ul>
         ) : (
-          <div className="rounded-2xl bg-white/5 px-5 py-8 text-center ring-1 ring-white/10">
-            <p className="font-medium text-slate-200">Nenhum treino ainda.</p>
-            <p className="mt-1.5 text-sm text-slate-400">
-              Registre seu primeiro treino de academia ou corrida para começar a
-              acompanhar sua evolução.
+          <div className="rounded-md bg-surface px-5 py-8 text-center ring-1 ring-line">
+            <p className="text-sm text-slate-400">
+              Nenhuma corrida registrada ainda.
             </p>
           </div>
         )}

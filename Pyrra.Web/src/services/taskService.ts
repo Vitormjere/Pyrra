@@ -46,3 +46,14 @@ export async function toggleTaskCompleted(
   )
   return data
 }
+
+// Intervalo arbitrário, com concluídas e pendentes — base da Agenda.
+export async function getTasksForRange(
+  start: string,
+  end: string,
+): Promise<TaskResponse[]> {
+  const { data } = await api.get<TaskResponse[]>('/api/tarefas/intervalo', {
+    params: { inicio: start, fim: end },
+  })
+  return data
+}

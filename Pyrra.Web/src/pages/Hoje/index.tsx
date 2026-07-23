@@ -1,19 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { FormEvent, ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import {
-  Check,
   Dumbbell,
+  Footprints,
   Eye,
   EyeOff,
-  Flame,
-  ListChecks,
   Plus,
-  Snowflake,
   Sparkles,
+  TrendingDown,
+  TrendingUp,
   Wallet,
 } from 'lucide-react'
+import CheckCircle from '../../components/CheckCircle'
 import MilestoneCelebration from '../../components/MilestoneCelebration'
 import PreviewCard from '../../components/PreviewCard'
+import ProgressRing from '../../components/ProgressRing'
+import ReflectionCard from '../../components/ReflectionCard'
+import SectionHeader from '../../components/SectionHeader'
+import Segmented from '../../components/Segmented'
+import StreakPill from '../../components/StreakPill'
 import {
   createFocus,
   getDailyScore,
@@ -24,19 +30,40 @@ import {
   getPendingMilestones,
   getStreakStatus,
 } from '../../services/streakService'
-import { getBalance } from '../../services/financeService'
-import { getWorkouts } from '../../services/workoutService'
-import { getTasksForDay } from '../../services/taskService'
+import {
+  getBalance,
+  getWeeklySummary,
+} from '../../services/financeService'
+import { getWorkoutPlan } from '../../services/workoutService'
+import {
+  createTask,
+  getTasksForDay,
+  toggleTaskCompleted,
+} from '../../services/taskService'
 import { getApiErrorMessage } from '../../services/apiError'
-import { formatCurrency, formatDayLabel, formatNumber } from '../../utils/format'
+import {
+  formatCurrency,
+  formatDayLabel,
+  formatPlannedExercise,
+} from '../../utils/format'
+import { todayWeekDay } from '../../types/plan'
 import type { DailyScoreResponse } from '../../types/focus'
 import type {
   PendingMilestoneResponse,
   StreakStatusResponse,
 } from '../../types/streak'
-import type { BalanceResponse } from '../../types/finance'
-import type { WorkoutResponse } from '../../types/workout'
-import type { TaskResponse } from '../../types/task'
+import type {
+  BalanceResponse,
+  WeeklyFinanceSummaryResponse,
+} from '../../types/finance'
+import type { WorkoutPlanDayResponse, WorkoutType } from '../../types/workout'
+import type { TaskPriority, TaskResponse } from '../../types/task'
+
+// Máscara dos valores financeiros. Constante para as três linhas usarem o
+// mesmo texto — se divergissem, o card pareceria ter dois estados de sigilo.
+const MASKED = "R$ ••••••"
+
+const WORKOUT_TABS: readonly WorkoutType[] = ["Academia", "Corrida"]
 
 function toPercent(fraction: number): number {
   return Math.round(fraction * 100)
@@ -49,40 +76,70 @@ function optional<T>(promise: Promise<T>): Promise<T | null> {
   return promise.catch(() => null)
 }
 
-// Resumo do treino conforme a modalidade: cada tipo tem campos próprios
-// preenchidos, e os do outro tipo chegam nulos.
-function describeWorkout(workout: WorkoutResponse): string {
-  if (workout.type === 'Academia') {
-    const parts = [workout.exerciseName ?? 'Treino']
-    if (workout.loadKg !== null) {
-      parts.push(`${formatNumber(workout.loadKg)} kg`)
-    }
-    return parts.join(' · ')
-  }
-
-  const parts: string[] = []
-  if (workout.distanceKm !== null) {
-    parts.push(`${formatNumber(workout.distanceKm)} km`)
-  }
-  if (workout.durationMinutes !== null) {
-    parts.push(`${workout.durationMinutes} min`)
-  }
-  return parts.length > 0 ? parts.join(' · ') : 'Corrida registrada'
+// Pontos de prioridade, iguais aos da tela de Tarefas.
+const TASK_PRIORITY_DOTS: Record<TaskPriority, string> = {
+  Baixa: 'bg-slate-400',
+  Media: 'bg-sky-400',
+  Alta: 'bg-amber-400',
+  Urgente: 'bg-red-400',
 }
+
+// Mesmos rótulos e cores da tela de Tarefas, para o seletor não divergir.
+const TASK_PRIORITIES: readonly TaskPriority[] = ['Baixa', 'Media', 'Alta', 'Urgente']
+
+const TASK_PRIORITY_LABELS: Record<TaskPriority, string> = {
+  Baixa: 'Baixa',
+  Media: 'Média',
+  Alta: 'Alta',
+  Urgente: 'Urgente',
+}
+
+const TASK_PRIORITY_TEXT: Record<TaskPriority, string> = {
+  Baixa: 'text-slate-400',
+  Media: 'text-sky-400',
+  Alta: 'text-amber-400',
+  Urgente: 'text-red-400',
+}
+
+// Atalho para a tela completa do módulo, no canto do cabeçalho de seção.
+function VerTudo({ to }: { to: string }) {
+  return (
+    <Link
+      to={to}
+      className="text-xs font-medium text-slate-500 transition hover:text-brand-green"
+    >
+      Ver tudo
+    </Link>
+  )
+}
+
+function EmptyBlock({ children }: { children: ReactNode }) {
+  return (
+    <div className="rounded-md bg-surface px-4 py-5 text-center text-sm text-slate-400 ring-1 ring-line">
+      {children}
+    </div>
+  )
+}
+
+// (describeWorkout foi removido: a seção de Treino do dashboard agora mostra
+// só o plano, sem dados numéricos de execução.)
 
 function LoadingState() {
   return (
     <div className="flex flex-col gap-4" aria-busy="true" aria-label="Carregando">
-      <div className="h-28 animate-pulse rounded-2xl bg-white/5" />
-      <div className="h-16 animate-pulse rounded-2xl bg-white/5" />
-      <div className="h-14 animate-pulse rounded-xl bg-white/5" />
-      <div className="h-14 animate-pulse rounded-xl bg-white/5" />
+      <div className="h-28 animate-pulse rounded-md bg-surface" />
+      <div className="h-16 animate-pulse rounded-md bg-surface" />
+      <div className="h-14 animate-pulse rounded-md bg-surface" />
+      <div className="h-14 animate-pulse rounded-md bg-surface" />
     </div>
   )
 }
 
 export function Hoje() {
   const [score, setScore] = useState<DailyScoreResponse | null>(null)
+  const [workoutPlan, setWorkoutPlan] = useState<
+    WorkoutPlanDayResponse[] | null
+  >(null)
   const [streak, setStreak] = useState<StreakStatusResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -92,15 +149,21 @@ export function Hoje() {
   // Fila de celebrações: exibimos uma por vez e vamos consumindo pela frente.
   const [milestones, setMilestones] = useState<PendingMilestoneResponse[]>([])
   const [acknowledging, setAcknowledging] = useState(false)
+  // Qual tarefa está em voo — só a linha tocada trava.
+  const [pendingTaskId, setPendingTaskId] = useState<string | null>(null)
 
   // Prévias dos módulos. null = a chamada falhou; o card mostra indisponível em
   // vez de sumir, para a ausência não parecer "sem dados".
   const [balance, setBalance] = useState<BalanceResponse | null>(null)
-  const [workouts, setWorkouts] = useState<WorkoutResponse[] | null>(null)
   const [tasks, setTasks] = useState<TaskResponse[] | null>(null)
   // Saldo começa oculto: o dashboard abre logo ao entrar no app, muitas vezes em
   // público. Estado só de sessão, não persistido.
   const [balanceVisible, setBalanceVisible] = useState(false)
+  // Aba ativa da seção Foco.
+  const [focusTab, setFocusTab] = useState<'habitos' | 'tarefas'>('habitos')
+  // Aba ativa da seção Treino.
+  const [workoutTab, setWorkoutTab] = useState<WorkoutType>('Academia')
+  const [summary, setSummary] = useState<WeeklyFinanceSummaryResponse | null>(null)
 
   // Criação de foco.
   const [formOpen, setFormOpen] = useState(false)
@@ -111,6 +174,14 @@ export function Hoje() {
   // sem tocar na tela de novo.
   const nameInputRef = useRef<HTMLInputElement>(null)
 
+  // Criação de tarefa, dentro da aba Tarefas.
+  const [taskFormOpen, setTaskFormOpen] = useState(false)
+  const [newTaskTitle, setNewTaskTitle] = useState('')
+  const [newTaskPriority, setNewTaskPriority] = useState<TaskPriority>('Media')
+  const [creatingTask, setCreatingTask] = useState(false)
+  const [taskError, setTaskError] = useState<string | null>(null)
+  const taskInputRef = useRef<HTMLInputElement>(null)
+
   // Só busca, não mexe em estado: assim o efeito abaixo consegue adiar todo
   // setState para depois do await, como a regra react-hooks/set-state-in-effect
   // exige, e a mesma função serve ao "tentar de novo".
@@ -120,20 +191,21 @@ export function Hoje() {
     // score e streak são o núcleo: sem eles a tela não tem o que mostrar, então
     // a falha deles derruba o carregamento. As três prévias passam por
     // optional() — cada uma degrada sozinha sem levar o dashboard junto.
-    const [scoreData, streakData, balanceData, workoutsData, tasksData] =
+    const [scoreData, streakData, balanceData, tasksData, planData, summaryData] =
       await Promise.all([
         getDailyScore(),
         getStreakStatus(),
         optional(getBalance()),
-        optional(getWorkouts()),
         optional(getTasksForDay()),
+        optional(getWorkoutPlan()),
+        optional(getWeeklySummary()),
       ])
 
     // Depois, nunca junto: é o acerto rodado dentro do GET /api/streak que grava
     // os marcos. Em paralelo, um marco criado agora poderia não estar na lista.
     const pending = await getPendingMilestones()
 
-    return { scoreData, streakData, balanceData, workoutsData, tasksData, pending }
+    return { scoreData, streakData, balanceData, tasksData, planData, summaryData, pending }
   }, [])
 
   useEffect(() => {
@@ -148,8 +220,9 @@ export function Hoje() {
         setScore(result.scoreData)
         setStreak(result.streakData)
         setBalance(result.balanceData)
-        setWorkouts(result.workoutsData)
         setTasks(result.tasksData)
+        setWorkoutPlan(result.planData)
+        setSummary(result.summaryData)
         setMilestones(result.pending)
       } catch (err) {
         if (!active) return
@@ -177,8 +250,9 @@ export function Hoje() {
       setScore(result.scoreData)
       setStreak(result.streakData)
       setBalance(result.balanceData)
-      setWorkouts(result.workoutsData)
       setTasks(result.tasksData)
+      setWorkoutPlan(result.planData)
+        setSummary(result.summaryData)
       setMilestones(result.pending)
     } catch (err) {
       setError(getApiErrorMessage(err, {}, 'Não foi possível carregar seu dia.'))
@@ -279,6 +353,54 @@ export function Hoje() {
     setCreateError(null)
   }
 
+  // Mesmo comportamento da tela de Tarefas: a resposta do PATCH substitui o
+  // item. Aqui nada é derivado (o score do dia é de focos, não de tarefas),
+  // então não há o que reconciliar.
+  async function handleToggleTask(taskId: string) {
+    setPendingTaskId(taskId)
+    setError(null)
+
+    try {
+      const updated = await toggleTaskCompleted(taskId)
+      setTasks((current) =>
+        current
+          ? current.map((task) => (task.id === updated.id ? updated : task))
+          : current,
+      )
+    } catch (err) {
+      setError(
+        getApiErrorMessage(err, {}, 'Não foi possível atualizar a tarefa.'),
+      )
+    } finally {
+      setPendingTaskId(null)
+    }
+  }
+
+  async function handleCreateTask(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    const title = newTaskTitle.trim()
+    if (!title) return
+
+    setCreatingTask(true)
+    setTaskError(null)
+
+    try {
+      // Sem data: o backend usa hoje no fuso do usuário, que é exatamente o dia
+      // que esta lista mostra.
+      const created = await createTask(title, newTaskPriority)
+      setTasks((current) => (current ? [...current, created] : [created]))
+      setNewTaskTitle('')
+      taskInputRef.current?.focus()
+    } catch (err) {
+      setTaskError(
+        getApiErrorMessage(err, {}, 'Não foi possível criar a tarefa.'),
+      )
+    } finally {
+      setCreatingTask(false)
+    }
+  }
+
   async function handleAcknowledgeMilestone() {
     const current = milestones[0]
     if (!current) return
@@ -329,121 +451,117 @@ export function Hoje() {
   // "Hoje" vem do servidor (score.date, já no fuso do usuário) e não do
   // navegador: o dispositivo pode estar em outro fuso — viagem, VPN — e a
   // comparação daria falso negativo bem na virada do dia.
-  const latestWorkout = workouts?.[0]
-  const todayWorkout =
-    latestWorkout && latestWorkout.date === score.date ? latestWorkout : null
+  // getTasksForDay já devolve só as de hoje.
+  const todayTasks = tasks ?? []
 
-  const pendingTasks = tasks?.filter((task) => !task.completed).length ?? 0
+  // Exercícios planejados para hoje.
+  const todayPlanExercises =
+    workoutPlan?.find((day) => day.dayOfWeek === todayWeekDay())?.exercises ?? []
+
+  const tabExercises = todayPlanExercises.filter(
+    (exercise) => exercise.type === workoutTab,
+  )
+
+  // Label do plano para o dia da semana corrente. Vazio ou só espaços conta
+  // como "sem plano", igual à regra do backend.
+  const todayPlanLabel =
+    workoutPlan
+      ?.find((day) => day.dayOfWeek === todayWeekDay())
+      ?.label?.trim() || null
 
   return (
     <div className="flex flex-col gap-5">
-      <header>
-        <h1 className="font-display text-3xl tracking-tight">Hoje</h1>
-        <p className="mt-1 text-sm text-slate-400 first-letter:uppercase">
-          {formatDayLabel(score.date)}
-        </p>
+      {/* Cabeçalho: data à esquerda, streak como pill discreta à direita — o
+          foguinho deixou de ser o card dominante da tela. */}
+      <header className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="glow-ink font-display text-3xl font-semibold tracking-tight text-ink">Hoje</h1>
+          <p className="mt-1 text-sm text-slate-500 first-letter:uppercase">
+            {formatDayLabel(score.date)}
+          </p>
+        </div>
+        <div className="pt-1.5">
+          <StreakPill
+            days={streak.displayCount}
+            freezes={streak.freezesAvailable}
+          />
+        </div>
       </header>
 
-      {/*
-        CARD DO FOGUINHO
-        Superfície elevada no estado normal; preenchimento sólido em brand-green
-        só quando a meta do dia é batida. Verde sólido é o sinal mais forte da
-        tela e fica reservado para ação (botão) e conquista — se fosse o fundo
-        padrão do card, perderia o significado e brigaria com o botão primário.
-      */}
-      <section
-        className={[
-          'flex items-center justify-between rounded-2xl px-5 py-4 transition',
-          streak.todayGoalMet
-            ? 'bg-brand-green text-brand-dark'
-            : 'bg-white/5 text-slate-100 ring-1 ring-white/10',
-        ].join(' ')}
-      >
-        <div className="flex items-center gap-3">
-          <Flame
-            size={36}
-            strokeWidth={2}
-            aria-hidden="true"
-            className={streak.todayGoalMet ? 'text-brand-dark' : 'text-brand-green'}
-          />
-          <div>
-            <p className="text-4xl leading-none font-semibold tabular-nums">
-              {streak.displayCount}
+      {/* PROGRESSO DO DIA — anel no lugar da barra: o número no centro vira o
+          ponto focal da tela, e o arco só o contextualiza. */}
+      {/* Único card que mantém canto bem arredondado: é a peça principal da
+          tela e o arredondamento reforça a forma circular do anel. */}
+      <section className="flex items-center gap-5 rounded-2xl bg-surface px-5 py-5 ring-1 ring-line">
+        <ProgressRing
+          percent={percent}
+          value={`${percent}%`}
+          label="Hoje"
+          accent={score.goalMet}
+        />
+
+        <div className="min-w-0">
+          <SectionHeader>Meta do dia</SectionHeader>
+          {score.goalMet ? (
+            <p className="glow-text mt-1.5 flex items-center gap-1.5 text-sm font-medium text-brand-green">
+              <Sparkles size={14} aria-hidden="true" />
+              Meta batida
             </p>
-            <p
+          ) : (
+            <p className="mt-1.5 text-sm text-slate-400 tabular-nums">
+              {score.pointsEarned} de {score.pointsPossible} pontos
+            </p>
+          )}
+          <p className="mt-1 text-xs text-slate-500">
+            {score.focuses.filter((focus) => focus.completed).length} de{' '}
+            {score.focuses.length} focos concluídos
+          </p>
+        </div>
+      </section>
+
+      {/*
+        FOCO — hábitos e tarefas debaixo do mesmo header, alternados por abas.
+        Os dois respondem à mesma pergunta ("o que eu preciso fazer hoje?"), e
+        separá-los em duas seções fazia a tela repetir a mesma estrutura duas
+        vezes seguidas. As listas e seus comportamentos não mudaram.
+      */}
+      <section className="flex flex-col gap-2">
+        <SectionHeader>Foco</SectionHeader>
+
+        <div role="tablist" className="flex gap-1 rounded-md bg-surface p-1">
+          {(
+            [
+              { key: 'habitos' as const, label: 'Hábitos', count: score.focuses.length },
+              { key: 'tarefas' as const, label: 'Tarefas', count: todayTasks.length },
+            ]
+          ).map((option) => (
+            <button
+              key={option.key}
+              type="button"
+              role="tab"
+              aria-selected={focusTab === option.key}
+              onClick={() => setFocusTab(option.key)}
               className={[
-                'mt-1 text-xs',
-                streak.todayGoalMet ? 'text-brand-dark/70' : 'text-slate-400',
+                'flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition',
+                focusTab === option.key
+                  ? 'bg-surface-hi text-ink'
+                  : 'text-slate-400 hover:text-slate-200',
               ].join(' ')}
             >
-              {streak.displayCount === 1 ? 'dia seguido' : 'dias seguidos'}
-            </p>
-          </div>
+              {option.label}
+              {option.count > 0 && (
+                <span className="rounded-full bg-surface px-1.5 py-0.5 text-[10px] font-semibold tabular-nums">
+                  {option.count}
+                </span>
+              )}
+            </button>
+          ))}
         </div>
 
-        {/* Freezes: informação de apoio, então fica discreta ao lado. */}
-        <div
-          className={[
-            'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm',
-            streak.todayGoalMet ? 'bg-brand-dark/10' : 'bg-white/5',
-          ].join(' ')}
-          title={`${streak.freezesAvailable} freeze(s) disponível(is)`}
-        >
-          <Snowflake size={16} aria-hidden="true" />
-          <span className="font-medium tabular-nums">
-            {streak.freezesAvailable}
-          </span>
-          <span className="sr-only">freezes disponíveis</span>
-        </div>
-      </section>
-
-      {/* PROGRESSO DO DIA */}
-      <section className="rounded-2xl bg-white/5 px-5 py-4 ring-1 ring-white/10">
-        <div className="flex items-baseline justify-between">
-          <h2 className="text-sm font-medium text-slate-300">Meta do dia</h2>
-          <span className="text-sm font-semibold tabular-nums">{percent}%</span>
-        </div>
-
-        <div
-          className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-white/10"
-          role="progressbar"
-          aria-valuenow={percent}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-label="Progresso da meta do dia"
-        >
-          {/* Meta batida muda a cor de verde apagado para o verde pleno. */}
-          <div
-            className={[
-              'h-full rounded-full transition-all duration-300',
-              score.goalMet ? 'bg-brand-green' : 'bg-brand-green/50',
-            ].join(' ')}
-            style={{ width: `${percent}%` }}
-          />
-        </div>
-
-        <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-400">
-          {score.goalMet ? (
-            <>
-              <Sparkles size={14} className="text-brand-green" aria-hidden="true" />
-              <span className="font-medium text-brand-green">
-                Meta batida hoje
-              </span>
-            </>
-          ) : (
-            <span className="tabular-nums">
-              {score.pointsEarned} de {score.pointsPossible} pontos
-            </span>
-          )}
-        </p>
-      </section>
-
-      {/* LISTA DE FOCOS */}
-      <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-medium text-slate-300">Seus focos</h2>
-
-        {hasFocuses ? (
-          <ul className="flex flex-col gap-2">
+        {focusTab === 'habitos' ? (
+          <>
+            {hasFocuses ? (
+          <ul className="divide-y divide-line overflow-hidden rounded-md bg-surface ring-1 ring-line">
             {score.focuses.map((focus) => {
               const pending = pendingFocusId === focus.focusId
               return (
@@ -458,26 +576,16 @@ export function Hoje() {
                     aria-checked={focus.completed}
                     disabled={pending}
                     onClick={() => handleToggle(focus.focusId)}
-                    className="flex w-full items-center gap-3 rounded-xl bg-white/5 px-4 py-3.5 text-left ring-1 ring-white/10 transition hover:bg-white/10 disabled:opacity-50"
+                    className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition hover:bg-surface-hi disabled:opacity-50"
                   >
-                    <span
-                      aria-hidden="true"
-                      className={[
-                        'flex size-6 shrink-0 items-center justify-center rounded-md border-2 transition',
-                        focus.completed
-                          ? 'border-brand-green bg-brand-green text-brand-dark'
-                          : 'border-white/25',
-                      ].join(' ')}
-                    >
-                      {focus.completed && <Check size={16} strokeWidth={3} />}
-                    </span>
+                    <CheckCircle checked={focus.completed} />
 
                     <span
                       className={[
                         'flex-1 transition',
                         focus.completed
                           ? 'text-slate-400 line-through'
-                          : 'text-slate-100',
+                          : 'text-ink',
                       ].join(' ')}
                     >
                       {focus.name}
@@ -492,7 +600,7 @@ export function Hoje() {
             })}
           </ul>
         ) : (
-          <div className="rounded-2xl bg-white/5 px-5 py-8 text-center ring-1 ring-white/10">
+          <div className="rounded-md bg-surface px-5 py-8 text-center ring-1 ring-line">
             <p className="font-medium text-slate-200">
               Você ainda não tem focos.
             </p>
@@ -512,7 +620,7 @@ export function Hoje() {
         {formOpen ? (
           <form
             onSubmit={handleCreateFocus}
-            className="flex flex-col gap-2 rounded-xl bg-white/5 p-3 ring-1 ring-white/10"
+            className="flex flex-col gap-2 rounded-md bg-surface p-3 ring-1 ring-line"
           >
             <label htmlFor="novo-foco" className="sr-only">
               Nome do foco
@@ -529,7 +637,7 @@ export function Hoje() {
               autoFocus
               maxLength={100}
               placeholder="Ex: beber água"
-              className="w-full rounded-xl bg-white/5 px-4 py-3 text-slate-100 ring-1 ring-white/10 transition outline-none placeholder:text-slate-500 focus:ring-2 focus:ring-brand-green"
+              className="w-full rounded-md bg-surface px-4 py-3 text-ink ring-1 ring-line transition outline-none placeholder:text-slate-500 focus:ring-2 focus:ring-brand-green"
             />
 
             <div className="flex gap-2">
@@ -544,7 +652,7 @@ export function Hoje() {
               <button
                 type="button"
                 onClick={closeFocusForm}
-                className="rounded-xl px-4 py-2.5 font-medium text-slate-400 transition hover:bg-white/5 hover:text-slate-200"
+                className="rounded-md px-4 py-2.5 font-medium text-slate-400 transition hover:bg-surface hover:text-slate-200"
               >
                 Fechar
               </button>
@@ -562,78 +670,283 @@ export function Hoje() {
           <button
             type="button"
             onClick={() => setFormOpen(true)}
-            className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-white/15 text-sm font-medium text-slate-400 transition hover:border-white/25 hover:bg-white/5 hover:text-slate-200"
+            className="flex min-h-12 w-full items-center justify-center gap-2 rounded-md border-2 border-dashed border-line text-sm font-medium text-slate-400 transition hover:border-slate-600 hover:bg-surface hover:text-slate-200"
           >
             <Plus size={18} aria-hidden="true" />
             Adicionar foco
           </button>
         )}
+          </>
+        ) : (
+          // ABA TAREFAS — mesma lista e mesmo toggle de antes, agora aqui dentro.
+          <>
+            {tasks === null ? (
+              <EmptyBlock>Tarefas indisponíveis agora.</EmptyBlock>
+            ) : todayTasks.length > 0 ? (
+              <ul className="divide-y divide-line overflow-hidden rounded-md bg-surface ring-1 ring-line">
+                {todayTasks.map((task) => (
+                  <li key={task.id}>
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={task.completed}
+                      disabled={pendingTaskId === task.id}
+                      onClick={() => handleToggleTask(task.id)}
+                      className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition hover:bg-surface-hi disabled:opacity-50"
+                    >
+                      <CheckCircle checked={task.completed} />
+                      <span
+                        className={[
+                          'min-w-0 flex-1 truncate transition',
+                          task.completed
+                            ? 'text-slate-400 line-through'
+                            : 'text-ink',
+                        ].join(' ')}
+                      >
+                        {task.title}
+                      </span>
+                      <span
+                        aria-hidden="true"
+                        className={`size-1.5 shrink-0 rounded-full ${TASK_PRIORITY_DOTS[task.priority]}`}
+                      />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <EmptyBlock>Nenhuma tarefa para hoje.</EmptyBlock>
+            )}
+
+            {/* Mesmo padrão do formulário de foco: permanece aberto após criar,
+                com prioridade preservada, porque quem lista tarefas costuma
+                lançar várias seguidas. */}
+            {taskFormOpen ? (
+              <form
+                onSubmit={handleCreateTask}
+                className="flex flex-col gap-2 rounded-md bg-surface p-3 ring-1 ring-line"
+              >
+                <label htmlFor="nova-tarefa-hoje" className="sr-only">
+                  Título da tarefa
+                </label>
+                <input
+                  id="nova-tarefa-hoje"
+                  ref={taskInputRef}
+                  type="text"
+                  value={newTaskTitle}
+                  onChange={(event) => {
+                    setNewTaskTitle(event.target.value)
+                    if (taskError !== null) setTaskError(null)
+                  }}
+                  autoFocus
+                  maxLength={500}
+                  placeholder="Ex: pagar a conta de luz"
+                  className="w-full rounded-md bg-surface px-4 py-3 text-ink ring-1 ring-line transition outline-none placeholder:text-slate-500 focus:ring-2 focus:ring-brand-green"
+                />
+
+                <Segmented
+                  label="Prioridade"
+                  options={TASK_PRIORITIES}
+                  value={newTaskPriority}
+                  onChange={setNewTaskPriority}
+                  labels={TASK_PRIORITY_LABELS}
+                  activeColors={TASK_PRIORITY_TEXT}
+                />
+
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={creatingTask || newTaskTitle.trim().length === 0}
+                    className="flex-1 rounded-xl bg-brand-green px-4 py-2.5 font-semibold text-brand-dark transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {creatingTask ? 'Salvando...' : 'Adicionar'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTaskFormOpen(false)
+                      setNewTaskTitle('')
+                      setTaskError(null)
+                    }}
+                    className="rounded-md px-4 py-2.5 font-medium text-slate-400 transition hover:bg-surface hover:text-slate-200"
+                  >
+                    Fechar
+                  </button>
+                </div>
+
+                {taskError && (
+                  <p role="alert" className="text-sm text-red-300">
+                    {taskError}
+                  </p>
+                )}
+              </form>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setTaskFormOpen(true)}
+                className="flex min-h-12 w-full items-center justify-center gap-2 rounded-md border-2 border-dashed border-line text-sm font-medium text-slate-400 transition hover:border-slate-600 hover:bg-surface hover:text-slate-200"
+              >
+                <Plus size={18} aria-hidden="true" />
+                Adicionar tarefa
+              </button>
+            )}
+
+            <VerTudo to="/tarefas" />
+          </>
+        )}
       </section>
 
-      {/* PRÉVIAS DOS MÓDULOS — cada card leva à tela completa. */}
-      <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium text-slate-300">Resumo</h2>
+      <ReflectionCard />
 
-        <PreviewCard
-          to="/financas"
-          title="Finanças"
-          icon={Wallet}
-          action={
-            <button
-              type="button"
-              onClick={() => setBalanceVisible((visible) => !visible)}
-              aria-pressed={balanceVisible}
-              aria-label={balanceVisible ? 'Ocultar saldo' : 'Mostrar saldo'}
-              className="rounded-lg p-1.5 text-slate-400 transition hover:bg-white/10 hover:text-slate-200"
-            >
-              {balanceVisible ? <Eye size={16} /> : <EyeOff size={16} />}
-            </button>
-          }
-        >
-          {balance ? (
-            <p className="text-2xl font-semibold tabular-nums">
-              {balanceVisible
-                ? formatCurrency(balance.currentBalance)
-                : 'R$ ••••••'}
-            </p>
-          ) : (
-            <p className="text-sm text-slate-500">Saldo indisponível agora.</p>
-          )}
-        </PreviewCard>
+      {/*
+        TREINO — agora só o PLANEJADO para hoje, não o histórico real. O que foi
+        de fato registrado continua na tela Treino, a um toque do "Ver tudo": o
+        dashboard responde "o que fazer", não "o que já fiz".
+      */}
+      <section className="flex flex-col gap-2">
+        <SectionHeader trailing={<VerTudo to="/treino" />}>Treino</SectionHeader>
 
-        <PreviewCard to="/treino" title="Treino" icon={Dumbbell}>
-          {workouts === null ? (
-            <p className="text-sm text-slate-500">Treinos indisponíveis agora.</p>
-          ) : todayWorkout ? (
-            <div>
-              <p className="font-medium">{describeWorkout(todayWorkout)}</p>
-              <p className="mt-0.5 text-xs text-slate-400">
-                {todayWorkout.type}
-              </p>
-            </div>
-          ) : (
-            <p className="text-sm text-slate-400">Nenhum treino hoje.</p>
-          )}
-        </PreviewCard>
+        {todayPlanLabel && (
+          <p className="text-sm text-slate-500">{todayPlanLabel}</p>
+        )}
 
-        <PreviewCard to="/tarefas" title="Tarefas" icon={ListChecks}>
-          {tasks === null ? (
-            <p className="text-sm text-slate-500">Tarefas indisponíveis agora.</p>
-          ) : pendingTasks > 0 ? (
-            <p className="font-medium">
-              {pendingTasks}{' '}
-              {pendingTasks === 1
-                ? 'tarefa pendente hoje'
-                : 'tarefas pendentes hoje'}
-            </p>
-          ) : tasks.length > 0 ? (
-            // Havia tarefas e todas foram concluídas: isso é conquista, não vazio.
-            <p className="font-medium text-brand-green">Tudo em dia!</p>
-          ) : (
-            <p className="text-sm text-slate-400">Nenhuma tarefa para hoje.</p>
-          )}
-        </PreviewCard>
+        {/* Abas por modalidade, mesmo padrão da seção Foco. */}
+        <div role="tablist" className="flex gap-1 rounded-md bg-surface p-1">
+          {WORKOUT_TABS.map((option) => {
+            const count = todayPlanExercises.filter(
+              (exercise) => exercise.type === option,
+            ).length
+
+            return (
+              <button
+                key={option}
+                type="button"
+                role="tab"
+                aria-selected={workoutTab === option}
+                onClick={() => setWorkoutTab(option)}
+                className={[
+                  'flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition',
+                  workoutTab === option
+                    ? 'bg-surface-hi text-ink'
+                    : 'text-slate-400 hover:text-slate-200',
+                ].join(' ')}
+              >
+                {option}
+                {count > 0 && (
+                  <span className="rounded-full bg-surface px-1.5 py-0.5 text-[10px] font-semibold tabular-nums">
+                    {count}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+
+        {tabExercises.length > 0 ? (
+          <ul className="divide-y divide-line overflow-hidden rounded-md bg-surface ring-1 ring-line">
+            {tabExercises.map((exercise) => (
+              <li
+                key={exercise.id}
+                className="flex items-center gap-3 px-4 py-3.5"
+              >
+                {workoutTab === 'Academia' ? (
+                  <Dumbbell
+                    size={16}
+                    className="shrink-0 text-slate-500"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <Footprints
+                    size={16}
+                    className="shrink-0 text-slate-500"
+                    aria-hidden="true"
+                  />
+                )}
+                <span className="min-w-0 flex-1 truncate text-ink">
+                  {formatPlannedExercise(
+                    exercise.exerciseName,
+                    exercise.sets,
+                    exercise.reps,
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <EmptyBlock>
+            {workoutTab === 'Academia'
+              ? 'Nenhuma academia planejada para hoje.'
+              : 'Nenhuma corrida planejada para hoje.'}
+          </EmptyBlock>
+        )}
       </section>
+
+      {/* FINANÇAS — sem o header genérico "Resumo": o card já se identifica. */}
+      <PreviewCard
+        to="/financas"
+        title="Finanças"
+        icon={Wallet}
+        action={
+          <button
+            type="button"
+            onClick={() => setBalanceVisible((visible) => !visible)}
+            aria-pressed={balanceVisible}
+            aria-label={balanceVisible ? 'Ocultar valores' : 'Mostrar valores'}
+            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-surface-hi hover:text-slate-200"
+          >
+            {balanceVisible ? <Eye size={16} /> : <EyeOff size={16} />}
+          </button>
+        }
+      >
+        {balance ? (
+          <>
+            {/* Saldo bem maior que as linhas de fluxo: a hierarquia de tamanho
+                é o que diz, sem rótulo, qual número é o principal. */}
+            <p className="glow-ink text-4xl font-semibold text-ink tabular-nums">
+              {balanceVisible ? formatCurrency(balance.currentBalance) : MASKED}
+            </p>
+
+            {/* Entradas e saídas DO PERÍODO (semana), não acumuladas — por isso
+                vêm do resumo semanal e não do saldo. O mesmo olho governa as
+                três linhas: esconder só o saldo deixaria o resto a descoberto.
+
+                Ícone colado ao valor (gap-1), sem rótulo: a seta de tendência já
+                diz entrada ou saída, e "Entradas"/"Saídas" seria redundância. */}
+            {summary && (
+              <div className="mt-2 flex items-center gap-4 text-sm">
+                <span className="flex items-center gap-1">
+                  <TrendingUp
+                    size={15}
+                    className="shrink-0 text-brand-green"
+                    aria-hidden="true"
+                  />
+                  <span className="sr-only">Entradas da semana:</span>
+                  <span className="text-slate-300 tabular-nums">
+                    {balanceVisible
+                      ? formatCurrency(summary.periodTotalIn)
+                      : MASKED}
+                  </span>
+                </span>
+
+                <span className="flex items-center gap-1">
+                  <TrendingDown
+                    size={15}
+                    className="shrink-0 text-red-400"
+                    aria-hidden="true"
+                  />
+                  <span className="sr-only">Saídas da semana:</span>
+                  <span className="text-slate-300 tabular-nums">
+                    {balanceVisible
+                      ? formatCurrency(summary.periodTotalOut)
+                      : MASKED}
+                  </span>
+                </span>
+              </div>
+            )}
+          </>
+        ) : (
+          <p className="text-sm text-slate-500">Saldo indisponível agora.</p>
+        )}
+      </PreviewCard>
 
       {/* Falha de check-in: o conteúdo continua na tela, só o aviso aparece. */}
       {error && score && (

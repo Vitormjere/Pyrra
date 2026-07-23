@@ -1,3 +1,5 @@
+import type { WeekDay } from './plan'
+
 // Espelha os DTOs de Pyrra.Api/Dtos/Treinos.
 
 export type WorkoutType = 'Academia' | 'Corrida'
@@ -37,4 +39,24 @@ export interface CreateWorkoutPayload {
   distanceKm?: number | null
   durationMinutes?: number | null
   notes?: string | null
+}
+
+// Exercício planejado. O campo Order não é exposto: a lista já chega na ordem
+// certa, e a posição é detalhe interno do backend.
+export interface WorkoutPlanExerciseResponse {
+  id: string
+  type: WorkoutType
+  /** Em Academia é o exercício; em Corrida, a descrição curta do treino. */
+  exerciseName: string
+  /** Só preenchidos em Academia. */
+  sets: number | null
+  reps: number | null
+}
+
+// GET/PUT /api/treinos/plano — sempre os 7 dias, Segunda→Domingo.
+// label nulo/vazio = "sem plano definido", NÃO descanso.
+export interface WorkoutPlanDayResponse {
+  dayOfWeek: WeekDay
+  label: string | null
+  exercises: WorkoutPlanExerciseResponse[]
 }

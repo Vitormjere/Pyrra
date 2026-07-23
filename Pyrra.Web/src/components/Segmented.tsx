@@ -22,7 +22,7 @@ export function Segmented<T extends string>({
   return (
     <fieldset>
       <legend className="sr-only">{label}</legend>
-      <div className="flex gap-1 rounded-xl bg-white/5 p-1">
+      <div className="flex gap-1 rounded-md bg-surface p-1">
         {options.map((option) => {
           const active = option === value
           return (
@@ -34,7 +34,7 @@ export function Segmented<T extends string>({
               className={[
                 'flex-1 rounded-lg px-2 py-2 text-xs font-medium transition',
                 active
-                  ? `bg-white/10 ${activeColors?.[option] ?? 'text-slate-100'}`
+                  ? `bg-surface-hi ${activeColors?.[option] ?? 'text-ink'}`
                   : 'text-slate-400 hover:text-slate-200',
               ].join(' ')}
             >

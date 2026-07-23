@@ -1,3 +1,5 @@
+import type { WeekDay } from './plan'
+
 // Espelha os DTOs de Pyrra.Api/Dtos/Nutricao.
 
 // Valores exatos do enum MealType do backend — sem underscores. A ORDEM é
@@ -32,4 +34,21 @@ export interface WeekNutritionResponse {
   weekStart: string
   weekEnd: string
   days: DayNutritionResponse[]
+}
+
+// GET /api/nutricao/plano — grade completa 7 dias x 4 refeições, mesmo vazias.
+export interface NutritionPlanItemResponse {
+  id: string
+  itemName: string
+  quantity: string
+}
+
+export interface PlanMealGroupResponse {
+  meal: MealType
+  items: NutritionPlanItemResponse[]
+}
+
+export interface PlanDayResponse {
+  day: WeekDay
+  meals: PlanMealGroupResponse[]
 }

@@ -41,6 +41,14 @@ export interface WeeklyFinanceSummaryResponse {
   entries: FinanceEntryResponse[]
 }
 
+// GET /api/financas/historico — um ponto por dia, terminando hoje. Dias sem
+// lançamento repetem o saldo anterior, então a série nunca tem buracos.
+export interface DailyBalanceResponse {
+  /** DateOnly serializado como "YYYY-MM-DD". */
+  date: string
+  balance: number
+}
+
 // POST /api/financas/lancamentos. amount é sempre POSITIVO: o sinal vem do type.
 export interface CreateFinanceEntryPayload {
   categoryId: string

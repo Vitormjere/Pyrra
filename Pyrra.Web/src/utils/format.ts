@@ -71,3 +71,18 @@ const numberFormatter = new Intl.NumberFormat('pt-BR', {
 export function formatNumber(value: number): string {
   return numberFormatter.format(value)
 }
+
+/**
+ * Rótulo de um exercício planejado: "Supino reto — 4x10", ou só o nome quando
+ * não há séries/repetições (caso de Corrida, ou de Academia sem detalhe).
+ * Compartilhado entre a tela Treino e o dashboard, para os dois exibirem a
+ * mesma coisa.
+ */
+export function formatPlannedExercise(
+  exerciseName: string,
+  sets: number | null,
+  reps: number | null,
+): string {
+  if (sets === null || reps === null) return exerciseName
+  return `${exerciseName} — ${sets}x${reps}`
+}

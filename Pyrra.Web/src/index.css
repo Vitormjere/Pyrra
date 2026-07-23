@@ -1,9 +1,41 @@
-/* Fontes antes de tudo: regras @import precisam vir no topo do arquivo CSS.
-   Panchang (Fontshare) para marca/títulos, Inter (Google Fonts) para interface. */
-@import url('https://api.fontshare.com/v2/css?f[]=panchang@700,600&display=swap');
+/* Fontes antes de tudo: regras @import precisam vir no topo do arquivo CSS. */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
 
 @import "tailwindcss";
+
+/*
+  Panchang hospedada no próprio projeto (public/fonts/).
+
+  Histórico, porque a falha original foi difícil de enxergar: usávamos
+  @import da api.fontshare.com, que passou a responder "Access to the Fontshare
+  API has been temporarily restricted" — um CSS VÁLIDO contendo apenas um
+  comentário. Como vinha com 200 e sintaxe correta, não havia erro em lugar
+  nenhum: simplesmente não existia @font-face, e font-display caía no fallback
+  (ui-sans-serif), que se parece com a Inter.
+
+  Depois apontamos direto para o cdn.fontshare.com, mas aqueles caminhos têm
+  hash gerado pela API e podem rotacionar — mesma falha silenciosa esperando
+  para acontecer. Com os arquivos locais, a fonte não depende de rede de
+  terceiros nem em build nem em runtime.
+
+  O Vite serve public/ na raiz, então /fonts/... resolve tanto em dev quanto no
+  build (os arquivos são copiados para dist/ como estão, sem hash no nome).
+*/
+@font-face {
+  font-family: 'Panchang';
+  src: url('/fonts/panchang-600.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Panchang';
+  src: url('/fonts/panchang-700.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
 
 /*
   Identidade visual do Pyrra.
@@ -16,10 +48,66 @@
 */
 @theme {
   --color-brand-green: #02F5A1;
-  --color-brand-dark: #07191E;
+
+  /*
+    Fundo quase preto. Saiu de #07191E (que tinha bastante azul-petróleo) para
+    #05090A: mantém um resíduo frio, coerente com o verde da marca, mas o
+    contraste com o verde neon fica muito maior — é o preto que faz o brilho
+    parecer brilho.
+  */
+  --color-brand-dark: #05090A;
+
+  /*
+    Escala de superfícies sólidas, recalibrada sobre o novo fundo. Substituem o
+    bg-white/5 translúcido: sobreposições de opacidade acumulam quando aninhadas
+    (um card dentro de outro clareia sem querer), enquanto valores fixos mantêm
+    a hierarquia previsível.
+
+    surface    → cards e campos
+    surface-hi → estado ativo/hover, um degrau acima
+    line       → contornos e divisores
+  */
+  --color-surface: #0D1417;
+  --color-surface-hi: #161F23;
+  --color-line: #1C282C;
+
+  /*
+    Branco de destaque. Quase puro, com um resíduo mínimo de verde que o
+    aproxima da marca sem virar cor. Reservado ao conteúdo principal — títulos,
+    números grandes, nomes de foco/tarefa/item. O apoio continua nos cinzas, que
+    é o que preserva a hierarquia: se tudo fosse vívido, nada seria.
+  */
+  --color-ink: #F4FFFB;
 
   --font-display: 'Panchang', ui-sans-serif, system-ui, sans-serif;
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+/*
+  Brilho do verde. Utilities nomeadas em vez de valores arbitrários espalhados:
+  o raio e a opacidade do glow são decisão de identidade, e mudá-los deve ser
+  uma edição só.
+
+  drop-shadow (e não box-shadow) no anel e nos ícones porque eles são SVG — o
+  box-shadow seguiria a caixa retangular do elemento, não o traço desenhado.
+*/
+@utility glow-ring {
+  filter: drop-shadow(0 0 8px rgb(2 245 161 / 0.75));
+}
+
+@utility glow-icon {
+  filter: drop-shadow(0 0 7px rgb(2 245 161 / 0.7));
+}
+
+@utility glow-text {
+  text-shadow: 0 0 13px rgb(2 245 161 / 0.62);
+}
+
+/* Glow branco, mais fraco que o verde de propósito: ele agora cobre bastante
+   texto (headers de seção, títulos de página, números), e na mesma intensidade
+   do verde a tela inteira brilharia — o efeito viraria ruído em vez de ênfase. */
+@utility glow-ink {
+  text-shadow: 0 0 14px rgb(244 255 251 / 0.38);
 }
 
 @layer base {
@@ -37,7 +125,9 @@
     color-scheme: dark;
   }
 
+  /* O padrão herdado fica um degrau abaixo do ink: quem precisa de destaque
+     pede text-ink explicitamente, e é isso que mantém a hierarquia visível. */
   body {
-    @apply bg-brand-dark font-sans text-slate-100 antialiased;
+    @apply bg-brand-dark font-sans text-slate-300 antialiased;
   }
 }

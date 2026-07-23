@@ -2,6 +2,7 @@ import api from './api'
 import type {
   BalanceResponse,
   CreateFinanceEntryPayload,
+  DailyBalanceResponse,
   FinanceCategoryResponse,
   FinanceEntryResponse,
   WeeklyFinanceSummaryResponse,
@@ -44,6 +45,18 @@ export async function createEntry(
   return data
 }
 
+// Série do saldo acumulado para o gráfico. O último ponto é hoje e bate com o
+// currentBalance do getBalance() — os dois cortam lançamentos futuros.
+export async function getBalanceHistory(
+  days = 30,
+): Promise<DailyBalanceResponse[]> {
+  const { data } = await api.get<DailyBalanceResponse[]>(
+    '/api/financas/historico',
+    { params: { dias: days } },
+  )
+  return data
+}
+
 // weekStart omitido = semana atual. Uma data no meio da semana é normalizada
 // para a segunda-feira dela pelo backend, que devolve o intervalo efetivo.
 export async function getWeeklySummary(
@@ -52,6 +65,18 @@ export async function getWeeklySummary(
   const { data } = await api.get<WeeklyFinanceSummaryResponse>(
     '/api/financas/semana',
     { params: weekStart ? { inicio: weekStart } : undefined },
+  )
+  return data
+}
+
+// Intervalo arbitrário, diferente do /semana fixo — base da Agenda.
+export async function getEntriesForRange(
+  start: string,
+  end: string,
+): Promise<FinanceEntryResponse[]> {
+  const { data } = await api.get<FinanceEntryResponse[]>(
+    '/api/financas/lancamentos',
+    { params: { inicio: start, fim: end } },
   )
   return data
 }
