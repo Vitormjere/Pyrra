@@ -15,11 +15,13 @@ using Pyrra.Application.Usuario;
 using Pyrra.Application.Streaks;
 using Pyrra.Application.Tarefas;
 using Pyrra.Application.Treinos;
+using Pyrra.Application.Zelo;
 using Pyrra.Domain.Users;
 using Pyrra.Infrastructure.Auth;
 using Pyrra.Infrastructure.Common;
 using Pyrra.Infrastructure.Data;
 using Pyrra.Infrastructure.Repositories;
+using Pyrra.Infrastructure.Zelo;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -134,6 +136,23 @@ builder.Services.AddScoped<INutritionService, NutritionService>();
 
 builder.Services.AddScoped<IUserPreferencesService, UserPreferencesService>();
 builder.Services.AddScoped<INightlyMessageService, NightlyMessageService>();
+
+// Cliente nomeado para a API da Anthropic. BaseAddress termina em / e os caminhos relativos
+// (v1/messages) não começam com /, para o Uri concatenar em vez de substituir. A x-api-key sai da
+// configuração — vazia no appsettings, preenchida por user-secrets em dev e App Settings em produção;
+// TryAddWithoutValidation aceita o valor placeholder sem quebrar o registro. Timeout curto porque a
+// resposta é curta: uma chamada que se arrasta vira erro amigável em vez de prender a requisição.
+builder.Services.AddHttpClient("AnthropicClient", client => {
+    client.BaseAddress = new Uri("https://api.anthropic.com/");
+    client.Timeout = TimeSpan.FromSeconds(30);
+    client.DefaultRequestHeaders.TryAddWithoutValidation("x-api-key", builder.Configuration["Anthropic:ApiKey"] ?? string.Empty);
+    client.DefaultRequestHeaders.TryAddWithoutValidation("anthropic-version", "2023-06-01");
+});
+
+builder.Services.AddScoped<IZeloQueryLogRepository, ZeloQueryLogRepository>();
+builder.Services.AddScoped<IZeloContextBuilder, ZeloContextBuilder>();
+builder.Services.AddScoped<IZeloAssistant, AnthropicZeloAssistant>();
+builder.Services.AddScoped<IZeloService, ZeloService>();
 
 var app = builder.Build();
 

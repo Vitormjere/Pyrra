@@ -7,6 +7,7 @@ using Pyrra.Domain.Planejamento;
 using Pyrra.Domain.Tarefas;
 using Pyrra.Domain.Treinos;
 using Pyrra.Domain.Users;
+using Pyrra.Domain.Zelo;
 
 namespace Pyrra.Infrastructure.Data {
     public class PyrraDbContext : DbContext {
@@ -30,6 +31,7 @@ namespace Pyrra.Infrastructure.Data {
         public DbSet<WorkoutPlanExercise> WorkoutPlanExercises => Set<WorkoutPlanExercise>();
         public DbSet<NutritionPlanItem> NutritionPlanItems => Set<NutritionPlanItem>();
         public DbSet<NutritionPlanSeedLog> NutritionPlanSeedLogs => Set<NutritionPlanSeedLog>();
+        public DbSet<ZeloQueryLog> ZeloQueryLogs => Set<ZeloQueryLog>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder) {
             modelBuilder.Entity<User>()
@@ -190,6 +192,12 @@ namespace Pyrra.Infrastructure.Data {
             // Uma marca por usuário/dia. O índice único é o que garante a idempotência da
             // semeadura mesmo com duas requisições simultâneas.
             modelBuilder.Entity<NutritionPlanSeedLog>()
+                .HasIndex(l => new { l.UserId, l.Date })
+                .IsUnique();
+
+            // Um contador por usuário/dia: o índice único garante no banco a semântica de upsert do
+            // ZeloQueryLogRepository, mesmo critério do DailyScore.
+            modelBuilder.Entity<ZeloQueryLog>()
                 .HasIndex(l => new { l.UserId, l.Date })
                 .IsUnique();
         }
