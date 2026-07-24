@@ -35,8 +35,17 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 
+// O Azure SQL Serverless entra em auto-pause após inatividade; a primeira conexão que o acorda
+// costuma falhar de forma transitória (erro 40613 "Database not currently available") enquanto o
+// banco volta a ficar disponível. EnableRetryOnFailure ativa a estratégia de execução resiliente do
+// EF Core, que reexecuta a operação com backoff exponencial em vez de propagar a falha na hora.
 builder.Services.AddDbContext<PyrraDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        sqlOptions => sqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(30),
+            errorNumbersToAdd: null)));
 
 // Origins vêm da configuração, nunca do código: trocar o do frontend em produção é editar o
 // appsettings do ambiente, sem recompilar. Falha alto se a seção sumir — uma lista vazia
