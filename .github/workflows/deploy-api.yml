@@ -1,0 +1,41 @@
+name: Deploy API to Azure
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'Pyrra.Api/**'
+      - 'Pyrra.Application/**'
+      - 'Pyrra.Domain/**'
+      - 'Pyrra.Infrastructure/**'
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore Pyrra.Api/Pyrra.Api.csproj
+
+      - name: Build
+        run: dotnet build Pyrra.Api/Pyrra.Api.csproj --configuration Release --no-restore
+
+      - name: Publish
+        run: dotnet publish Pyrra.Api/Pyrra.Api.csproj --configuration Release --no-build --output ./publish
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: 'pyrra-api'
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: ./publish
