@@ -34,5 +34,10 @@ namespace Pyrra.Infrastructure.Repositories {
             await _context.FinanceCategories.AddAsync(category, cancellationToken);
             await _context.SaveChangesAsync(cancellationToken);
         }
+
+        public async Task DeleteCategoryAsync(FinanceCategory category, CancellationToken cancellationToken = default) {
+            _context.FinanceCategories.Remove(category);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
     }
 }

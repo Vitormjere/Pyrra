@@ -6,9 +6,9 @@ namespace Pyrra.Api.Dtos.Financas {
     // omitir o campo garante que nenhuma resposta carregue id de dono. IsDefault já diz o que
     // interessa — se é do sistema ou criada pelo usuário.
     public record FinanceCategoryResponse(
-        Guid Id,
+        Guid   Id,
         string Name,
-        bool IsDefault) {
+        bool   IsDefault) {
         public static FinanceCategoryResponse FromEntity(FinanceCategory category) =>
             new(category.Id, category.Name, category.IsDefault);
     }

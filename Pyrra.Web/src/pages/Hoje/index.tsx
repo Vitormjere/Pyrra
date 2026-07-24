@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import CheckCircle from '../../components/CheckCircle'
 import MilestoneCelebration from '../../components/MilestoneCelebration'
+import FreezeUseNotice from '../../components/FreezeUseNotice'
 import PreviewCard from '../../components/PreviewCard'
 import ProgressRing from '../../components/ProgressRing'
 import ReflectionCard from '../../components/ReflectionCard'
@@ -29,7 +30,9 @@ import {
   updateFocus,
 } from '../../services/focusService'
 import {
+  acknowledgeFreezeUses,
   acknowledgeMilestones,
+  getPendingFreezeUses,
   getPendingMilestones,
   getStreakStatus,
 } from '../../services/streakService'
@@ -52,6 +55,7 @@ import {
 import { todayWeekDay } from '../../types/plan'
 import type { DailyScoreResponse } from '../../types/focus'
 import type {
+  PendingFreezeUseResponse,
   PendingMilestoneResponse,
   StreakStatusResponse,
 } from '../../types/streak'
@@ -152,6 +156,9 @@ export function Hoje() {
   // Fila de celebrações: exibimos uma por vez e vamos consumindo pela frente.
   const [milestones, setMilestones] = useState<PendingMilestoneResponse[]>([])
   const [acknowledging, setAcknowledging] = useState(false)
+  // Fila de avisos de freeze usado — mesma mecânica da fila de marcos.
+  const [freezeUses, setFreezeUses] = useState<PendingFreezeUseResponse[]>([])
+  const [acknowledgingFreeze, setAcknowledgingFreeze] = useState(false)
   // Qual tarefa está em voo — só a linha tocada trava.
   const [pendingTaskId, setPendingTaskId] = useState<string | null>(null)
 
@@ -212,10 +219,15 @@ export function Hoje() {
       ])
 
     // Depois, nunca junto: é o acerto rodado dentro do GET /api/streak que grava
-    // os marcos. Em paralelo, um marco criado agora poderia não estar na lista.
-    const pending = await getPendingMilestones()
+    // os marcos e os freezes usados. Em paralelo, um aviso criado agora poderia
+    // não estar na lista. Marcos e freezes já podem vir juntos entre si — o
+    // acerto já rodou no getStreakStatus() acima.
+    const [pending, pendingFreezes] = await Promise.all([
+      getPendingMilestones(),
+      getPendingFreezeUses(),
+    ])
 
-    return { scoreData, streakData, balanceData, tasksData, planData, summaryData, pending }
+    return { scoreData, streakData, balanceData, tasksData, planData, summaryData, pending, pendingFreezes }
   }, [])
 
   useEffect(() => {
@@ -234,6 +246,7 @@ export function Hoje() {
         setWorkoutPlan(result.planData)
         setSummary(result.summaryData)
         setMilestones(result.pending)
+        setFreezeUses(result.pendingFreezes)
       } catch (err) {
         if (!active) return
         setError(
@@ -264,6 +277,7 @@ export function Hoje() {
       setWorkoutPlan(result.planData)
         setSummary(result.summaryData)
       setMilestones(result.pending)
+      setFreezeUses(result.pendingFreezes)
     } catch (err) {
       setError(getApiErrorMessage(err, {}, 'Não foi possível carregar seu dia.'))
     } finally {
@@ -285,9 +299,14 @@ export function Hoje() {
       // currentCount e freezes na virada do dia, que o score sozinho não revela.
       setStreak(await getStreakStatus())
 
-      // E só então os marcos, pela mesma razão da carga inicial: quem os cria é
-      // o acerto que acabou de rodar.
-      setMilestones(await getPendingMilestones())
+      // E só então os marcos e os freezes usados, pela mesma razão da carga
+      // inicial: quem os cria é o acerto que acabou de rodar.
+      const [pending, pendingFreezes] = await Promise.all([
+        getPendingMilestones(),
+        getPendingFreezeUses(),
+      ])
+      setMilestones(pending)
+      setFreezeUses(pendingFreezes)
     } catch (err) {
       setError(
         getApiErrorMessage(err, {}, 'Não foi possível registrar o check-in.'),
@@ -520,6 +539,25 @@ export function Hoje() {
     } finally {
       setMilestones((queue) => queue.slice(1))
       setAcknowledging(false)
+    }
+  }
+
+  async function handleAcknowledgeFreezeUse() {
+    const current = freezeUses[0]
+    if (!current) return
+
+    setAcknowledgingFreeze(true)
+
+    try {
+      // Confirma SÓ o aviso exibido, mesma lógica dos marcos: fechar o app no
+      // meio da fila deixa os não vistos ainda pendentes para a próxima carga.
+      await acknowledgeFreezeUses([current.id])
+    } catch {
+      // Falhou a confirmação: reaparece na próxima carga. Avançar a fila mesmo
+      // assim é melhor que prender o usuário num modal que não fecha.
+    } finally {
+      setFreezeUses((queue) => queue.slice(1))
+      setAcknowledgingFreeze(false)
     }
   }
 
@@ -1138,6 +1176,17 @@ export function Hoje() {
           remaining={milestones.length - 1}
           submitting={acknowledging}
           onConfirm={handleAcknowledgeMilestone}
+        />
+      )}
+
+      {/* Avisos de freeze só depois de esvaziar a fila de marcos: um modal por
+          vez. Conquista (verde) primeiro, alívio (freeze) em seguida. */}
+      {milestones.length === 0 && freezeUses.length > 0 && (
+        <FreezeUseNotice
+          freezeUse={freezeUses[0]}
+          remaining={freezeUses.length - 1}
+          submitting={acknowledgingFreeze}
+          onConfirm={handleAcknowledgeFreezeUse}
         />
       )}
     </div>

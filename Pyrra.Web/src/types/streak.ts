@@ -21,6 +21,14 @@ export interface PendingMilestoneResponse {
   reachedDate: string
 }
 
+// GET /api/streak/freezes-usados-pendentes — dias perdoados por freeze que ainda
+// não foram avisados ao usuário. Carregam Id porque a confirmação pode ser seletiva.
+export interface PendingFreezeUseResponse {
+  id: string
+  /** O dia perdoado, DateOnly serializado como "YYYY-MM-DD". */
+  date: string
+}
+
 // GET /api/streak
 export interface StreakStatusResponse {
   /** Streak CONSOLIDADO: só dias passados já acertados. Não inclui hoje. */

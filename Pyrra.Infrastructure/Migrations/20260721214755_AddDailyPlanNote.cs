@@ -15,10 +15,10 @@ namespace Pyrra.Infrastructure.Migrations
                 name: "DailyPlanNotes",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Date = table.Column<DateOnly>(type: "date", nullable: false),
-                    Content = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Id        = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId    = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Date      = table.Column<DateOnly>(type: "date", nullable: false),
+                    Content   = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
@@ -27,8 +27,8 @@ namespace Pyrra.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_DailyPlanNotes_UserId_Date",
-                table: "DailyPlanNotes",
+                name:   "IX_DailyPlanNotes_UserId_Date",
+                table:  "DailyPlanNotes",
                 columns: new[] { "UserId", "Date" },
                 unique: true);
         }

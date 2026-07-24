@@ -52,9 +52,25 @@ namespace Pyrra.Infrastructure.Repositories {
             return new FinanceTotals(totalIn, totalOut);
         }
 
+        public Task<FinanceEntry?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
+            _context.FinanceEntries.FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
+
         public async Task AddEntryAsync(FinanceEntry entry, CancellationToken cancellationToken = default) {
             await _context.FinanceEntries.AddAsync(entry, cancellationToken);
             await _context.SaveChangesAsync(cancellationToken);
         }
+
+        public async Task UpdateEntryAsync(FinanceEntry entry, CancellationToken cancellationToken = default) {
+            _context.FinanceEntries.Update(entry);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+
+        public async Task DeleteEntryAsync(FinanceEntry entry, CancellationToken cancellationToken = default) {
+            _context.FinanceEntries.Remove(entry);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+
+        public Task<bool> AnyByCategoryAsync(Guid userId, Guid categoryId, CancellationToken cancellationToken = default) =>
+            _context.FinanceEntries.AnyAsync(e => e.UserId == userId && e.CategoryId == categoryId, cancellationToken);
     }
 }

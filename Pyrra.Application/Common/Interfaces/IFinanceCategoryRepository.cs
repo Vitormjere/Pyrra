@@ -12,5 +12,6 @@ namespace Pyrra.Application.Common.Interfaces {
 
         Task<FinanceCategory?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
         Task AddCategoryAsync(FinanceCategory category, CancellationToken cancellationToken = default);
+        Task DeleteCategoryAsync(FinanceCategory category, CancellationToken cancellationToken = default);
     }
 }

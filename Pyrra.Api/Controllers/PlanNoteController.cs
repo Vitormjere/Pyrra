@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
@@ -47,6 +49,21 @@ namespace Pyrra.Api.Controllers {
                 return Ok(result.Note is null
                     ? PlanNoteResponse.Empty(result.Date)
                     : PlanNoteResponse.FromEntity(result.Note));
+            } catch (NotFoundException ex) {
+                return NotFound(new { message = ex.Message });
+            }
+        }
+
+        // Histórico de reflexões: só os dias em que o usuário escreveu algo.
+        [HttpGet("historico")]
+        public async Task<ActionResult<IEnumerable<PlanNoteResponse>>> GetHistory([FromQuery(Name = "dias")] int dias = 30, CancellationToken cancellationToken = default) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            try {
+                var notes = await _planNoteService.GetHistoryAsync(userId, dias, cancellationToken);
+                return Ok(notes.Select(PlanNoteResponse.FromEntity));
             } catch (NotFoundException ex) {
                 return NotFound(new { message = ex.Message });
             }

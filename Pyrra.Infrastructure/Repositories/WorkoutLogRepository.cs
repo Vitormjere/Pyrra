@@ -54,8 +54,25 @@ namespace Pyrra.Infrastructure.Repositories {
                 .ToList();
         }
 
+        public async Task<IReadOnlyList<WorkoutLog>> GetByUserAndDateRangeAsync(Guid userId, DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken = default) =>
+            await _context.WorkoutLogs
+                .Where(w => w.UserId == userId && w.Date >= startDate && w.Date <= endDate)
+                .OrderBy(w => w.Date)
+                .ThenBy(w => w.CreatedAt)
+                .ToListAsync(cancellationToken);
+
         public async Task AddAsync(WorkoutLog log, CancellationToken cancellationToken = default) {
             await _context.WorkoutLogs.AddAsync(log, cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+
+        public async Task UpdateAsync(WorkoutLog log, CancellationToken cancellationToken = default) {
+            _context.WorkoutLogs.Update(log);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+
+        public async Task DeleteAsync(WorkoutLog log, CancellationToken cancellationToken = default) {
+            _context.WorkoutLogs.Remove(log);
             await _context.SaveChangesAsync(cancellationToken);
         }
     }

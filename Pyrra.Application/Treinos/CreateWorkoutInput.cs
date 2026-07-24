@@ -8,12 +8,12 @@ namespace Pyrra.Application.Treinos {
     public record CreateWorkoutInput(
         WorkoutType Type,
         DateOnly? Date = null,
-        string? ExerciseName = null,
-        decimal? LoadKg = null,
-        int? Sets = null,
-        int? Reps = null,
-        decimal? DistanceKm = null,
-        int? DurationMinutes = null,
-        decimal? PaceMinPerKm = null,
-        string? Notes = null);
+        string?   ExerciseName = null,
+        decimal?  LoadKg = null,
+        int?      Sets = null,
+        int?      Reps = null,
+        decimal?  DistanceKm = null,
+        int?      DurationMinutes = null,
+        decimal?  PaceMinPerKm = null,
+        string?   Notes = null);
 }

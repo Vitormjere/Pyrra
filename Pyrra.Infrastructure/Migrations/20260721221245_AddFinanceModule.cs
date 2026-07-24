@@ -15,9 +15,9 @@ namespace Pyrra.Infrastructure.Migrations
                 name: "FinanceCategories",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    Name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Id        = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId    = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    Name      = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     IsDefault = table.Column<bool>(type: "bit", nullable: false)
                 },
                 constraints: table =>
@@ -29,14 +29,14 @@ namespace Pyrra.Infrastructure.Migrations
                 name: "FinanceEntries",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    CategoryId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Amount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    Type = table.Column<int>(type: "int", nullable: false),
-                    Date = table.Column<DateOnly>(type: "date", nullable: false),
+                    Id          = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId      = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    CategoryId  = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Amount      = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    Type        = table.Column<int>(type: "int", nullable: false),
+                    Date        = table.Column<DateOnly>(type: "date", nullable: false),
                     Description = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    CreatedAt   = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -44,13 +44,13 @@ namespace Pyrra.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_FinanceCategories_UserId",
-                table: "FinanceCategories",
+                name:   "IX_FinanceCategories_UserId",
+                table:  "FinanceCategories",
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_FinanceEntries_UserId_Date",
-                table: "FinanceEntries",
+                name:    "IX_FinanceEntries_UserId_Date",
+                table:   "FinanceEntries",
                 columns: new[] { "UserId", "Date" });
 
             // Categorias padrão do sistema: UserId null (visíveis para todos) e IsDefault true.

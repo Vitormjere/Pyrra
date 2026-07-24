@@ -47,6 +47,22 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
+        [HttpDelete("categorias/{id:guid}")]
+        public async Task<IActionResult> DeleteCategory(Guid id, CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            try {
+                await _financeService.DeleteCategoryAsync(userId, id, cancellationToken);
+                return NoContent();
+            } catch (CategoryInUseException ex) {
+                return Conflict(new { message = ex.Message });
+            } catch (NotFoundException ex) {
+                return NotFound(new { message = ex.Message });
+            }
+        }
+
         [HttpPost("lancamentos")]
         public async Task<ActionResult<FinanceEntryResponse>> CreateEntry(CreateFinanceEntryRequest request, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -71,6 +87,60 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
+        // Reaproveita CreateFinanceEntryRequest: mesma forma de corpo da criação.
+        [HttpPut("lancamentos/{id:guid}")]
+        public async Task<ActionResult<FinanceEntryResponse>> UpdateEntry(Guid id, CreateFinanceEntryRequest request, CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            try {
+                var entry = await _financeService.UpdateEntryAsync(
+                    userId,
+                    id,
+                    request.CategoryId!.Value,
+                    request.Amount!.Value,
+                    request.Type!.Value,
+                    request.Date,
+                    request.Description,
+                    cancellationToken);
+
+                return Ok(FinanceEntryResponse.FromEntity(entry));
+            } catch (InvalidFinanceEntryException ex) {
+                return BadRequest(new { message = ex.Message });
+            } catch (NotFoundException ex) {
+                return NotFound(new { message = ex.Message });
+            }
+        }
+
+        [HttpDelete("lancamentos/{id:guid}")]
+        public async Task<IActionResult> DeleteEntry(Guid id, CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            try {
+                await _financeService.DeleteEntryAsync(userId, id, cancellationToken);
+                return NoContent();
+            } catch (NotFoundException ex) {
+                return NotFound(new { message = ex.Message });
+            }
+        }
+
+        // Lançamentos de um intervalo arbitrário — usado pela Agenda.
+        [HttpGet("lancamentos")]
+        public async Task<ActionResult<IEnumerable<FinanceEntryResponse>>> GetEntriesForRange(
+            [FromQuery(Name = "inicio")] DateOnly inicio,
+            [FromQuery(Name = "fim")] DateOnly fim,
+            CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            var entries = await _financeService.GetEntriesForRangeAsync(userId, inicio, fim, cancellationToken);
+            return Ok(entries.Select(FinanceEntryResponse.FromEntity));
+        }
+
         [HttpGet("saldo")]
         public async Task<ActionResult<BalanceResponse>> GetBalance(CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -80,6 +150,21 @@ namespace Pyrra.Api.Controllers {
             try {
                 var totals = await _financeService.GetBalanceAsync(userId, cancellationToken);
                 return Ok(BalanceResponse.FromTotals(totals));
+            } catch (NotFoundException ex) {
+                return NotFound(new { message = ex.Message });
+            }
+        }
+
+        // Série do saldo para o gráfico. Sempre `dias` pontos, terminando hoje.
+        [HttpGet("historico")]
+        public async Task<ActionResult<IEnumerable<DailyBalanceResponse>>> GetBalanceHistory([FromQuery(Name = "dias")] int dias = 30, CancellationToken cancellationToken = default) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            try {
+                var history = await _financeService.GetBalanceHistoryAsync(userId, dias, cancellationToken);
+                return Ok(history.Select(DailyBalanceResponse.FromResult));
             } catch (NotFoundException ex) {
                 return NotFound(new { message = ex.Message });
             }

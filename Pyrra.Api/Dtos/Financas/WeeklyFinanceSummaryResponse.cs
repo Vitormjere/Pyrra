@@ -7,9 +7,9 @@ namespace Pyrra.Api.Dtos.Financas {
     public record WeeklyFinanceSummaryResponse(
         DateOnly WeekStart,
         DateOnly WeekEnd,
-        decimal PeriodTotalIn,
-        decimal PeriodTotalOut,
-        decimal PeriodBalance,
+        decimal  PeriodTotalIn,
+        decimal  PeriodTotalOut,
+        decimal  PeriodBalance,
         IEnumerable<FinanceEntryResponse> Entries) {
         public static WeeklyFinanceSummaryResponse FromSummary(WeeklyFinanceSummary summary) =>
             new(summary.WeekStart,

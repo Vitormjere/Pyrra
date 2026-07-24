@@ -9,6 +9,10 @@ namespace Pyrra.Application.Streaks {
     // pode ser seletiva.
     public record PendingMilestoneItem(Guid Id, int Milestone, decimal AveragePercentage, DateOnly ReachedDate);
 
+    // Dia perdoado por um freeze, aguardando confirmação de exibição. Carrega o Id porque a
+    // confirmação pode ser seletiva, como a de marcos.
+    public record PendingFreezeUseItem(Guid Id, DateOnly Date);
+
     public record StreakSettlementResult(
         int CurrentCount,
         int BestCount,
@@ -16,10 +20,10 @@ namespace Pyrra.Application.Streaks {
         IReadOnlyList<MilestoneReached> MilestonesReached);
 
     public record StreakStatusResult(
-        int CurrentCount,
-        int BestCount,
-        int FreezesAvailable,
+        int  CurrentCount,
+        int  BestCount,
+        int  FreezesAvailable,
         bool TodayGoalMet,
-        int DisplayCount,
+        int  DisplayCount,
         IReadOnlyList<MilestoneReached> MilestonesReached);
 }

@@ -15,9 +15,9 @@ namespace Pyrra.Infrastructure.Migrations
                 name: "FreezeBanks",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    FreezesAvailable = table.Column<int>(type: "int", nullable: false),
+                    Id                   = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId               = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    FreezesAvailable     = table.Column<int>(type: "int", nullable: false),
                     LastGrantedWeekStart = table.Column<DateOnly>(type: "date", nullable: false)
                 },
                 constraints: table =>
@@ -29,12 +29,12 @@ namespace Pyrra.Infrastructure.Migrations
                 name: "Streaks",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    CurrentCount = table.Column<int>(type: "int", nullable: false),
-                    BestCount = table.Column<int>(type: "int", nullable: false),
-                    LastSettledDate = table.Column<DateOnly>(type: "date", nullable: false),
-                    StreakStartDate = table.Column<DateOnly>(type: "date", nullable: true),
+                    Id                = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId            = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    CurrentCount      = table.Column<int>(type: "int", nullable: false),
+                    BestCount         = table.Column<int>(type: "int", nullable: false),
+                    LastSettledDate   = table.Column<DateOnly>(type: "date", nullable: false),
+                    StreakStartDate   = table.Column<DateOnly>(type: "date", nullable: true),
                     LastMilestoneDate = table.Column<DateOnly>(type: "date", nullable: true)
                 },
                 constraints: table =>
@@ -43,14 +43,14 @@ namespace Pyrra.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_FreezeBanks_UserId",
-                table: "FreezeBanks",
+                name:   "IX_FreezeBanks_UserId",
+                table:  "FreezeBanks",
                 column: "UserId",
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_Streaks_UserId",
-                table: "Streaks",
+                name:   "IX_Streaks_UserId",
+                table:  "Streaks",
                 column: "UserId",
                 unique: true);
         }

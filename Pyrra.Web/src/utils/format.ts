@@ -20,6 +20,16 @@ export function todayIso(): string {
 }
 
 /**
+ * Desloca uma data "YYYY-MM-DD" por um número de dias (negativo volta no tempo),
+ * devolvendo outra "YYYY-MM-DD". Usa componentes locais via Date(ano, mês, dia),
+ * que já normaliza estouros de mês/ano — e não toISOString(), que iria para UTC.
+ */
+export function addIsoDays(isoDate: string, days: number): string {
+  const [year, month, day] = isoDate.split('-').map(Number)
+  return toIsoDate(new Date(year, month - 1, day + days))
+}
+
+/**
  * Converte "YYYY-MM-DD" em Date sem passar pelo parser de string do JS, que
  * interpretaria a data como UTC e exibiria o dia anterior em fusos negativos.
  */

@@ -3,17 +3,17 @@ using Pyrra.Domain.Treinos;
 
 namespace Pyrra.Api.Dtos.Treinos {
     public record WorkoutResponse(
-        Guid Id,
-        string Type,
+        Guid     Id,
+        string   Type,
         DateOnly Date,
-        string? ExerciseName,
+        string?  ExerciseName,
         decimal? LoadKg,
-        int? Sets,
-        int? Reps,
+        int?     Sets,
+        int?     Reps,
         decimal? DistanceKm,
-        int? DurationMinutes,
+        int?     DurationMinutes,
         decimal? PaceMinPerKm,
-        string? Notes,
+        string?  Notes,
         DateTime CreatedAt) {
         // Type vai como string, mesmo critério do FocusResponse com Category: o cliente lê
         // "Academia", não um índice de enum que muda se a ordem do enum mudar.

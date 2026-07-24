@@ -62,6 +62,24 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
+        [HttpPut("{id:guid}")]
+        public async Task<ActionResult<FocusResponse>> Update(Guid id, UpdateFocusRequest request, CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            try {
+                var focus = await _focusService.UpdateNameAsync(userId, id, request.Name, cancellationToken);
+                return Ok(FocusResponse.FromEntity(focus));
+            } catch (DuplicateFocusException ex) {
+                return Conflict(new { message = ex.Message });
+            } catch (InvalidFocusNameException ex) {
+                return BadRequest(new { message = ex.Message });
+            } catch (NotFoundException ex) {
+                return NotFound(new { message = ex.Message });
+            }
+        }
+
         [HttpDelete("{id:guid}")]
         public async Task<IActionResult> Deactivate(Guid id, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {

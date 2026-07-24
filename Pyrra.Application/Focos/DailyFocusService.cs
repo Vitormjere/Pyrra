@@ -50,6 +50,30 @@ namespace Pyrra.Application.Focos {
             return focus;
         }
 
+        public async Task<DailyFocus> UpdateNameAsync(Guid userId, Guid focusId, string newName, CancellationToken cancellationToken = default) {
+            var focus = await GetOwnedFocusAsync(userId, focusId, cancellationToken);
+
+            var normalizedName = newName?.Trim();
+            if (string.IsNullOrEmpty(normalizedName)) {
+                throw new InvalidFocusNameException();
+            }
+
+            // Renomear para o mesmo nome (só mudou capitalização/espaços) é permitido e não
+            // dispara duplicidade — o próprio foco é excluído da checagem.
+            await EnsureNameIsNotTakenAsync(userId, normalizedName, cancellationToken, focusId);
+
+            // Category e Weight são função do nome: mudou o nome, recalcula os dois. O peso
+            // congelado nos FocusLog passados não é afetado — só o peso atual do foco muda.
+            var (category, weight) = FocusCategoryMapper.Categorize(normalizedName);
+
+            focus.Name     = normalizedName;
+            focus.Category = category;
+            focus.Weight   = weight;
+
+            await _repository.UpdateAsync(focus, cancellationToken);
+            return focus;
+        }
+
         public async Task DeactivateAsync(Guid userId, Guid focusId, CancellationToken cancellationToken = default) {
             var focus = await GetOwnedFocusAsync(userId, focusId, cancellationToken);
 
@@ -59,11 +83,13 @@ namespace Pyrra.Application.Focos {
 
         // A duplicidade só considera focos ATIVOS: um foco desativado não bloqueia recriar o mesmo
         // nome depois. Comparação em memória com OrdinalIgnoreCase para não depender do collation do banco.
-        private async Task EnsureNameIsNotTakenAsync(Guid userId, string normalizedName, CancellationToken cancellationToken) {
+        private async Task EnsureNameIsNotTakenAsync(Guid userId, string normalizedName, CancellationToken cancellationToken, Guid? excludeFocusId = null) {
             var focuses = await _repository.GetAllByUserIdAsync(userId, cancellationToken);
 
             var duplicated = focuses.Any(f =>
-                f.Active && string.Equals(f.Name.Trim(), normalizedName, StringComparison.OrdinalIgnoreCase));
+                f.Active
+                && f.Id != excludeFocusId
+                && string.Equals(f.Name.Trim(), normalizedName, StringComparison.OrdinalIgnoreCase));
 
             if (duplicated) {
                 throw new DuplicateFocusException(normalizedName);

@@ -13,8 +13,9 @@ import {
   updateTask,
 } from '../../services/taskService'
 import ItemActions from '../../components/ItemActions'
+import WeekNav from '../../components/WeekNav'
 import { getApiErrorMessage } from '../../services/apiError'
-import { formatShortDate, todayIso } from '../../utils/format'
+import { addIsoDays, formatShortDate, todayIso } from '../../utils/format'
 import type { TaskPriority, TaskResponse } from '../../types/task'
 
 const PRIORITIES: TaskPriority[] = ['Baixa', 'Media', 'Alta', 'Urgente']
@@ -254,6 +255,11 @@ export function Tarefas() {
   // Segunda-feira da semana consultada, vinda do backend — é ele quem normaliza
   // a data para o início da semana no fuso do usuário.
   const [weekStart, setWeekStart] = useState<string | null>(null)
+  const [weekEnd, setWeekEnd] = useState<string | null>(null)
+  // Segunda-feira da semana ATUAL, fixada na primeira carga (que sempre vem sem
+  // ?inicio=). É o teto da navegação: não se consulta "pendentes" do futuro.
+  const [currentWeekStart, setCurrentWeekStart] = useState<string | null>(null)
+  const [weekNavBusy, setWeekNavBusy] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('hoje')
@@ -284,7 +290,12 @@ export function Tarefas() {
       getTasksForDay(),
       getPendingTasksForWeek(),
     ])
-    return { today, overdue: week.tasks, weekStart: week.weekStart }
+    return {
+      today,
+      overdue: week.tasks,
+      weekStart: week.weekStart,
+      weekEnd: week.weekEnd,
+    }
   }, [])
 
   useEffect(() => {
@@ -297,6 +308,9 @@ export function Tarefas() {
         setTodayTasks(result.today)
         setOverdueTasks(result.overdue)
         setWeekStart(result.weekStart)
+        setWeekEnd(result.weekEnd)
+        // A primeira carga é sempre a semana atual (sem ?inicio=): fixa o teto.
+        setCurrentWeekStart(result.weekStart)
       } catch (err) {
         if (!active) return
         setError(
@@ -323,12 +337,35 @@ export function Tarefas() {
       setTodayTasks(result.today)
       setOverdueTasks(result.overdue)
       setWeekStart(result.weekStart)
+      setWeekEnd(result.weekEnd)
+      setCurrentWeekStart(result.weekStart)
     } catch (err) {
       setError(
         getApiErrorMessage(err, {}, 'Não foi possível carregar suas tarefas.'),
       )
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Troca a semana da aba "atrasadas" sem tocar nas tarefas de hoje: só a lista
+  // da semana muda. Mantém a lista anterior na tela enquanto busca — trocar por
+  // um vazio piscaria a cada clique.
+  async function goToWeek(newWeekStart: string) {
+    setWeekNavBusy(true)
+    setError(null)
+
+    try {
+      const week = await getPendingTasksForWeek(newWeekStart)
+      setOverdueTasks(week.tasks)
+      setWeekStart(week.weekStart)
+      setWeekEnd(week.weekEnd)
+    } catch (err) {
+      setError(
+        getApiErrorMessage(err, {}, 'Não foi possível carregar a semana.'),
+      )
+    } finally {
+      setWeekNavBusy(false)
     }
   }
 
@@ -669,33 +706,43 @@ export function Tarefas() {
         </section>
       ) : (
         <section className="flex flex-col gap-3">
+          <SectionHeader>Pendentes da semana</SectionHeader>
+
+          {/* Navegação de semanas: sempre visível, mesmo quando a semana está
+              vazia — é o que permite sair de uma semana sem pendências para
+              olhar as anteriores. A seta "próxima" trava na semana atual. */}
+          {weekStart && weekEnd && (
+            <WeekNav
+              weekStart={weekStart}
+              weekEnd={weekEnd}
+              canGoNext={currentWeekStart !== null && weekStart < currentWeekStart}
+              busy={weekNavBusy}
+              onPrev={() => goToWeek(addIsoDays(weekStart, -7))}
+              onNext={() => goToWeek(addIsoDays(weekStart, 7))}
+            />
+          )}
+
           {overdueTasks.length > 0 ? (
-            <>
-              <SectionHeader>Pendentes da semana</SectionHeader>
-              <p className="text-sm text-slate-500">
-                De dias anteriores desta semana.
-              </p>
-              <ul className="divide-y divide-line overflow-hidden rounded-md bg-surface ring-1 ring-line">
-                {overdueTasks.map((task) => (
-                  <li key={task.id}>
-                    <TaskRow
-                      task={task}
-                      pending={
-                        pendingTaskId === task.id || deletingTaskId === task.id
-                      }
-                      showDate
-                      editing={editingTaskId === task.id}
-                      savingEdit={savingEditId === task.id}
-                      onToggle={handleToggle}
-                      onEdit={setEditingTaskId}
-                      onDelete={handleDelete}
-                      onSaveEdit={handleSaveEdit}
-                      onCancelEdit={() => setEditingTaskId(null)}
-                    />
-                  </li>
-                ))}
-              </ul>
-            </>
+            <ul className="divide-y divide-line overflow-hidden rounded-md bg-surface ring-1 ring-line">
+              {overdueTasks.map((task) => (
+                <li key={task.id}>
+                  <TaskRow
+                    task={task}
+                    pending={
+                      pendingTaskId === task.id || deletingTaskId === task.id
+                    }
+                    showDate
+                    editing={editingTaskId === task.id}
+                    savingEdit={savingEditId === task.id}
+                    onToggle={handleToggle}
+                    onEdit={setEditingTaskId}
+                    onDelete={handleDelete}
+                    onSaveEdit={handleSaveEdit}
+                    onCancelEdit={() => setEditingTaskId(null)}
+                  />
+                </li>
+              ))}
+            </ul>
           ) : (
             <div className="rounded-md bg-surface px-5 py-8 text-center ring-1 ring-line">
               {isFirstDayOfWeek ? (
@@ -725,7 +772,7 @@ export function Tarefas() {
                     Nenhuma pendência da semana.
                   </p>
                   <p className="mt-1.5 text-sm text-slate-400">
-                    Você não deixou nada para trás nos últimos dias.
+                    Você não deixou nada para trás nesta semana.
                   </p>
                 </>
               )}

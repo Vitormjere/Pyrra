@@ -13,6 +13,13 @@ namespace Pyrra.Application.Common.Interfaces {
         // somar no SQL evita carregar o histórico inteiro do usuário para somar em memória.
         Task<FinanceTotals> GetTotalsAsync(Guid userId, DateOnly? startDate = null, DateOnly? endDate = null, CancellationToken cancellationToken = default);
 
+        Task<FinanceEntry?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
         Task AddEntryAsync(FinanceEntry entry, CancellationToken cancellationToken = default);
+        Task UpdateEntryAsync(FinanceEntry entry, CancellationToken cancellationToken = default);
+        Task DeleteEntryAsync(FinanceEntry entry, CancellationToken cancellationToken = default);
+
+        // Existe algum lançamento (de qualquer data) usando esta categoria? Barra a exclusão
+        // da categoria enquanto houver — evita lançamentos órfãos apontando para um id sumido.
+        Task<bool> AnyByCategoryAsync(Guid userId, Guid categoryId, CancellationToken cancellationToken = default);
     }
 }

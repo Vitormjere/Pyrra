@@ -15,13 +15,13 @@ namespace Pyrra.Infrastructure.Migrations
                 name: "PendingMilestones",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Milestone = table.Column<int>(type: "int", nullable: false),
+                    Id                = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId            = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Milestone         = table.Column<int>(type: "int", nullable: false),
                     AveragePercentage = table.Column<decimal>(type: "decimal(5,4)", precision: 5, scale: 4, nullable: false),
-                    ReachedDate = table.Column<DateOnly>(type: "date", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    AcknowledgedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                    ReachedDate       = table.Column<DateOnly>(type: "date", nullable: false),
+                    CreatedAt         = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    AcknowledgedAt    = table.Column<DateTime>(type: "datetime2", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -29,8 +29,8 @@ namespace Pyrra.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_PendingMilestones_UserId_AcknowledgedAt",
-                table: "PendingMilestones",
+                name:    "IX_PendingMilestones_UserId_AcknowledgedAt",
+                table:   "PendingMilestones",
                 columns: new[] { "UserId", "AcknowledgedAt" });
         }
 

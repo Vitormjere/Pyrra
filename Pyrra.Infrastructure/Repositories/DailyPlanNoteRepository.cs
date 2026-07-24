@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -16,6 +18,12 @@ namespace Pyrra.Infrastructure.Repositories {
 
         public Task<DailyPlanNote?> GetByUserAndDateAsync(Guid userId, DateOnly date, CancellationToken cancellationToken = default) =>
             _context.DailyPlanNotes.FirstOrDefaultAsync(n => n.UserId == userId && n.Date == date, cancellationToken);
+
+        public async Task<IReadOnlyList<DailyPlanNote>> GetRecentByUserAsync(Guid userId, DateOnly fromDate, CancellationToken cancellationToken = default) =>
+            await _context.DailyPlanNotes
+                .Where(n => n.UserId == userId && n.Date >= fromDate)
+                .OrderByDescending(n => n.Date)
+                .ToListAsync(cancellationToken);
 
         // Mesmo desenho do DailyScoreRepository.UpsertAsync: atualiza a instância já rastreada
         // pelo contexto, preservando o Id original, para o upsert nunca duplicar a linha do

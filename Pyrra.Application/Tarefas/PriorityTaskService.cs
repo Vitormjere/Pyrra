@@ -69,12 +69,46 @@ namespace Pyrra.Application.Tarefas {
             return new WeeklyTasksResult(start, start.AddDays(6), tasks);
         }
 
+        public async Task<IReadOnlyList<PriorityTask>> GetForRangeAsync(Guid userId, DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken = default) {
+            // Intervalo invertido devolve vazio em vez de erro: a consulta é de
+            // leitura e um mês sem tarefa já é um resultado legítimo.
+            if (startDate > endDate) {
+                return Array.Empty<PriorityTask>();
+            }
+
+            return await _repository.GetByUserAndDateRangeAsync(userId, startDate, endDate, cancellationToken);
+        }
+
         public async Task<PriorityTask> ToggleCompletedAsync(Guid userId, Guid taskId, CancellationToken cancellationToken = default) {
             var task = await GetOwnedTaskAsync(userId, taskId, cancellationToken);
 
             task.Completed = !task.Completed;
             await _repository.UpdateAsync(task, cancellationToken);
             return task;
+        }
+
+        public async Task<PriorityTask> UpdateAsync(Guid userId, Guid taskId, string title, TaskPriority priority, CancellationToken cancellationToken = default) {
+            var task = await GetOwnedTaskAsync(userId, taskId, cancellationToken);
+
+            var normalizedTitle = title?.Trim();
+            if (string.IsNullOrEmpty(normalizedTitle)) {
+                throw new InvalidTaskException("O título da tarefa é obrigatório.");
+            }
+
+            if (!Enum.IsDefined(priority)) {
+                throw new InvalidTaskException($"Prioridade '{priority}' não é válida.");
+            }
+
+            task.Title    = normalizedTitle;
+            task.Priority = priority;
+
+            await _repository.UpdateAsync(task, cancellationToken);
+            return task;
+        }
+
+        public async Task DeleteAsync(Guid userId, Guid taskId, CancellationToken cancellationToken = default) {
+            var task = await GetOwnedTaskAsync(userId, taskId, cancellationToken);
+            await _repository.DeleteAsync(task, cancellationToken);
         }
 
         // Mesmo NotFoundException genérico dos outros módulos: tarefa inexistente ou de outro

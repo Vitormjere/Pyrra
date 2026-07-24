@@ -16,6 +16,10 @@ namespace Pyrra.Application.Common.Interfaces {
         Task<IReadOnlyList<NutritionEntry>> GetByUserAndDateRangeAsync(Guid userId, DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken = default);
 
         Task AddAsync(NutritionEntry entry, CancellationToken cancellationToken = default);
+
+        // Insere um lote numa transação só — usado ao copiar o plano do dia.
+        Task AddRangeAsync(IReadOnlyList<NutritionEntry> entries, CancellationToken cancellationToken = default);
+        Task UpdateAsync(NutritionEntry entry, CancellationToken cancellationToken = default);
         Task DeleteAsync(NutritionEntry entry, CancellationToken cancellationToken = default);
     }
 }

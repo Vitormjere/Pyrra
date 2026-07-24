@@ -41,6 +41,16 @@ namespace Pyrra.Infrastructure.Repositories {
             await _context.SaveChangesAsync(cancellationToken);
         }
 
+        public async Task AddRangeAsync(IReadOnlyList<NutritionEntry> entries, CancellationToken cancellationToken = default) {
+            await _context.NutritionEntries.AddRangeAsync(entries, cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+
+        public async Task UpdateAsync(NutritionEntry entry, CancellationToken cancellationToken = default) {
+            _context.NutritionEntries.Update(entry);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+
         // Recebe a entidade, não o id: o service já carregou o item para checar a posse, e passar
         // a instância evita uma segunda ida ao banco só para remover.
         public async Task DeleteAsync(NutritionEntry entry, CancellationToken cancellationToken = default) {

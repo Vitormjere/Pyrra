@@ -3,8 +3,8 @@ using Pyrra.Domain.Planejamento;
 
 namespace Pyrra.Api.Dtos.Planejamento {
     public record PlanNoteResponse(
-        DateOnly Date,
-        string Content,
+        DateOnly  Date,
+        string    Content,
         DateTime? UpdatedAt) {
         public static PlanNoteResponse FromEntity(DailyPlanNote note) =>
             new(note.Date, note.Content, note.UpdatedAt);

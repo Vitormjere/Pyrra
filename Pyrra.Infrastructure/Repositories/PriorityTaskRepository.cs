@@ -48,6 +48,16 @@ namespace Pyrra.Infrastructure.Repositories {
                 .ToListAsync(cancellationToken);
         }
 
+        // Ordena por data antes de prioridade: quem lê um intervalo lê como linha do
+        // tempo, igual à visão semanal.
+        public async Task<IReadOnlyList<PriorityTask>> GetByUserAndDateRangeAsync(Guid userId, DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken = default) =>
+            await _context.PriorityTasks
+                .Where(t => t.UserId == userId && t.Date >= startDate && t.Date <= endDate)
+                .OrderBy(t => t.Date)
+                .ThenByDescending(t => t.Priority)
+                .ThenBy(t => t.CreatedAt)
+                .ToListAsync(cancellationToken);
+
         public async Task AddAsync(PriorityTask task, CancellationToken cancellationToken = default) {
             await _context.PriorityTasks.AddAsync(task, cancellationToken);
             await _context.SaveChangesAsync(cancellationToken);
@@ -55,6 +65,11 @@ namespace Pyrra.Infrastructure.Repositories {
 
         public async Task UpdateAsync(PriorityTask task, CancellationToken cancellationToken = default) {
             _context.PriorityTasks.Update(task);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+
+        public async Task DeleteAsync(PriorityTask task, CancellationToken cancellationToken = default) {
+            _context.PriorityTasks.Remove(task);
             await _context.SaveChangesAsync(cancellationToken);
         }
     }

@@ -18,29 +18,32 @@ namespace Pyrra.Application.Streaks {
         // mesmo. Dias anteriores ao corte são dados por acertados sem avaliação.
         private const int MaxDaysPerSettlement = 400;
 
-        private readonly IStreakRepository           _streakRepository;
-        private readonly IFreezeBankRepository       _freezeBankRepository;
-        private readonly IDailyScoreRepository       _scoreRepository;
-        private readonly IUserRepository             _userRepository;
-        private readonly IPendingMilestoneRepository _pendingMilestoneRepository;
-        private readonly IDailyScoreCalculator       _calculator;
-        private readonly IClockService               _clock;
+        private readonly IStreakRepository            _streakRepository;
+        private readonly IFreezeBankRepository        _freezeBankRepository;
+        private readonly IDailyScoreRepository        _scoreRepository;
+        private readonly IUserRepository              _userRepository;
+        private readonly IPendingMilestoneRepository  _pendingMilestoneRepository;
+        private readonly IPendingFreezeUseRepository  _pendingFreezeUseRepository;
+        private readonly IDailyScoreCalculator        _calculator;
+        private readonly IClockService                _clock;
 
         public StreakService(
-            IStreakRepository           streakRepository,
-            IFreezeBankRepository       freezeBankRepository,
-            IDailyScoreRepository       scoreRepository,
-            IUserRepository             userRepository,
-            IPendingMilestoneRepository pendingMilestoneRepository,
-            IDailyScoreCalculator       calculator,
-            IClockService               clock) {
-            _streakRepository           = streakRepository;
-            _freezeBankRepository       = freezeBankRepository;
-            _scoreRepository            = scoreRepository;
-            _userRepository             = userRepository;
-            _pendingMilestoneRepository = pendingMilestoneRepository;
-            _calculator                 = calculator;
-            _clock                      = clock;
+            IStreakRepository            streakRepository,
+            IFreezeBankRepository        freezeBankRepository,
+            IDailyScoreRepository        scoreRepository,
+            IUserRepository              userRepository,
+            IPendingMilestoneRepository  pendingMilestoneRepository,
+            IPendingFreezeUseRepository  pendingFreezeUseRepository,
+            IDailyScoreCalculator        calculator,
+            IClockService                clock) {
+            _streakRepository            = streakRepository;
+            _freezeBankRepository        = freezeBankRepository;
+            _scoreRepository             = scoreRepository;
+            _userRepository              = userRepository;
+            _pendingMilestoneRepository  = pendingMilestoneRepository;
+            _pendingFreezeUseRepository  = pendingFreezeUseRepository;
+            _calculator                  = calculator;
+            _clock                       = clock;
         }
 
         public async Task<StreakSettlementResult> SettleStreakAsync(Guid userId, CancellationToken cancellationToken = default) {
@@ -54,14 +57,16 @@ namespace Pyrra.Application.Streaks {
 
             GrantWeeklyFreezes(bank, today);
 
-            var milestones = await SettleDaysAsync(userId, streak, bank, today, cancellationToken);
+            var (milestones, freezeUses) = await SettleDaysAsync(userId, streak, bank, today, cancellationToken);
 
             await _streakRepository.UpsertAsync(streak, cancellationToken);
             await _freezeBankRepository.UpsertAsync(bank, cancellationToken);
 
             // Persiste ANTES de devolver: o acerto pode ter vindo de um check-in, cujo chamador
-            // descarta este resultado. Sem gravar, o marco seria detectado e perdido para sempre.
+            // descarta este resultado. Sem gravar, o marco (ou o freeze gasto) seria detectado e
+            // perdido para sempre.
             await PersistPendingMilestonesAsync(userId, milestones, cancellationToken);
+            await PersistPendingFreezeUsesAsync(userId, freezeUses, cancellationToken);
 
             return new StreakSettlementResult(streak.CurrentCount, streak.BestCount, bank.FreezesAvailable, milestones);
         }
@@ -87,8 +92,12 @@ namespace Pyrra.Application.Streaks {
         }
 
         // Avalia dia a dia, em ordem cronológica: o freeze consumido num dia altera o saldo
-        // disponível para os dias seguintes do mesmo lote, então a ordem importa.
-        private async Task<IReadOnlyList<MilestoneReached>> SettleDaysAsync(
+        // disponível para os dias seguintes do mesmo lote, então a ordem importa. Devolve os
+        // marcos cruzados e os dias perdoados por freeze — ambos viram avisos pendentes.
+        //
+        // Cada dia é acertado no máximo uma vez na vida (LastSettledDate só avança e é
+        // persistido), então registrar o freeze gasto aqui não corre risco de duplicar.
+        private async Task<(IReadOnlyList<MilestoneReached> Milestones, IReadOnlyList<DateOnly> FreezeUses)> SettleDaysAsync(
             Guid userId, Streak streak, FreezeBank bank, DateOnly today, CancellationToken cancellationToken) {
             var yesterday = today.AddDays(-1);
 
@@ -99,13 +108,14 @@ namespace Pyrra.Application.Streaks {
             }
 
             if (start > yesterday) {
-                return Array.Empty<MilestoneReached>();
+                return (Array.Empty<MilestoneReached>(), Array.Empty<DateOnly>());
             }
 
             var scores = await _scoreRepository.GetByUserAndDateRangeAsync(userId, start, yesterday, cancellationToken);
             var scoreByDate = scores.ToDictionary(s => s.Date);
 
             var milestones = new List<MilestoneReached>();
+            var freezeUses = new List<DateOnly>();
 
             for (var date = start; date <= yesterday; date = date.AddDays(1)) {
                 scoreByDate.TryGetValue(date, out var score);
@@ -130,6 +140,7 @@ namespace Pyrra.Application.Streaks {
                     // Dia perdoado: consome freeze e preserva a sequência. Só faz sentido gastar
                     // freeze quando há streak a proteger — com o contador zerado não há o que perder.
                     bank.FreezesAvailable--;
+                    freezeUses.Add(date);
                 } else {
                     streak.CurrentCount      = 0;
                     streak.StreakStartDate   = null;
@@ -139,7 +150,7 @@ namespace Pyrra.Application.Streaks {
                 streak.LastSettledDate = date;
             }
 
-            return milestones;
+            return (milestones, freezeUses);
         }
 
         public async Task<IReadOnlyList<PendingMilestoneItem>> GetPendingMilestonesAsync(Guid userId, CancellationToken cancellationToken = default) {
@@ -154,6 +165,19 @@ namespace Pyrra.Application.Streaks {
 
         public Task<int> AcknowledgeMilestonesAsync(Guid userId, IReadOnlyCollection<Guid>? ids, CancellationToken cancellationToken = default) =>
             _pendingMilestoneRepository.AcknowledgeAsync(userId, ids, _clock.UtcNow, cancellationToken);
+
+        public async Task<IReadOnlyList<PendingFreezeUseItem>> GetPendingFreezeUsesAsync(Guid userId, CancellationToken cancellationToken = default) {
+            // Acerta antes de ler: um freeze gasto agora deve aparecer já nesta consulta.
+            await SettleStreakAsync(userId, cancellationToken);
+
+            var pending = await _pendingFreezeUseRepository.GetPendingByUserIdAsync(userId, cancellationToken);
+            return pending
+                .Select(f => new PendingFreezeUseItem(f.Id, f.Date))
+                .ToList();
+        }
+
+        public Task<int> AcknowledgeFreezeUsesAsync(Guid userId, IReadOnlyCollection<Guid>? ids, CancellationToken cancellationToken = default) =>
+            _pendingFreezeUseRepository.AcknowledgeAsync(userId, ids, _clock.UtcNow, cancellationToken);
 
         private async Task PersistPendingMilestonesAsync(Guid userId, IReadOnlyList<MilestoneReached> milestones, CancellationToken cancellationToken) {
             if (milestones.Count == 0) {
@@ -172,6 +196,23 @@ namespace Pyrra.Application.Streaks {
                 .ToList();
 
             await _pendingMilestoneRepository.AddRangeAsync(pending, cancellationToken);
+        }
+
+        private async Task PersistPendingFreezeUsesAsync(Guid userId, IReadOnlyList<DateOnly> freezeUses, CancellationToken cancellationToken) {
+            if (freezeUses.Count == 0) {
+                return;
+            }
+
+            var pending = freezeUses
+                .Select(date => new PendingFreezeUse {
+                    Id             = Guid.NewGuid(),
+                    UserId         = userId,
+                    Date           = date,
+                    CreatedAt      = _clock.UtcNow
+                })
+                .ToList();
+
+            await _pendingFreezeUseRepository.AddRangeAsync(pending, cancellationToken);
         }
 
         // Média do aproveitamento no trecho que levou ao marco. Considera os DailyScore existentes

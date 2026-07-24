@@ -14,6 +14,7 @@ import {
 import Segmented from '../../components/Segmented'
 import SectionHeader from '../../components/SectionHeader'
 import ItemActions from '../../components/ItemActions'
+import WeekNav from '../../components/WeekNav'
 import {
   createCategory,
   createEntry,
@@ -26,7 +27,12 @@ import {
   updateEntry,
 } from '../../services/financeService'
 import { getApiErrorMessage } from '../../services/apiError'
-import { formatCurrency, formatShortDate, todayIso } from '../../utils/format'
+import {
+  addIsoDays,
+  formatCurrency,
+  formatShortDate,
+  todayIso,
+} from '../../utils/format'
 import type {
   BalanceResponse,
   DailyBalanceResponse,
@@ -82,6 +88,14 @@ export function Financas() {
   // Começa oculto: a tela pode ser aberta em público.
   const [balanceVisible, setBalanceVisible] = useState(false)
 
+  // Navegação de semanas do resumo. viewedWeekStart null = semana atual (sem
+  // ?inicio=). currentWeekStart, fixado na primeira carga, é o teto: não se
+  // navega para o futuro. Só o resumo muda ao navegar — saldo e gráfico são
+  // globais e continuam sempre "até hoje".
+  const [viewedWeekStart, setViewedWeekStart] = useState<string | null>(null)
+  const [currentWeekStart, setCurrentWeekStart] = useState<string | null>(null)
+  const [weekNavBusy, setWeekNavBusy] = useState(false)
+
   // ?data= vem da Agenda: abre já com o formulário pronto naquela data.
   const [searchParams] = useSearchParams()
   const prefillDate = searchParams.get('data')
@@ -133,6 +147,8 @@ export function Financas() {
         if (!active) return
         setBalance(result.balanceData)
         setSummary(result.summaryData)
+        // A primeira carga é sempre a semana atual (sem ?inicio=): fixa o teto.
+        setCurrentWeekStart(result.summaryData.weekStart)
         setCategories(result.categoriesData)
         setHistory(result.historyData)
         // Pré-seleciona a primeira categoria para o formulário nunca abrir sem
@@ -162,6 +178,10 @@ export function Financas() {
       const result = await fetchAll()
       setBalance(result.balanceData)
       setSummary(result.summaryData)
+      setCurrentWeekStart(result.summaryData.weekStart)
+      // Volta o resumo para a semana atual: o "tentar de novo" recarrega o estado
+      // inicial, e fetchAll busca sempre a semana corrente.
+      setViewedWeekStart(null)
       setCategories(result.categoriesData)
       setHistory(result.historyData)
       setCategoryId((current) => current || (result.categoriesData[0]?.id ?? ''))
@@ -174,21 +194,43 @@ export function Financas() {
     }
   }
 
+  // Troca a semana do resumo. Saldo e gráfico não são refeitos — são globais e
+  // não dependem da semana consultada.
+  async function goToWeek(newWeekStart: string) {
+    setWeekNavBusy(true)
+    setError(null)
+
+    try {
+      const summaryData = await getWeeklySummary(newWeekStart)
+      setSummary(summaryData)
+      setViewedWeekStart(newWeekStart)
+    } catch (err) {
+      setError(
+        getApiErrorMessage(err, {}, 'Não foi possível carregar a semana.'),
+      )
+    } finally {
+      setWeekNavBusy(false)
+    }
+  }
+
   // Rebusca saldo, resumo e série após qualquer mutação de lançamento: os três
   // são derivados do conjunto de lançamentos e recalculá-los no cliente
   // duplicaria a soma do backend. Categorias ficam de fora — lançamento não as
   // altera.
   const refetchTotals = useCallback(async () => {
+    // O resumo é o da semana VISÍVEL, não necessariamente a atual: editar um
+    // lançamento enquanto se olha uma semana passada deve reconciliar aquela
+    // semana, não pular de volta para a de hoje. Saldo e série seguem globais.
     const [balanceData, summaryData, historyData] = await Promise.all([
       getBalance(),
-      getWeeklySummary(),
+      getWeeklySummary(viewedWeekStart ?? undefined),
       getBalanceHistory(BALANCE_HISTORY_DAYS),
     ])
     setBalance(balanceData)
     setSummary(summaryData)
     // A série também muda: o lançamento desloca o saldo do seu dia em diante.
     setHistory(historyData)
-  }, [])
+  }, [viewedWeekStart])
 
   async function handleSubmitEntry(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -415,10 +457,23 @@ export function Financas() {
       {/* RESUMO DA SEMANA */}
       {summary && (
         <section className="rounded-md bg-surface px-5 py-4 ring-1 ring-line">
-          <SectionHeader>
-            Semana de {formatShortDate(summary.weekStart)} a{' '}
-            {formatShortDate(summary.weekEnd)}
-          </SectionHeader>
+          <SectionHeader>Resumo da semana</SectionHeader>
+
+          {/* Navegação de semanas: o intervalo visível fica entre as setas. A
+              seta "próxima" trava na semana atual — resumo de semana futura não
+              tem sentido. Só o resumo muda; saldo e gráfico seguem globais. */}
+          <div className="mt-2">
+            <WeekNav
+              weekStart={summary.weekStart}
+              weekEnd={summary.weekEnd}
+              canGoNext={
+                currentWeekStart !== null && summary.weekStart < currentWeekStart
+              }
+              busy={weekNavBusy}
+              onPrev={() => goToWeek(addIsoDays(summary.weekStart, -7))}
+              onNext={() => goToWeek(addIsoDays(summary.weekStart, 7))}
+            />
+          </div>
 
           {/* Saldo do período em destaque, entradas e saídas menores ao lado —
               mesma hierarquia do card do dashboard, com o ícone de tendência

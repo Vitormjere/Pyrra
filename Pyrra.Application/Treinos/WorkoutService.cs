@@ -2,23 +2,31 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using Pyrra.Application.Common.Exceptions;
 using Pyrra.Application.Common.Interfaces;
+using Pyrra.Domain.Common;
 using Pyrra.Domain.Treinos;
 
 namespace Pyrra.Application.Treinos {
     public class WorkoutService : IWorkoutService {
-        private readonly IWorkoutLogRepository _repository;
-        private readonly IUserRepository       _userRepository;
-        private readonly IClockService         _clock;
+        private readonly IWorkoutLogRepository          _repository;
+        private readonly IWorkoutPlanDayRepository      _planRepository;
+        private readonly IWorkoutPlanExerciseRepository _planExerciseRepository;
+        private readonly IUserRepository                _userRepository;
+        private readonly IClockService                  _clock;
 
         public WorkoutService(
-            IWorkoutLogRepository repository,
-            IUserRepository       userRepository,
-            IClockService         clock) {
-            _repository     = repository;
-            _userRepository = userRepository;
-            _clock          = clock;
+            IWorkoutLogRepository          repository,
+            IWorkoutPlanDayRepository      planRepository,
+            IWorkoutPlanExerciseRepository planExerciseRepository,
+            IUserRepository                userRepository,
+            IClockService                  clock) {
+            _repository             = repository;
+            _planRepository         = planRepository;
+            _planExerciseRepository = planExerciseRepository;
+            _userRepository         = userRepository;
+            _clock                  = clock;
         }
 
         public async Task<WorkoutLog> CreateAsync(Guid userId, CreateWorkoutInput input, CancellationToken cancellationToken = default) {
@@ -27,11 +35,47 @@ namespace Pyrra.Application.Treinos {
             var log = new WorkoutLog {
                 Id        = Guid.NewGuid(),
                 UserId    = userId,
-                Type      = input.Type,
-                Date      = date,
-                Notes     = Normalize(input.Notes),
                 CreatedAt = _clock.UtcNow
             };
+
+            PopulateLog(log, input, date);
+
+            await _repository.AddAsync(log, cancellationToken);
+            return log;
+        }
+
+        public async Task<WorkoutLog> UpdateAsync(Guid userId, Guid workoutId, CreateWorkoutInput input, CancellationToken cancellationToken = default) {
+            var log  = await GetOwnedLogAsync(userId, workoutId, cancellationToken);
+            var date = await ResolveDateAsync(userId, input.Date, cancellationToken);
+
+            // Mesma validação por tipo do Create. PopulateLog zera os campos da outra modalidade
+            // antes de aplicar, então trocar Academia↔Corrida na edição não deixa resíduo.
+            PopulateLog(log, input, date);
+
+            await _repository.UpdateAsync(log, cancellationToken);
+            return log;
+        }
+
+        public async Task DeleteAsync(Guid userId, Guid workoutId, CancellationToken cancellationToken = default) {
+            var log = await GetOwnedLogAsync(userId, workoutId, cancellationToken);
+            await _repository.DeleteAsync(log, cancellationToken);
+        }
+
+        // Aplica o input ao log, único ponto de validação por tipo. Zera TODOS os campos de
+        // modalidade antes de aplicar: numa edição que muda o tipo, os campos da modalidade
+        // antiga precisam sumir, e num log novo isso é só um no-op sobre nulos.
+        private static void PopulateLog(WorkoutLog log, CreateWorkoutInput input, DateOnly date) {
+            log.Type  = input.Type;
+            log.Date  = date;
+            log.Notes = Normalize(input.Notes);
+
+            log.ExerciseName    = null;
+            log.LoadKg          = null;
+            log.Sets            = null;
+            log.Reps            = null;
+            log.DistanceKm      = null;
+            log.DurationMinutes = null;
+            log.PaceMinPerKm    = null;
 
             switch (input.Type) {
                 case WorkoutType.Academia:
@@ -43,13 +87,142 @@ namespace Pyrra.Application.Treinos {
                 default:
                     throw new InvalidWorkoutException($"Tipo de treino '{input.Type}' não é suportado.");
             }
+        }
 
-            await _repository.AddAsync(log, cancellationToken);
+        // Mesmo NotFoundException genérico dos outros módulos: inexistente ou de outro usuário
+        // são indistinguíveis para quem chama.
+        private async Task<WorkoutLog> GetOwnedLogAsync(Guid userId, Guid workoutId, CancellationToken cancellationToken) {
+            var log = await _repository.GetByIdAsync(workoutId, cancellationToken);
+            if (log is null || log.UserId != userId) {
+                throw new NotFoundException($"Treino '{workoutId}' não encontrado.");
+            }
             return log;
         }
 
         public Task<IReadOnlyList<WorkoutLog>> GetAllForUserAsync(Guid userId, WorkoutType? type = null, CancellationToken cancellationToken = default) =>
             _repository.GetAllByUserIdAsync(userId, type, cancellationToken);
+
+        public async Task<IReadOnlyList<WorkoutLog>> GetForRangeAsync(Guid userId, DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken = default) {
+            // Intervalo invertido devolve vazio, mesmo critério de tarefas e finanças.
+            if (startDate > endDate) {
+                return Array.Empty<WorkoutLog>();
+            }
+
+            return await _repository.GetByUserAndDateRangeAsync(userId, startDate, endDate, cancellationToken);
+        }
+
+        public async Task<IReadOnlyList<WorkoutPlanDay>> GetPlanAsync(Guid userId, CancellationToken cancellationToken = default) {
+            var saved = await _planRepository.GetByUserAsync(userId, cancellationToken);
+            return BuildFullWeek(userId, saved);
+        }
+
+        public async Task<IReadOnlyList<WorkoutPlanDay>> SavePlanAsync(Guid userId, IReadOnlyList<WorkoutPlanDay> days, CancellationToken cancellationToken = default) {
+            // Normaliza aqui, na entrada: label só de espaços é "sem plano", e gravar "  "
+            // faria o dia parecer preenchido para quem lê depois.
+            var normalized = days
+                .Select(day => new WorkoutPlanDay {
+                    DayOfWeek = day.DayOfWeek,
+                    Label     = string.IsNullOrWhiteSpace(day.Label) ? null : day.Label.Trim()
+                })
+                .ToList();
+
+            await _planRepository.UpsertManyAsync(userId, normalized, cancellationToken);
+            return await GetPlanAsync(userId, cancellationToken);
+        }
+
+        public async Task<IReadOnlyList<WorkoutPlanDayWithExercises>> GetPlanWithExercisesAsync(Guid userId, CancellationToken cancellationToken = default) {
+            var days = await GetPlanAsync(userId, cancellationToken);
+
+            // Uma consulta para a semana inteira, agrupada em memória: sete consultas
+            // dia a dia buscariam os mesmos dados em sete idas ao banco.
+            var exercises = await _planExerciseRepository.GetByUserAsync(userId, cancellationToken);
+            var byDay = exercises.GroupBy(e => e.DayOfWeek).ToDictionary(g => g.Key, g => g.ToList());
+
+            return days
+                .Select(day => new WorkoutPlanDayWithExercises(
+                    day.DayOfWeek,
+                    day.Label,
+                    byDay.TryGetValue(day.DayOfWeek, out var list)
+                        ? list
+                        : (IReadOnlyList<WorkoutPlanExercise>)Array.Empty<WorkoutPlanExercise>()))
+                .ToList();
+        }
+
+        public async Task<WorkoutPlanExercise> AddPlanExerciseAsync(Guid userId, WeekDay dayOfWeek, WorkoutType type, string exerciseName, int? sets, int? reps, CancellationToken cancellationToken = default) {
+            var normalizedName = exerciseName?.Trim();
+            if (string.IsNullOrEmpty(normalizedName)) {
+                throw new InvalidWorkoutException("Informe o nome do exercício.");
+            }
+
+            if (!Enum.IsDefined(dayOfWeek)) {
+                throw new InvalidWorkoutException($"Dia '{dayOfWeek}' não é válido.");
+            }
+
+            if (!Enum.IsDefined(type)) {
+                throw new InvalidWorkoutException($"Tipo de treino '{type}' não é válido.");
+            }
+
+            if (sets is <= 0) {
+                throw new InvalidWorkoutException("O número de séries deve ser maior que zero.");
+            }
+
+            if (reps is <= 0) {
+                throw new InvalidWorkoutException("O número de repetições deve ser maior que zero.");
+            }
+
+            var existing = await _planExerciseRepository.GetByUserAndDayAsync(userId, dayOfWeek, cancellationToken);
+
+            // Próximo da lista = maior Order + 1, e não Count: remover um item do meio
+            // deixaria Count menor que o último Order, e o novo colidiria com um existente.
+            var nextOrder = existing.Count == 0 ? 0 : existing.Max(e => e.Order) + 1;
+
+            var isGym = type == WorkoutType.Academia;
+
+            var exercise = new WorkoutPlanExercise {
+                Id           = Guid.NewGuid(),
+                UserId       = userId,
+                DayOfWeek    = dayOfWeek,
+                Type         = type,
+                ExerciseName = normalizedName,
+                // Descartados em Corrida em vez de recusados: o cliente pode ter deixado
+                // valores no formulário ao trocar de modalidade, e barrar por isso seria
+                // fricção sem ganho — o dado simplesmente não se aplica.
+                Sets         = isGym ? sets : null,
+                Reps         = isGym ? reps : null,
+                Order        = nextOrder
+            };
+
+            await _planExerciseRepository.AddAsync(exercise, cancellationToken);
+            return exercise;
+        }
+
+        public async Task RemovePlanExerciseAsync(Guid userId, Guid exerciseId, CancellationToken cancellationToken = default) {
+            var exercise = await _planExerciseRepository.GetByIdAsync(exerciseId, cancellationToken);
+
+            // Mesmo NotFoundException genérico dos outros módulos: inexistente ou de outro
+            // usuário são indistinguíveis para quem chama.
+            if (exercise is null || exercise.UserId != userId) {
+                throw new NotFoundException($"Exercício de plano '{exerciseId}' não encontrado.");
+            }
+
+            // Sem renumerar os Order dos seguintes: buracos na sequência não afetam a
+            // ordenação, e reescrever a lista inteira a cada remoção seria custo sem ganho.
+            await _planExerciseRepository.DeleteAsync(exercise, cancellationToken);
+        }
+
+        // Completa a semana com os dias que nunca foram salvos. Devolver os 7 sempre poupa o
+        // cliente de saber quais existem no banco — para ele, todo dia tem um plano, que pode
+        // estar vazio.
+        private static IReadOnlyList<WorkoutPlanDay> BuildFullWeek(Guid userId, IReadOnlyList<WorkoutPlanDay> saved) {
+            var byDay = saved.ToDictionary(d => d.DayOfWeek);
+
+            return Enum.GetValues<WeekDay>()
+                .Select(day =>
+                    byDay.TryGetValue(day, out var existing)
+                        ? existing
+                        : new WorkoutPlanDay { Id = Guid.Empty, UserId = userId, DayOfWeek = day, Label = null })
+                .ToList();
+        }
 
         // Nome em branco listaria todos os treinos de Academia como se fossem um exercício só,
         // o que não é histórico de nada.

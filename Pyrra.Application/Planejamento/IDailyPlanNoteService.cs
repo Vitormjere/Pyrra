@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Pyrra.Domain.Planejamento;
@@ -12,5 +13,9 @@ namespace Pyrra.Application.Planejamento {
     public interface IDailyPlanNoteService {
         Task<DailyPlanNote> SaveAsync(Guid userId, DateOnly? date, string content, CancellationToken cancellationToken = default);
         Task<DailyPlanNoteResult> GetByDateAsync(Guid userId, DateOnly? date, CancellationToken cancellationToken = default);
+
+        // Últimos `days` dias, da nota mais recente para a mais antiga. Dias sem texto
+        // ficam de fora — o histórico é o que foi escrito, não o calendário inteiro.
+        Task<IReadOnlyList<DailyPlanNote>> GetHistoryAsync(Guid userId, int days = 30, CancellationToken cancellationToken = default);
     }
 }

@@ -60,6 +60,31 @@ namespace Pyrra.Api.Controllers {
             return Ok(new AcknowledgeMilestonesResponse(acknowledged));
         }
 
+        [HttpGet("freezes-usados-pendentes")]
+        public async Task<ActionResult<IEnumerable<PendingFreezeUseResponse>>> GetPendingFreezeUses(CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            try {
+                var pending = await _streakService.GetPendingFreezeUsesAsync(userId, cancellationToken);
+                return Ok(pending.Select(PendingFreezeUseResponse.FromResult));
+            } catch (NotFoundException ex) {
+                return NotFound(new { message = ex.Message });
+            }
+        }
+
+        [HttpPost("freezes-usados-pendentes/confirmar")]
+        public async Task<ActionResult<AcknowledgeFreezeUsesResponse>> AcknowledgeFreezeUses(
+            [FromBody] AcknowledgeFreezeUsesRequest? request, CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            var acknowledged = await _streakService.AcknowledgeFreezeUsesAsync(userId, request?.Ids, cancellationToken);
+            return Ok(new AcknowledgeFreezeUsesResponse(acknowledged));
+        }
+
         // O userId vem SEMPRE do token (claim NameIdentifier), nunca do corpo da requisição.
         private bool TryGetUserId(out Guid userId) {
             var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);

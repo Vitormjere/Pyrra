@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
@@ -65,6 +67,68 @@ namespace Pyrra.Api.Controllers {
             try {
                 var week = await _nutritionService.GetForWeekAsync(userId, inicio, cancellationToken);
                 return Ok(WeekNutritionResponse.FromWeek(week));
+            } catch (NotFoundException ex) {
+                return NotFound(new { message = ex.Message });
+            }
+        }
+
+        // PLANO SEMANAL — a grade 7x4 completa, mesmo com refeições vazias.
+        [HttpGet("plano")]
+        public async Task<ActionResult<IEnumerable<PlanDayResponse>>> GetPlan(CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            var plan = await _nutritionService.GetPlanAsync(userId, cancellationToken);
+            return Ok(plan.Select(PlanDayResponse.FromDay));
+        }
+
+        [HttpPost("plano")]
+        public async Task<ActionResult<NutritionPlanItemResponse>> AddPlanItem(AddNutritionPlanItemRequest request, CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            try {
+                var item = await _nutritionService.AddPlanItemAsync(
+                    userId,
+                    request.Day!.Value,
+                    request.MealType!.Value,
+                    request.ItemName,
+                    request.Quantity,
+                    cancellationToken);
+
+                return Created($"/api/nutricao/plano/{item.Id}", NutritionPlanItemResponse.FromEntity(item));
+            } catch (InvalidNutritionEntryException ex) {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpDelete("plano/{id:guid}")]
+        public async Task<IActionResult> RemovePlanItem(Guid id, CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            try {
+                await _nutritionService.RemovePlanItemAsync(userId, id, cancellationToken);
+                return NoContent();
+            } catch (NotFoundException ex) {
+                return NotFound(new { message = ex.Message });
+            }
+        }
+
+        [HttpPut("{id:guid}")]
+        public async Task<ActionResult<NutritionItemResponse>> UpdateItem(Guid id, UpdateNutritionItemRequest request, CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            try {
+                var entry = await _nutritionService.UpdateItemAsync(userId, id, request.ItemName, request.Quantity, cancellationToken);
+                return Ok(NutritionItemResponse.FromEntity(entry));
+            } catch (InvalidNutritionEntryException ex) {
+                return BadRequest(new { message = ex.Message });
             } catch (NotFoundException ex) {
                 return NotFound(new { message = ex.Message });
             }

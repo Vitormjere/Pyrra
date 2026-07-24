@@ -100,9 +100,12 @@ builder.Services.AddSingleton<IClockService, SystemClockService>();
 builder.Services.AddScoped<IStreakRepository, StreakRepository>();
 builder.Services.AddScoped<IFreezeBankRepository, FreezeBankRepository>();
 builder.Services.AddScoped<IPendingMilestoneRepository, PendingMilestoneRepository>();
+builder.Services.AddScoped<IPendingFreezeUseRepository, PendingFreezeUseRepository>();
 builder.Services.AddScoped<IStreakService, StreakService>();
 
 builder.Services.AddScoped<IWorkoutLogRepository, WorkoutLogRepository>();
+builder.Services.AddScoped<IWorkoutPlanDayRepository, WorkoutPlanDayRepository>();
+builder.Services.AddScoped<IWorkoutPlanExerciseRepository, WorkoutPlanExerciseRepository>();
 builder.Services.AddScoped<IWorkoutService, WorkoutService>();
 
 builder.Services.AddScoped<IDailyPlanNoteRepository, DailyPlanNoteRepository>();
@@ -116,6 +119,8 @@ builder.Services.AddScoped<IFinanceEntryRepository, FinanceEntryRepository>();
 builder.Services.AddScoped<IFinanceService, FinanceService>();
 
 builder.Services.AddScoped<INutritionEntryRepository, NutritionEntryRepository>();
+builder.Services.AddScoped<INutritionPlanItemRepository, NutritionPlanItemRepository>();
+builder.Services.AddScoped<INutritionPlanSeedLogRepository, NutritionPlanSeedLogRepository>();
 builder.Services.AddScoped<INutritionService, NutritionService>();
 
 builder.Services.AddScoped<IUserPreferencesService, UserPreferencesService>();

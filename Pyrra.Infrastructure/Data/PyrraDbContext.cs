@@ -19,17 +19,29 @@ namespace Pyrra.Infrastructure.Data {
         public DbSet<Streak> Streaks => Set<Streak>();
         public DbSet<FreezeBank> FreezeBanks => Set<FreezeBank>();
         public DbSet<PendingMilestone> PendingMilestones => Set<PendingMilestone>();
+        public DbSet<PendingFreezeUse> PendingFreezeUses => Set<PendingFreezeUse>();
         public DbSet<WorkoutLog> WorkoutLogs => Set<WorkoutLog>();
         public DbSet<DailyPlanNote> DailyPlanNotes => Set<DailyPlanNote>();
         public DbSet<PriorityTask> PriorityTasks => Set<PriorityTask>();
         public DbSet<FinanceCategory> FinanceCategories => Set<FinanceCategory>();
         public DbSet<FinanceEntry> FinanceEntries => Set<FinanceEntry>();
         public DbSet<NutritionEntry> NutritionEntries => Set<NutritionEntry>();
+        public DbSet<WorkoutPlanDay> WorkoutPlanDays => Set<WorkoutPlanDay>();
+        public DbSet<WorkoutPlanExercise> WorkoutPlanExercises => Set<WorkoutPlanExercise>();
+        public DbSet<NutritionPlanItem> NutritionPlanItems => Set<NutritionPlanItem>();
+        public DbSet<NutritionPlanSeedLog> NutritionPlanSeedLogs => Set<NutritionPlanSeedLog>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder) {
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Email)
                 .IsUnique();
+
+            // Nome de foco é rótulo curto de tela ("beber agua"). Sem limite a coluna nasceria
+            // nvarchar(max), que nem indexar dá — e o mesmo 100 vale no CreateFocusRequest e no
+            // maxLength do campo no frontend.
+            modelBuilder.Entity<DailyFocus>()
+                .Property(f => f.Name)
+                .HasMaxLength(100);
 
             // Um único score por usuário/dia: garante no banco a semântica de upsert do DailyScoreRepository.
             modelBuilder.Entity<DailyScore>()
@@ -60,6 +72,12 @@ namespace Pyrra.Infrastructure.Data {
             modelBuilder.Entity<PendingMilestone>()
                 .Property(m => m.AveragePercentage)
                 .HasPrecision(5, 4);
+
+            // Mesmo padrão do PendingMilestone: não é único (o mesmo dia nunca reaparece, mas
+            // vários dias perdoados podem ficar pendentes ao mesmo tempo). O índice serve à
+            // consulta de pendentes, a única leitura da tabela.
+            modelBuilder.Entity<PendingFreezeUse>()
+                .HasIndex(f => new { f.UserId, f.AcknowledgedAt });
 
             // Precisão explícita: o default do SQL Server para decimal é (18,2), que arredondaria
             // o pace (ex.: 5,375 min/km) e a distância de treinos curtos.
@@ -138,6 +156,42 @@ namespace Pyrra.Infrastructure.Data {
             modelBuilder.Entity<NutritionEntry>()
                 .Property(e => e.Quantity)
                 .HasMaxLength(100);
+
+            // Um plano por usuário/dia da semana: o índice único garante no banco a
+            // semântica de upsert do WorkoutPlanDayRepository.
+            modelBuilder.Entity<WorkoutPlanDay>()
+                .HasIndex(d => new { d.UserId, d.DayOfWeek })
+                .IsUnique();
+
+            modelBuilder.Entity<WorkoutPlanDay>()
+                .Property(d => d.Label)
+                .HasMaxLength(200);
+
+            // NÃO é único: um dia tem vários exercícios planejados.
+            modelBuilder.Entity<WorkoutPlanExercise>()
+                .HasIndex(e => new { e.UserId, e.DayOfWeek });
+
+            modelBuilder.Entity<WorkoutPlanExercise>()
+                .Property(e => e.ExerciseName)
+                .HasMaxLength(200);
+
+            // NÃO é único: uma refeição planejada tem vários itens.
+            modelBuilder.Entity<NutritionPlanItem>()
+                .HasIndex(i => new { i.UserId, i.DayOfWeek });
+
+            modelBuilder.Entity<NutritionPlanItem>()
+                .Property(i => i.ItemName)
+                .HasMaxLength(200);
+
+            modelBuilder.Entity<NutritionPlanItem>()
+                .Property(i => i.Quantity)
+                .HasMaxLength(100);
+
+            // Uma marca por usuário/dia. O índice único é o que garante a idempotência da
+            // semeadura mesmo com duas requisições simultâneas.
+            modelBuilder.Entity<NutritionPlanSeedLog>()
+                .HasIndex(l => new { l.UserId, l.Date })
+                .IsUnique();
         }
     }
 }

@@ -16,7 +16,15 @@ namespace Pyrra.Application.Common.Interfaces {
         // service, que é onde o fuso é resolvido.
         Task<IReadOnlyList<PriorityTask>> GetPendingByUserAndWeekAsync(Guid userId, DateOnly weekStart, DateOnly beforeDate, CancellationToken cancellationToken = default);
 
+        // TODAS as tarefas do intervalo (concluídas ou não), inclusivo nas duas pontas.
+        // Diferente do GetPendingByUserAndWeek, que só traz pendentes atrasadas.
+        Task<IReadOnlyList<PriorityTask>> GetByUserAndDateRangeAsync(Guid userId, DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken = default);
+
         Task AddAsync(PriorityTask task, CancellationToken cancellationToken = default);
         Task UpdateAsync(PriorityTask task, CancellationToken cancellationToken = default);
+
+        // Remoção real: tarefa não é referenciada por nenhum agregado histórico (ao contrário
+        // do foco, que o FocusLog aponta), então não há motivo para soft delete.
+        Task DeleteAsync(PriorityTask task, CancellationToken cancellationToken = default);
     }
 }

@@ -7,7 +7,7 @@ namespace Pyrra.Api.Dtos.Notificacoes {
         string Message,
         string Tone,
         string Situation,
-        int Percent) {
+        int    Percent) {
         public static NightlyMessagePreviewResponse FromMessage(ClosingMessage message) =>
             new(message.Text, message.Tone, message.Situation, message.Percent);
     }

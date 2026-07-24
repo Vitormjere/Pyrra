@@ -99,7 +99,8 @@ namespace Pyrra.Infrastructure.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uniqueidentifier");
@@ -192,6 +193,31 @@ namespace Pyrra.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("FreezeBanks");
+                });
+
+            modelBuilder.Entity("Pyrra.Domain.Focos.PendingFreezeUse", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("AcknowledgedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "AcknowledgedAt");
+
+                    b.ToTable("PendingFreezeUses");
                 });
 
             modelBuilder.Entity("Pyrra.Domain.Focos.PendingMilestone", b =>
@@ -291,6 +317,61 @@ namespace Pyrra.Infrastructure.Migrations
                     b.HasIndex("UserId", "Date");
 
                     b.ToTable("NutritionEntries");
+                });
+
+            modelBuilder.Entity("Pyrra.Domain.Nutricao.NutritionPlanItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("DayOfWeek")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ItemName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("MealType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Quantity")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "DayOfWeek");
+
+                    b.ToTable("NutritionPlanItems");
+                });
+
+            modelBuilder.Entity("Pyrra.Domain.Nutricao.NutritionPlanSeedLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime>("SeededAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Date")
+                        .IsUnique();
+
+                    b.ToTable("NutritionPlanSeedLogs");
                 });
 
             modelBuilder.Entity("Pyrra.Domain.Planejamento.DailyPlanNote", b =>
@@ -406,6 +487,66 @@ namespace Pyrra.Infrastructure.Migrations
                     b.HasIndex("UserId", "Type", "ExerciseName");
 
                     b.ToTable("WorkoutLogs");
+                });
+
+            modelBuilder.Entity("Pyrra.Domain.Treinos.WorkoutPlanDay", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("DayOfWeek")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Label")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "DayOfWeek")
+                        .IsUnique();
+
+                    b.ToTable("WorkoutPlanDays");
+                });
+
+            modelBuilder.Entity("Pyrra.Domain.Treinos.WorkoutPlanExercise", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("DayOfWeek")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ExerciseName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("Reps")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("Sets")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "DayOfWeek");
+
+                    b.ToTable("WorkoutPlanExercises");
                 });
 
             modelBuilder.Entity("Pyrra.Domain.Users.User", b =>

@@ -10,11 +10,11 @@ namespace Pyrra.Api.Dtos.Streaks {
     }
 
     public record StreakStatusResponse(
-        int CurrentCount,
-        int BestCount,
-        int FreezesAvailable,
+        int  CurrentCount,
+        int  BestCount,
+        int  FreezesAvailable,
         bool TodayGoalMet,
-        int DisplayCount,
+        int  DisplayCount,
         IReadOnlyList<MilestoneResponse> MilestonesReached) {
         public static StreakStatusResponse FromResult(StreakStatusResult result) =>
             new(result.CurrentCount,

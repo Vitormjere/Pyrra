@@ -13,6 +13,11 @@ namespace Pyrra.Application.Common.Interfaces {
 
         Task<IReadOnlyList<WorkoutLog>> GetByExerciseNameAsync(Guid userId, string exerciseName, CancellationToken cancellationToken = default);
 
+        // Intervalo inclusivo nas duas pontas — base da visão de calendário.
+        Task<IReadOnlyList<WorkoutLog>> GetByUserAndDateRangeAsync(Guid userId, DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken = default);
+
         Task AddAsync(WorkoutLog log, CancellationToken cancellationToken = default);
+        Task UpdateAsync(WorkoutLog log, CancellationToken cancellationToken = default);
+        Task DeleteAsync(WorkoutLog log, CancellationToken cancellationToken = default);
     }
 }

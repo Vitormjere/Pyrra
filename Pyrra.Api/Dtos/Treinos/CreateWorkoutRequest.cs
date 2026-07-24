@@ -11,13 +11,13 @@ namespace Pyrra.Api.Dtos.Treinos {
         [Required] WorkoutType? Type,
         DateOnly? Date = null,
         [MaxLength(200)] string? ExerciseName = null,
-        decimal? LoadKg = null,
-        int? Sets = null,
-        int? Reps = null,
-        decimal? DistanceKm = null,
-        int? DurationMinutes = null,
-        decimal? PaceMinPerKm = null,
-        string? Notes = null) {
+        decimal?  LoadKg = null,
+        int?      Sets = null,
+        int?      Reps = null,
+        decimal?  DistanceKm = null,
+        int?      DurationMinutes = null,
+        decimal?  PaceMinPerKm = null,
+        string?   Notes = null) {
         public CreateWorkoutInput ToInput() =>
             new(Type!.Value, Date, ExerciseName, LoadKg, Sets, Reps, DistanceKm, DurationMinutes, PaceMinPerKm, Notes);
     }

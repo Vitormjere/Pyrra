@@ -1,5 +1,6 @@
 import api from './api'
 import type {
+  PendingFreezeUseResponse,
   PendingMilestoneResponse,
   StreakStatusResponse,
 } from '../types/streak'
@@ -32,6 +33,30 @@ export async function getPendingMilestones(): Promise<PendingMilestoneResponse[]
 export async function acknowledgeMilestones(ids?: string[]): Promise<number> {
   const { data } = await api.post<{ acknowledged: number }>(
     '/api/streak/marcos-pendentes/confirmar',
+    { ids: ids ?? null },
+  )
+  return data.acknowledged
+}
+
+// Mesmo par do marcos, para os avisos de freeze usado. Consulte SEMPRE depois de
+// getStreakStatus(): é o acerto disparado por aquele GET que registra o freeze
+// gasto, então buscar em paralelo poderia perder um aviso recém-nascido.
+export async function getPendingFreezeUses(): Promise<PendingFreezeUseResponse[]> {
+  const { data } = await api.get<PendingFreezeUseResponse[]>(
+    '/api/streak/freezes-usados-pendentes',
+  )
+  return data
+}
+
+/**
+ * Marca avisos de freeze como exibidos. Sem `ids`, o backend confirma TODOS os
+ * pendentes — passar a lista explícita permite confirmar um de cada vez.
+ *
+ * @returns quantos avisos foram confirmados.
+ */
+export async function acknowledgeFreezeUses(ids?: string[]): Promise<number> {
+  const { data } = await api.post<{ acknowledged: number }>(
+    '/api/streak/freezes-usados-pendentes/confirmar',
     { ids: ids ?? null },
   )
   return data.acknowledged
