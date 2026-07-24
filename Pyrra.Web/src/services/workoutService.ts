@@ -85,3 +85,19 @@ export async function addPlanExercise(
 export async function removePlanExercise(exerciseId: string): Promise<void> {
   await api.delete(`/api/treinos/plano/exercicios/${exerciseId}`)
 }
+
+// Mesma forma de payload da criação; o backend revalida por tipo.
+export async function updateWorkout(
+  workoutId: string,
+  payload: CreateWorkoutPayload,
+): Promise<WorkoutResponse> {
+  const { data } = await api.put<WorkoutResponse>(
+    `/api/treinos/${workoutId}`,
+    payload,
+  )
+  return data
+}
+
+export async function deleteWorkout(workoutId: string): Promise<void> {
+  await api.delete(`/api/treinos/${workoutId}`)
+}

@@ -3,10 +3,16 @@ import type { FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Footprints, Plus } from 'lucide-react'
 import Segmented from '../../components/Segmented'
+import ItemActions from '../../components/ItemActions'
 import WorkoutPlanSection from '../../components/WorkoutPlanSection'
 import GymHistorySection from '../../components/GymHistorySection'
 import SectionHeader from '../../components/SectionHeader'
-import { createWorkout, getWorkouts } from '../../services/workoutService'
+import {
+  createWorkout,
+  deleteWorkout,
+  getWorkouts,
+  updateWorkout,
+} from '../../services/workoutService'
 import { getApiErrorMessage } from '../../services/apiError'
 import { formatNumber, formatShortDate, todayIso } from '../../utils/format'
 import type { WorkoutResponse, WorkoutType } from '../../types/workout'
@@ -80,6 +86,16 @@ export function Treino() {
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const firstFieldRef = useRef<HTMLInputElement>(null)
+
+  // Edição inline de uma corrida do histórico (a Academia edita dentro do
+  // GymHistorySection, que é quem tem o contexto do exercício).
+  const [editingRunId, setEditingRunId] = useState<string | null>(null)
+  const [editRunDistance, setEditRunDistance] = useState('')
+  const [editRunDuration, setEditRunDuration] = useState('')
+  const [editRunDate, setEditRunDate] = useState(todayIso())
+  const [savingRunEdit, setSavingRunEdit] = useState(false)
+  const [editRunError, setEditRunError] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const fetchWorkouts = useCallback(() => getWorkouts(), [])
 
@@ -191,6 +207,85 @@ export function Treino() {
     setFormOpen(false)
     resetFields()
     setCreateError(null)
+  }
+
+  // Reconciliações compartilhadas com o GymHistorySection: um treino editado ou
+  // removido lá também precisa sair/atualizar na lista mestre `workouts`, que
+  // alimenta os contadores das abas e a lista de Corrida. Treino não tem total
+  // derivado (diferente de Foco/Finanças), então basta o estado local.
+  const applyWorkoutUpdate = useCallback((updated: WorkoutResponse) => {
+    setWorkouts((current) =>
+      current.map((w) => (w.id === updated.id ? updated : w)),
+    )
+  }, [])
+
+  const applyWorkoutRemoval = useCallback((workoutId: string) => {
+    setWorkouts((current) => current.filter((w) => w.id !== workoutId))
+  }, [])
+
+  function startEditRun(workout: WorkoutResponse) {
+    setEditingRunId(workout.id)
+    setEditRunDistance(workout.distanceKm !== null ? String(workout.distanceKm) : '')
+    setEditRunDuration(
+      workout.durationMinutes !== null ? String(workout.durationMinutes) : '',
+    )
+    setEditRunDate(workout.date)
+    setEditRunError(null)
+  }
+
+  async function handleSaveRunEdit(
+    event: FormEvent<HTMLFormElement>,
+    workoutId: string,
+  ) {
+    event.preventDefault()
+
+    if (parseNumber(editRunDistance) === null) {
+      setEditRunError('Informe a distância em km.')
+      return
+    }
+    if (parseNumber(editRunDuration) === null) {
+      setEditRunError('Informe a duração em minutos.')
+      return
+    }
+
+    setSavingRunEdit(true)
+    setEditRunError(null)
+
+    try {
+      const updated = await updateWorkout(workoutId, {
+        type: 'Corrida',
+        date: editRunDate,
+        distanceKm: parseNumber(editRunDistance),
+        durationMinutes: parseNumber(editRunDuration),
+      })
+      applyWorkoutUpdate(updated)
+      setEditingRunId(null)
+    } catch (err) {
+      setEditRunError(
+        getApiErrorMessage(err, {}, 'Não foi possível salvar o treino.'),
+      )
+    } finally {
+      setSavingRunEdit(false)
+    }
+  }
+
+  async function handleDeleteWorkout(workout: WorkoutResponse, label: string) {
+    if (!window.confirm(`Remover o treino de ${label}?`)) return
+
+    setDeletingId(workout.id)
+    setError(null)
+
+    try {
+      await deleteWorkout(workout.id)
+      applyWorkoutRemoval(workout.id)
+      if (editingRunId === workout.id) setEditingRunId(null)
+    } catch (err) {
+      setError(
+        getApiErrorMessage(err, {}, 'Não foi possível remover o treino.'),
+      )
+    } finally {
+      setDeletingId(null)
+    }
   }
 
   const runWorkouts = workouts.filter((w) => w.type === 'Corrida')
@@ -400,30 +495,135 @@ export function Treino() {
         </div>
 
         {historyTab === 'Academia' ? (
-          <GymHistorySection workouts={workouts} />
+          <GymHistorySection
+            workouts={workouts}
+            onWorkoutUpdated={applyWorkoutUpdate}
+            onWorkoutDeleted={applyWorkoutRemoval}
+          />
         ) : runWorkouts.length > 0 ? (
           <ul className="divide-y divide-line overflow-hidden rounded-md bg-surface ring-1 ring-line">
-            {runWorkouts.map((workout) => (
-              <li
-                key={workout.id}
-                className="flex items-center gap-3 px-4 py-3.5"
-              >
-                <Footprints
-                  size={18}
-                  className="shrink-0 text-brand-green"
-                  aria-hidden="true"
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium text-ink">Corrida</p>
-                  <p className="mt-0.5 text-xs text-slate-400">
-                    {describeWorkout(workout)}
-                  </p>
-                </div>
-                <span className="shrink-0 text-xs text-slate-500 tabular-nums">
-                  {formatShortDate(workout.date)}
-                </span>
-              </li>
-            ))}
+            {runWorkouts.map((workout) =>
+              editingRunId === workout.id ? (
+                <li key={workout.id} className="px-4 py-3.5">
+                  <form
+                    onSubmit={(event) => handleSaveRunEdit(event, workout.id)}
+                    className="flex flex-col gap-2"
+                  >
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="flex flex-col gap-1">
+                        <label
+                          htmlFor={`edit-distancia-${workout.id}`}
+                          className={labelClasses}
+                        >
+                          Distância (km)
+                        </label>
+                        <input
+                          id={`edit-distancia-${workout.id}`}
+                          type="number"
+                          inputMode="decimal"
+                          step="0.1"
+                          min="0"
+                          value={editRunDistance}
+                          onChange={(event) => {
+                            setEditRunDistance(event.target.value)
+                            if (editRunError !== null) setEditRunError(null)
+                          }}
+                          autoFocus
+                          className={inputClasses}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label
+                          htmlFor={`edit-duracao-${workout.id}`}
+                          className={labelClasses}
+                        >
+                          Duração (min)
+                        </label>
+                        <input
+                          id={`edit-duracao-${workout.id}`}
+                          type="number"
+                          inputMode="numeric"
+                          min="1"
+                          value={editRunDuration}
+                          onChange={(event) => {
+                            setEditRunDuration(event.target.value)
+                            if (editRunError !== null) setEditRunError(null)
+                          }}
+                          className={inputClasses}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label
+                        htmlFor={`edit-data-${workout.id}`}
+                        className={labelClasses}
+                      >
+                        Data
+                      </label>
+                      <input
+                        id={`edit-data-${workout.id}`}
+                        type="date"
+                        value={editRunDate}
+                        max={todayIso()}
+                        onChange={(event) => setEditRunDate(event.target.value)}
+                        className={inputClasses}
+                      />
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        type="submit"
+                        disabled={savingRunEdit}
+                        className="flex-1 rounded-xl bg-brand-green px-4 py-2.5 font-semibold text-brand-dark transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {savingRunEdit ? 'Salvando...' : 'Salvar'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingRunId(null)}
+                        className="rounded-md px-4 py-2.5 font-medium text-slate-400 transition hover:bg-surface hover:text-slate-200"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+
+                    {editRunError && (
+                      <p role="alert" className="text-sm text-red-300">
+                        {editRunError}
+                      </p>
+                    )}
+                  </form>
+                </li>
+              ) : (
+                <li
+                  key={workout.id}
+                  className="flex items-center gap-3 px-4 py-3.5"
+                >
+                  <Footprints
+                    size={18}
+                    className="shrink-0 text-brand-green"
+                    aria-hidden="true"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium text-ink">Corrida</p>
+                    <p className="mt-0.5 text-xs text-slate-400">
+                      {describeWorkout(workout)}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-xs text-slate-500 tabular-nums">
+                    {formatShortDate(workout.date)}
+                  </span>
+                  <ItemActions
+                    busy={deletingId === workout.id}
+                    onEdit={() => startEditRun(workout)}
+                    onDelete={() => handleDeleteWorkout(workout, 'corrida')}
+                    editLabel="Editar corrida"
+                    deleteLabel="Remover corrida"
+                  />
+                </li>
+              ),
+            )}
           </ul>
         ) : (
           <div className="rounded-md bg-surface px-5 py-8 text-center ring-1 ring-line">

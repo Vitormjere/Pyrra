@@ -20,10 +20,13 @@ import ReflectionCard from '../../components/ReflectionCard'
 import SectionHeader from '../../components/SectionHeader'
 import Segmented from '../../components/Segmented'
 import StreakPill from '../../components/StreakPill'
+import ItemActions from '../../components/ItemActions'
 import {
   createFocus,
+  deactivateFocus,
   getDailyScore,
   toggleCheckIn,
+  updateFocus,
 } from '../../services/focusService'
 import {
   acknowledgeMilestones,
@@ -170,6 +173,13 @@ export function Hoje() {
   const [newFocusName, setNewFocusName] = useState('')
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
+  // Edição inline de um foco (só o nome; o backend recategoriza e recalcula o
+  // peso). E travas de linha em voo (edição salvando / remoção).
+  const [editingFocusId, setEditingFocusId] = useState<string | null>(null)
+  const [editFocusName, setEditFocusName] = useState('')
+  const [savingFocusEdit, setSavingFocusEdit] = useState(false)
+  const [focusEditError, setFocusEditError] = useState<string | null>(null)
+  const [deletingFocusId, setDeletingFocusId] = useState<string | null>(null)
   // Devolve o cursor ao campo depois de salvar, para o próximo foco ser digitado
   // sem tocar na tela de novo.
   const nameInputRef = useRef<HTMLInputElement>(null)
@@ -351,6 +361,97 @@ export function Hoje() {
     setFormOpen(false)
     setNewFocusName('')
     setCreateError(null)
+  }
+
+  function startEditFocus(focus: { focusId: string; name: string }) {
+    setEditingFocusId(focus.focusId)
+    setEditFocusName(focus.name)
+    setFocusEditError(null)
+  }
+
+  async function handleSaveFocusEdit(focusId: string) {
+    const name = editFocusName.trim()
+    if (!name) return
+
+    setSavingFocusEdit(true)
+    setFocusEditError(null)
+
+    try {
+      const updated = await updateFocus(focusId, name)
+
+      // Atualiza nome e peso na lista a partir da resposta (o backend pode ter
+      // recategorizado e mudado o peso).
+      setScore((current) =>
+        current
+          ? {
+              ...current,
+              focuses: current.focuses.map((focus) =>
+                focus.focusId === focusId
+                  ? { ...focus, name: updated.name, weight: updated.weight }
+                  : focus,
+              ),
+            }
+          : current,
+      )
+
+      setEditingFocusId(null)
+
+      // Peso alterado muda pointsPossible e a porcentagem do dia; como na criação,
+      // rebusca só o score. Tolerante: se falhar, o item já foi salvo e só os
+      // totais ficam defasados até a próxima carga.
+      try {
+        setScore(await getDailyScore())
+      } catch {
+        /* mantém o estado local otimista */
+      }
+    } catch (err) {
+      setFocusEditError(
+        getApiErrorMessage(
+          err,
+          { 409: 'Você já tem um foco com esse nome.' },
+          'Não foi possível salvar o foco.',
+        ),
+      )
+    } finally {
+      setSavingFocusEdit(false)
+    }
+  }
+
+  async function handleDeleteFocus(focus: { focusId: string; name: string }) {
+    if (!window.confirm(`Remover o foco "${focus.name}"?`)) return
+
+    setDeletingFocusId(focus.focusId)
+    setError(null)
+
+    try {
+      await deactivateFocus(focus.focusId)
+
+      // Sai da lista na hora. Se era o que estava em edição, encerra a edição.
+      setScore((current) =>
+        current
+          ? {
+              ...current,
+              focuses: current.focuses.filter(
+                (f) => f.focusId !== focus.focusId,
+              ),
+            }
+          : current,
+      )
+      if (editingFocusId === focus.focusId) setEditingFocusId(null)
+
+      // Remover um foco muda pointsPossible e a porcentagem: rebusca só o score.
+      try {
+        setScore(await getDailyScore())
+      } catch {
+        /* mantém o estado local otimista */
+      }
+    } catch (err) {
+      setError(
+        getApiErrorMessage(err, {}, 'Não foi possível remover o foco.'),
+      )
+    } finally {
+      setDeletingFocusId(null)
+    }
   }
 
   // Mesmo comportamento da tela de Tarefas: a resposta do PATCH substitui o
@@ -564,37 +665,108 @@ export function Hoje() {
           <ul className="divide-y divide-line overflow-hidden rounded-md bg-surface ring-1 ring-line">
             {score.focuses.map((focus) => {
               const pending = pendingFocusId === focus.focusId
+              const deleting = deletingFocusId === focus.focusId
+
+              if (editingFocusId === focus.focusId) {
+                return (
+                  <li key={focus.focusId}>
+                    <form
+                      onSubmit={(event) => {
+                        event.preventDefault()
+                        void handleSaveFocusEdit(focus.focusId)
+                      }}
+                      className="flex flex-col gap-2 bg-surface-hi px-4 py-3.5"
+                    >
+                      <label
+                        htmlFor={`editar-foco-${focus.focusId}`}
+                        className="sr-only"
+                      >
+                        Nome do foco
+                      </label>
+                      <input
+                        id={`editar-foco-${focus.focusId}`}
+                        type="text"
+                        value={editFocusName}
+                        onChange={(event) => {
+                          setEditFocusName(event.target.value)
+                          if (focusEditError !== null) setFocusEditError(null)
+                        }}
+                        autoFocus
+                        maxLength={100}
+                        className="w-full rounded-md bg-surface px-4 py-3 text-ink ring-1 ring-line transition outline-none placeholder:text-slate-500 focus:ring-2 focus:ring-brand-green"
+                      />
+
+                      <div className="flex gap-2">
+                        <button
+                          type="submit"
+                          disabled={
+                            savingFocusEdit || editFocusName.trim().length === 0
+                          }
+                          className="flex-1 rounded-xl bg-brand-green px-4 py-2.5 font-semibold text-brand-dark transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {savingFocusEdit ? 'Salvando...' : 'Salvar'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingFocusId(null)}
+                          className="rounded-md px-4 py-2.5 font-medium text-slate-400 transition hover:bg-surface hover:text-slate-200"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+
+                      {focusEditError && (
+                        <p role="alert" className="text-sm text-red-300">
+                          {focusEditError}
+                        </p>
+                      )}
+                    </form>
+                  </li>
+                )
+              }
+
               return (
                 <li key={focus.focusId}>
                   {/*
-                    A linha inteira é o botão: em 390px, um alvo de toque do
-                    tamanho da linha erra muito menos que um quadradinho de 22px.
+                    A linha deixou de ser um único <button>: com ações irmãs
+                    (editar/remover), botão dentro de botão seria HTML inválido.
+                    O toggle cobre o conteúdo; as ações ficam ao lado.
                   */}
-                  <button
-                    type="button"
-                    role="checkbox"
-                    aria-checked={focus.completed}
-                    disabled={pending}
-                    onClick={() => handleToggle(focus.focusId)}
-                    className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition hover:bg-surface-hi disabled:opacity-50"
-                  >
-                    <CheckCircle checked={focus.completed} />
-
-                    <span
-                      className={[
-                        'flex-1 transition',
-                        focus.completed
-                          ? 'text-slate-400 line-through'
-                          : 'text-ink',
-                      ].join(' ')}
+                  <div className="flex items-center gap-1 pr-2 transition hover:bg-surface-hi">
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={focus.completed}
+                      disabled={pending || deleting}
+                      onClick={() => handleToggle(focus.focusId)}
+                      className="flex flex-1 items-center gap-3 px-4 py-3.5 text-left disabled:opacity-50"
                     >
-                      {focus.name}
-                    </span>
+                      <CheckCircle checked={focus.completed} />
 
-                    <span className="shrink-0 text-xs text-slate-500 tabular-nums">
-                      peso {focus.weight}
-                    </span>
-                  </button>
+                      <span
+                        className={[
+                          'min-w-0 flex-1 truncate transition',
+                          focus.completed
+                            ? 'text-slate-400 line-through'
+                            : 'text-ink',
+                        ].join(' ')}
+                      >
+                        {focus.name}
+                      </span>
+
+                      <span className="shrink-0 text-xs text-slate-500 tabular-nums">
+                        peso {focus.weight}
+                      </span>
+                    </button>
+
+                    <ItemActions
+                      busy={pending || deleting}
+                      onEdit={() => startEditFocus(focus)}
+                      onDelete={() => handleDeleteFocus(focus)}
+                      editLabel={`Editar ${focus.name}`}
+                      deleteLabel={`Remover ${focus.name}`}
+                    />
+                  </div>
                 </li>
               )
             })}

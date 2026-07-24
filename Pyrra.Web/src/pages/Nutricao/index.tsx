@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Plus, X } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import SectionHeader from '../../components/SectionHeader'
+import ItemActions from '../../components/ItemActions'
 import NutritionPlanSection from '../../components/NutritionPlanSection'
 import {
   addItem,
   getForDay,
   getForWeek,
   removeItem,
+  updateItem,
 } from '../../services/nutritionService'
 import { getApiErrorMessage } from '../../services/apiError'
 import { formatWeekdayShort } from '../../utils/format'
@@ -70,6 +72,14 @@ export function Nutricao() {
   const [formError, setFormError] = useState<string | null>(null)
   const [removingId, setRemovingId] = useState<string | null>(null)
   const itemInputRef = useRef<HTMLInputElement>(null)
+
+  // Edição inline de um item já registrado — só um por vez, como o formulário de
+  // adição. Guarda os campos e a trava de "salvando".
+  const [editingItemId, setEditingItemId] = useState<string | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editQuantity, setEditQuantity] = useState('')
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [editError, setEditError] = useState<string | null>(null)
 
   const fetchAll = useCallback(async () => {
     const [dayData, weekData] = await Promise.all([getForDay(), getForWeek()])
@@ -168,7 +178,10 @@ export function Nutricao() {
     }
   }
 
-  async function handleRemove(itemId: string, meal: MealType) {
+  async function handleRemove(itemId: string, itemLabel: string, meal: MealType) {
+    // Confirmação simples, mesmo padrão dos outros módulos.
+    if (!window.confirm(`Remover "${itemLabel}"?`)) return
+
     setRemovingId(itemId)
     setError(null)
 
@@ -201,6 +214,68 @@ export function Nutricao() {
     setItemName('')
     setQuantity('')
     setFormError(null)
+  }
+
+  function startEdit(item: { id: string; itemName: string; quantity: string }) {
+    setEditingItemId(item.id)
+    setEditName(item.itemName)
+    setEditQuantity(item.quantity)
+    setEditError(null)
+  }
+
+  async function handleSaveEdit(
+    event: FormEvent<HTMLFormElement>,
+    itemId: string,
+    meal: MealType,
+  ) {
+    event.preventDefault()
+
+    const trimmedName = editName.trim()
+    const trimmedQuantity = editQuantity.trim()
+
+    if (!trimmedName) {
+      setEditError('Informe o nome do item.')
+      return
+    }
+    if (!trimmedQuantity) {
+      setEditError('Informe a quantidade.')
+      return
+    }
+
+    setSavingEdit(true)
+    setEditError(null)
+
+    try {
+      const updated = await updateItem(itemId, trimmedName, trimmedQuantity)
+
+      // Troca só o item no grupo da refeição. Como no add, não há total derivado
+      // aqui — a resposta do PUT basta, sem segunda consulta.
+      setDay((current) =>
+        current
+          ? {
+              ...current,
+              meals: current.meals.map((group) =>
+                group.meal === meal
+                  ? {
+                      ...group,
+                      items: group.items.map((item) =>
+                        item.id === itemId ? updated : item,
+                      ),
+                    }
+                  : group,
+              ),
+            }
+          : current,
+      )
+
+      setEditingItemId(null)
+    } catch (err) {
+      setEditError(
+        getApiErrorMessage(err, {}, 'Não foi possível salvar o item.'),
+      )
+    } finally {
+      setSavingEdit(false)
+    }
   }
 
   if (loading) return <LoadingState />
@@ -273,28 +348,88 @@ export function Nutricao() {
                   bastam para separá-los, sem cada um virar um bloco. */}
               {group.items.length > 0 ? (
                 <ul className="mt-2 divide-y divide-line border-t border-line">
-                  {group.items.map((item) => (
-                    <li
-                      key={item.id}
-                      className="flex items-center gap-2 py-2.5"
-                    >
-                      <span className="min-w-0 flex-1 truncate text-sm">
-                        {item.itemName}
-                      </span>
-                      <span className="shrink-0 text-xs text-slate-400">
-                        {item.quantity}
-                      </span>
-                      <button
-                        type="button"
-                        disabled={removingId === item.id}
-                        onClick={() => handleRemove(item.id, group.meal)}
-                        aria-label={`Remover ${item.itemName}`}
-                        className="shrink-0 rounded p-1 text-slate-500 transition hover:bg-surface-hi hover:text-red-400 disabled:opacity-50"
+                  {group.items.map((item) =>
+                    editingItemId === item.id ? (
+                      <li key={item.id} className="py-2.5">
+                        <form
+                          onSubmit={(event) =>
+                            handleSaveEdit(event, item.id, group.meal)
+                          }
+                          className="flex flex-col gap-2"
+                        >
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={editName}
+                              onChange={(event) => {
+                                setEditName(event.target.value)
+                                if (editError !== null) setEditError(null)
+                              }}
+                              autoFocus
+                              maxLength={200}
+                              aria-label="Nome do item"
+                              className={inputClasses}
+                            />
+                            <input
+                              type="text"
+                              value={editQuantity}
+                              onChange={(event) => {
+                                setEditQuantity(event.target.value)
+                                if (editError !== null) setEditError(null)
+                              }}
+                              maxLength={100}
+                              aria-label="Quantidade"
+                              className={`${inputClasses} max-w-32`}
+                            />
+                          </div>
+
+                          <div className="flex gap-2">
+                            <button
+                              type="submit"
+                              disabled={savingEdit}
+                              className="flex-1 rounded-xl bg-brand-green px-3 py-2 text-sm font-semibold text-brand-dark transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {savingEdit ? 'Salvando...' : 'Salvar'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingItemId(null)}
+                              className="rounded-md px-3 py-2 text-sm font-medium text-slate-400 transition hover:bg-surface hover:text-slate-200"
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+
+                          {editError && (
+                            <p role="alert" className="text-sm text-red-300">
+                              {editError}
+                            </p>
+                          )}
+                        </form>
+                      </li>
+                    ) : (
+                      <li
+                        key={item.id}
+                        className="flex items-center gap-2 py-2.5"
                       >
-                        <X size={14} />
-                      </button>
-                    </li>
-                  ))}
+                        <span className="min-w-0 flex-1 truncate text-sm">
+                          {item.itemName}
+                        </span>
+                        <span className="shrink-0 text-xs text-slate-400">
+                          {item.quantity}
+                        </span>
+                        <ItemActions
+                          busy={removingId === item.id}
+                          onEdit={() => startEdit(item)}
+                          onDelete={() =>
+                            handleRemove(item.id, item.itemName, group.meal)
+                          }
+                          editLabel={`Editar ${item.itemName}`}
+                          deleteLabel={`Remover ${item.itemName}`}
+                        />
+                      </li>
+                    ),
+                  )}
                 </ul>
               ) : (
                 openMeal !== group.meal && (

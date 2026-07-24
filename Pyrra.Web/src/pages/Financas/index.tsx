@@ -7,18 +7,23 @@ import {
   Eye,
   EyeOff,
   Plus,
+  Trash2,
   TrendingDown,
   TrendingUp,
 } from 'lucide-react'
 import Segmented from '../../components/Segmented'
 import SectionHeader from '../../components/SectionHeader'
+import ItemActions from '../../components/ItemActions'
 import {
   createCategory,
   createEntry,
+  deleteCategory,
+  deleteEntry,
   getBalance,
   getBalanceHistory,
   getCategories,
   getWeeklySummary,
+  updateEntry,
 } from '../../services/financeService'
 import { getApiErrorMessage } from '../../services/apiError'
 import { formatCurrency, formatShortDate, todayIso } from '../../utils/format'
@@ -91,6 +96,16 @@ export function Financas() {
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const amountInputRef = useRef<HTMLInputElement>(null)
+  const entryFormRef = useRef<HTMLFormElement>(null)
+  // Lançamento em edição: quando setado, o mesmo formulário do topo vira edição
+  // (chama PUT, botão "Salvar") em vez de criação. Reusar o form evita duplicar
+  // toda a estrutura de tipo/categoria/data/descrição numa versão inline.
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null)
+  // Travas de linha em voo (remoção de lançamento / de categoria).
+  const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null)
+  const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(
+    null,
+  )
 
   // Formulário de categoria.
   const [categoryFormOpen, setCategoryFormOpen] = useState(false)
@@ -159,7 +174,23 @@ export function Financas() {
     }
   }
 
-  async function handleCreateEntry(event: FormEvent<HTMLFormElement>) {
+  // Rebusca saldo, resumo e série após qualquer mutação de lançamento: os três
+  // são derivados do conjunto de lançamentos e recalculá-los no cliente
+  // duplicaria a soma do backend. Categorias ficam de fora — lançamento não as
+  // altera.
+  const refetchTotals = useCallback(async () => {
+    const [balanceData, summaryData, historyData] = await Promise.all([
+      getBalance(),
+      getWeeklySummary(),
+      getBalanceHistory(BALANCE_HISTORY_DAYS),
+    ])
+    setBalance(balanceData)
+    setSummary(summaryData)
+    // A série também muda: o lançamento desloca o saldo do seu dia em diante.
+    setHistory(historyData)
+  }, [])
+
+  async function handleSubmitEntry(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setCreateError(null)
 
@@ -176,39 +207,120 @@ export function Financas() {
 
     setCreating(true)
 
-    try {
-      await createEntry({
-        categoryId,
-        amount: parsedAmount,
-        type: entryType,
-        date,
-        description: description.trim() || null,
-      })
+    const payload = {
+      categoryId,
+      amount: parsedAmount,
+      type: entryType,
+      date,
+      description: description.trim() || null,
+    }
 
-      // Rebusca em vez de inserir na lista: o lançamento muda saldo e totais da
-      // semana, e recalcular isso no cliente duplicaria a soma do backend. Só
-      // não recarrego as categorias, que o lançamento não altera.
-      const [balanceData, summaryData, historyData] = await Promise.all([
-        getBalance(),
-        getWeeklySummary(),
-        getBalanceHistory(BALANCE_HISTORY_DAYS),
-      ])
-      setBalance(balanceData)
-      setSummary(summaryData)
-      // A série também muda: o lançamento desloca o saldo do seu dia em diante.
-      setHistory(historyData)
+    try {
+      if (editingEntryId) {
+        await updateEntry(editingEntryId, payload)
+      } else {
+        await createEntry(payload)
+      }
+
+      await refetchTotals()
 
       setAmount('')
       setDescription('')
+
+      if (editingEntryId) {
+        // Sai do modo edição: o formulário volta a ser de criação, sem fechar,
+        // caso o usuário queira lançar algo em seguida.
+        setEditingEntryId(null)
+      }
       // Tipo, categoria e data permanecem: quem lança vários seguidos costuma
       // repetir o contexto.
       amountInputRef.current?.focus()
     } catch (err) {
       setCreateError(
-        getApiErrorMessage(err, {}, 'Não foi possível registrar o lançamento.'),
+        getApiErrorMessage(err, {}, 'Não foi possível salvar o lançamento.'),
       )
     } finally {
       setCreating(false)
+    }
+  }
+
+  function startEditEntry(entry: FinanceEntryResponse) {
+    setEditingEntryId(entry.id)
+    // Number → string em pt-BR usa vírgula, coerente com o placeholder "0,00".
+    setAmount(String(entry.amount).replace('.', ','))
+    setEntryType(entry.type)
+    setCategoryId(entry.categoryId)
+    setDate(entry.date)
+    setDescription(entry.description ?? '')
+    setCreateError(null)
+    setFormOpen(true)
+    // Rola até o formulário: a lista fica bem abaixo dele, e sem isso a edição
+    // pareceria não ter feito nada.
+    requestAnimationFrame(() =>
+      entryFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
+    )
+  }
+
+  function cancelEntryForm() {
+    setFormOpen(false)
+    setEditingEntryId(null)
+    setAmount('')
+    setDescription('')
+    setCreateError(null)
+  }
+
+  async function handleDeleteEntry(entry: FinanceEntryResponse) {
+    if (!window.confirm('Remover este lançamento?')) return
+
+    setDeletingEntryId(entry.id)
+    setError(null)
+
+    try {
+      await deleteEntry(entry.id)
+      // Se removi o que estava em edição, saio do modo edição para o formulário
+      // não continuar apontando para um lançamento que já não existe.
+      if (editingEntryId === entry.id) cancelEntryForm()
+      await refetchTotals()
+    } catch (err) {
+      setError(
+        getApiErrorMessage(err, {}, 'Não foi possível remover o lançamento.'),
+      )
+    } finally {
+      setDeletingEntryId(null)
+    }
+  }
+
+  async function handleDeleteCategory(category: FinanceCategoryResponse) {
+    if (!window.confirm(`Remover a categoria "${category.name}"?`)) return
+
+    setDeletingCategoryId(category.id)
+    setCategoryError(null)
+
+    try {
+      await deleteCategory(category.id)
+
+      // Remoção bloqueia se houver lançamentos vinculados (409), então um sucesso
+      // significa zero lançamentos afetados — saldo e totais não mudam, basta
+      // tirar da lista local. Se era a selecionada, cai para a primeira restante.
+      setCategories((current) => {
+        const next = current.filter((c) => c.id !== category.id)
+        setCategoryId((selected) =>
+          selected === category.id ? (next[0]?.id ?? '') : selected,
+        )
+        return next
+      })
+    } catch (err) {
+      setCategoryError(
+        getApiErrorMessage(
+          err,
+          {
+            409: 'Esta categoria tem lançamentos vinculados e não pode ser removida.',
+          },
+          'Não foi possível remover a categoria.',
+        ),
+      )
+    } finally {
+      setDeletingCategoryId(null)
     }
   }
 
@@ -359,7 +471,8 @@ export function Financas() {
       {/* FORMULÁRIO DE LANÇAMENTO */}
       {formOpen ? (
         <form
-          onSubmit={handleCreateEntry}
+          ref={entryFormRef}
+          onSubmit={handleSubmitEntry}
           className="flex flex-col gap-3 rounded-md bg-surface p-3 ring-1 ring-line"
         >
           <Segmented
@@ -456,19 +569,18 @@ export function Financas() {
               disabled={creating}
               className="flex-1 rounded-xl bg-brand-green px-4 py-2.5 font-semibold text-brand-dark transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {creating ? 'Salvando...' : 'Adicionar lançamento'}
+              {creating
+                ? 'Salvando...'
+                : editingEntryId
+                  ? 'Salvar'
+                  : 'Adicionar lançamento'}
             </button>
             <button
               type="button"
-              onClick={() => {
-                setFormOpen(false)
-                setAmount('')
-                setDescription('')
-                setCreateError(null)
-              }}
+              onClick={cancelEntryForm}
               className="rounded-md px-4 py-2.5 font-medium text-slate-400 transition hover:bg-surface hover:text-slate-200"
             >
-              Fechar
+              {editingEntryId ? 'Cancelar' : 'Fechar'}
             </button>
           </div>
 
@@ -524,6 +636,38 @@ export function Financas() {
               {categoryError}
             </p>
           )}
+
+          {/* Só as categorias próprias podem ser removidas; as padrão do sistema
+              nem aparecem aqui. A remoção é bloqueada pelo backend (409) se
+              houver lançamentos vinculados. */}
+          {categories.some((category) => !category.isDefault) && (
+            <div className="mt-1 flex flex-col gap-1 border-t border-line pt-2">
+              <p className={labelClasses}>Suas categorias</p>
+              <ul className="flex flex-col divide-y divide-line">
+                {categories
+                  .filter((category) => !category.isDefault)
+                  .map((category) => (
+                    <li
+                      key={category.id}
+                      className="flex items-center gap-2 py-1.5"
+                    >
+                      <span className="min-w-0 flex-1 truncate text-sm">
+                        {category.name}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={deletingCategoryId === category.id}
+                        onClick={() => handleDeleteCategory(category)}
+                        aria-label={`Remover categoria ${category.name}`}
+                        className="shrink-0 rounded p-1.5 text-slate-500 transition hover:bg-surface-hi hover:text-red-400 disabled:opacity-50"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          )}
         </form>
       )}
 
@@ -569,6 +713,14 @@ export function Financas() {
                     {isIncome ? '+' : '−'}
                     {formatCurrency(entry.amount)}
                   </span>
+
+                  <ItemActions
+                    busy={deletingEntryId === entry.id}
+                    onEdit={() => startEditEntry(entry)}
+                    onDelete={() => handleDeleteEntry(entry)}
+                    editLabel="Editar lançamento"
+                    deleteLabel="Remover lançamento"
+                  />
                 </li>
               )
             })}

@@ -80,3 +80,24 @@ export async function getEntriesForRange(
   )
   return data
 }
+
+// Mesma forma de payload da criação.
+export async function updateEntry(
+  entryId: string,
+  payload: CreateFinanceEntryPayload,
+): Promise<FinanceEntryResponse> {
+  const { data } = await api.put<FinanceEntryResponse>(
+    `/api/financas/lancamentos/${entryId}`,
+    payload,
+  )
+  return data
+}
+
+export async function deleteEntry(entryId: string): Promise<void> {
+  await api.delete(`/api/financas/lancamentos/${entryId}`)
+}
+
+// Só categorias próprias; 409 se houver lançamentos vinculados.
+export async function deleteCategory(categoryId: string): Promise<void> {
+  await api.delete(`/api/financas/categorias/${categoryId}`)
+}

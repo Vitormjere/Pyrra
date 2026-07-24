@@ -70,3 +70,16 @@ export async function addPlanItem(
 export async function removePlanItem(itemId: string): Promise<void> {
   await api.delete(`/api/nutricao/plano/${itemId}`)
 }
+
+// Edita só nome e quantidade; refeição e data permanecem.
+export async function updateItem(
+  itemId: string,
+  itemName: string,
+  quantity: string,
+): Promise<NutritionItemResponse> {
+  const { data } = await api.put<NutritionItemResponse>(
+    `/api/nutricao/${itemId}`,
+    { itemName, quantity },
+  )
+  return data
+}

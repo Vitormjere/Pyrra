@@ -6,10 +6,13 @@ import CheckCircle from '../../components/CheckCircle'
 import SectionHeader from '../../components/SectionHeader'
 import {
   createTask,
+  deleteTask,
   getPendingTasksForWeek,
   getTasksForDay,
   toggleTaskCompleted,
+  updateTask,
 } from '../../services/taskService'
+import ItemActions from '../../components/ItemActions'
 import { getApiErrorMessage } from '../../services/apiError'
 import { formatShortDate, todayIso } from '../../utils/format'
 import type { TaskPriority, TaskResponse } from '../../types/task'
@@ -63,56 +66,172 @@ function compareTasks(a: TaskResponse, b: TaskResponse): number {
 const inputClasses =
   'w-full rounded-md bg-surface px-4 py-3 text-ink ring-1 ring-line transition outline-none placeholder:text-slate-500 focus:ring-2 focus:ring-brand-green'
 
+// Edição inline: a linha vira este formulário compacto. Reaproveita os mesmos
+// controles do cadastro (título + prioridade segmentada), com botão "Salvar".
+// Fica na própria linha, então funciona igual nas abas Hoje e Atrasadas — sem
+// depender de onde o formulário de criação está montado.
+interface TaskEditFormProps {
+  task: TaskResponse
+  saving: boolean
+  onSave: (taskId: string, title: string, priority: TaskPriority) => void
+  onCancel: () => void
+}
+
+function TaskEditForm({ task, saving, onSave, onCancel }: TaskEditFormProps) {
+  const [title, setTitle] = useState(task.title)
+  const [priority, setPriority] = useState<TaskPriority>(task.priority)
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const trimmed = title.trim()
+    if (!trimmed) return
+    onSave(task.id, trimmed, priority)
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3 bg-surface-hi px-4 py-3.5">
+      <label htmlFor={`editar-tarefa-${task.id}`} className="sr-only">
+        Título da tarefa
+      </label>
+      <input
+        id={`editar-tarefa-${task.id}`}
+        type="text"
+        value={title}
+        onChange={(event) => setTitle(event.target.value)}
+        autoFocus
+        maxLength={500}
+        className={inputClasses}
+      />
+
+      <fieldset>
+        <legend className="sr-only">Prioridade</legend>
+        <div className="flex gap-1 rounded-md bg-surface p-1">
+          {PRIORITIES.map((option) => (
+            <button
+              key={option}
+              type="button"
+              aria-pressed={priority === option}
+              onClick={() => setPriority(option)}
+              className={[
+                'flex-1 rounded-lg px-2 py-2 text-xs font-medium transition',
+                priority === option
+                  ? `bg-surface-hi ${PRIORITY_COLORS[option]}`
+                  : 'text-slate-400 hover:text-slate-200',
+              ].join(' ')}
+            >
+              {PRIORITY_LABELS[option]}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+
+      <div className="flex gap-2">
+        <button
+          type="submit"
+          disabled={saving || title.trim().length === 0}
+          className="flex-1 rounded-xl bg-brand-green px-4 py-2.5 font-semibold text-brand-dark transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {saving ? 'Salvando...' : 'Salvar'}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-md px-4 py-2.5 font-medium text-slate-400 transition hover:bg-surface hover:text-slate-200"
+        >
+          Cancelar
+        </button>
+      </div>
+    </form>
+  )
+}
+
 interface TaskRowProps {
   task: TaskResponse
   pending: boolean
   /** Data curta à direita — usada só na lista de atrasadas. */
   showDate?: boolean
+  editing: boolean
+  savingEdit: boolean
   onToggle: (taskId: string) => void
+  onEdit: (taskId: string) => void
+  onDelete: (task: TaskResponse) => void
+  onSaveEdit: (taskId: string, title: string, priority: TaskPriority) => void
+  onCancelEdit: () => void
 }
 
-function TaskRow({ task, pending, showDate = false, onToggle }: TaskRowProps) {
-  return (
-    // A linha inteira é o alvo: em mobile, acertar a faixa toda é bem mais
-    // fácil que mirar um quadradinho de 24px.
-    <button
-      type="button"
-      role="checkbox"
-      aria-checked={task.completed}
-      disabled={pending}
-      onClick={() => onToggle(task.id)}
-      // Sem fundo/contorno próprios: a linha vive dentro da superfície da
-      // seção e é separada das vizinhas por divisória, não por espaçamento.
-      className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition hover:bg-surface-hi disabled:opacity-50"
-    >
-      <CheckCircle checked={task.completed} />
+function TaskRow({
+  task,
+  pending,
+  showDate = false,
+  editing,
+  savingEdit,
+  onToggle,
+  onEdit,
+  onDelete,
+  onSaveEdit,
+  onCancelEdit,
+}: TaskRowProps) {
+  if (editing) {
+    return (
+      <TaskEditForm
+        task={task}
+        saving={savingEdit}
+        onSave={onSaveEdit}
+        onCancel={onCancelEdit}
+      />
+    )
+  }
 
-      <span className="flex-1">
-        <span
-          className={[
-            'block transition',
-            task.completed ? 'text-slate-400 line-through' : 'text-ink',
-          ].join(' ')}
-        >
-          {task.title}
-        </span>
-        <span className="mt-1 flex items-center gap-1.5">
+  return (
+    // A linha deixou de ser um único <button> porque agora tem ações irmãs
+    // (editar/remover) — botão dentro de botão é HTML inválido. O toggle vira
+    // um botão que cobre o conteúdo; as ações ficam ao lado.
+    <div className="flex items-center gap-1 pr-2 transition hover:bg-surface-hi">
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={task.completed}
+        disabled={pending}
+        onClick={() => onToggle(task.id)}
+        className="flex flex-1 items-center gap-3 px-4 py-3.5 text-left disabled:opacity-50"
+      >
+        <CheckCircle checked={task.completed} />
+
+        <span className="min-w-0 flex-1">
           <span
-            aria-hidden="true"
-            className={`size-1.5 rounded-full ${PRIORITY_DOTS[task.priority]}`}
-          />
-          <span className={`text-xs ${PRIORITY_COLORS[task.priority]}`}>
-            {PRIORITY_LABELS[task.priority]}
+            className={[
+              'block truncate transition',
+              task.completed ? 'text-slate-400 line-through' : 'text-ink',
+            ].join(' ')}
+          >
+            {task.title}
+          </span>
+          <span className="mt-1 flex items-center gap-1.5">
+            <span
+              aria-hidden="true"
+              className={`size-1.5 rounded-full ${PRIORITY_DOTS[task.priority]}`}
+            />
+            <span className={`text-xs ${PRIORITY_COLORS[task.priority]}`}>
+              {PRIORITY_LABELS[task.priority]}
+            </span>
           </span>
         </span>
-      </span>
 
-      {showDate && (
-        <span className="shrink-0 text-xs text-slate-500 tabular-nums">
-          {formatShortDate(task.date)}
-        </span>
-      )}
-    </button>
+        {showDate && (
+          <span className="shrink-0 text-xs text-slate-500 tabular-nums">
+            {formatShortDate(task.date)}
+          </span>
+        )}
+      </button>
+
+      <ItemActions
+        busy={pending}
+        onEdit={() => onEdit(task.id)}
+        onDelete={() => onDelete(task)}
+        editLabel={`Editar ${task.title}`}
+        deleteLabel={`Remover ${task.title}`}
+      />
+    </div>
   )
 }
 
@@ -139,6 +258,10 @@ export function Tarefas() {
   const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('hoje')
   const [pendingTaskId, setPendingTaskId] = useState<string | null>(null)
+  // Linha em edição e travas de linha em voo (edição salvando / remoção).
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
+  const [savingEditId, setSavingEditId] = useState<string | null>(null)
+  const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null)
 
   // ?data= vem da Agenda: abre já com o formulário pronto naquela data.
   const [searchParams] = useSearchParams()
@@ -233,6 +356,62 @@ export function Tarefas() {
       )
     } finally {
       setPendingTaskId(null)
+    }
+  }
+
+  async function handleSaveEdit(
+    taskId: string,
+    newTitle: string,
+    newPriority: TaskPriority,
+  ) {
+    setSavingEditId(taskId)
+    setError(null)
+
+    try {
+      const updated = await updateTask(taskId, newTitle, newPriority)
+
+      // Prioridade pode ter mudado, então reordena as duas listas em vez de só
+      // trocar no lugar. Nada aqui é derivado (sem score), então a resposta do
+      // PUT basta — sem segunda consulta.
+      const replace = (tasks: TaskResponse[]) =>
+        tasks
+          .map((task) => (task.id === updated.id ? updated : task))
+          .sort(compareTasks)
+
+      setTodayTasks(replace)
+      setOverdueTasks(replace)
+      setEditingTaskId(null)
+    } catch (err) {
+      setError(
+        getApiErrorMessage(err, {}, 'Não foi possível salvar a tarefa.'),
+      )
+    } finally {
+      setSavingEditId(null)
+    }
+  }
+
+  async function handleDelete(task: TaskResponse) {
+    // Confirmação simples, mesmo padrão do logout — remoção é real, sem lixeira.
+    if (!window.confirm(`Remover a tarefa "${task.title}"?`)) return
+
+    setDeletingTaskId(task.id)
+    setError(null)
+
+    try {
+      await deleteTask(task.id)
+
+      const remove = (tasks: TaskResponse[]) =>
+        tasks.filter((t) => t.id !== task.id)
+
+      setTodayTasks(remove)
+      setOverdueTasks(remove)
+      if (editingTaskId === task.id) setEditingTaskId(null)
+    } catch (err) {
+      setError(
+        getApiErrorMessage(err, {}, 'Não foi possível remover a tarefa.'),
+      )
+    } finally {
+      setDeletingTaskId(null)
     }
   }
 
@@ -363,8 +542,16 @@ export function Tarefas() {
                 <li key={task.id}>
                   <TaskRow
                     task={task}
-                    pending={pendingTaskId === task.id}
+                    pending={
+                      pendingTaskId === task.id || deletingTaskId === task.id
+                    }
+                    editing={editingTaskId === task.id}
+                    savingEdit={savingEditId === task.id}
                     onToggle={handleToggle}
+                    onEdit={setEditingTaskId}
+                    onDelete={handleDelete}
+                    onSaveEdit={handleSaveEdit}
+                    onCancelEdit={() => setEditingTaskId(null)}
                   />
                 </li>
               ))}
@@ -493,9 +680,17 @@ export function Tarefas() {
                   <li key={task.id}>
                     <TaskRow
                       task={task}
-                      pending={pendingTaskId === task.id}
+                      pending={
+                        pendingTaskId === task.id || deletingTaskId === task.id
+                      }
                       showDate
+                      editing={editingTaskId === task.id}
+                      savingEdit={savingEditId === task.id}
                       onToggle={handleToggle}
+                      onEdit={setEditingTaskId}
+                      onDelete={handleDelete}
+                      onSaveEdit={handleSaveEdit}
+                      onCancelEdit={() => setEditingTaskId(null)}
                     />
                   </li>
                 ))}

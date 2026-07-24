@@ -36,3 +36,17 @@ export async function createFocus(name: string): Promise<FocusResponse> {
   const { data } = await api.post<FocusResponse>('/api/focos', { name })
   return data
 }
+
+export async function updateFocus(
+  focusId: string,
+  name: string,
+): Promise<FocusResponse> {
+  const { data } = await api.put<FocusResponse>(`/api/focos/${focusId}`, { name })
+  return data
+}
+
+// Desativa (soft delete): o foco sai da lista, mas segue existindo para os
+// FocusLog passados reconstruírem o histórico de score.
+export async function deactivateFocus(focusId: string): Promise<void> {
+  await api.delete(`/api/focos/${focusId}`)
+}

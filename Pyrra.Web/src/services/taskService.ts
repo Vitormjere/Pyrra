@@ -57,3 +57,20 @@ export async function getTasksForRange(
   })
   return data
 }
+
+export async function updateTask(
+  taskId: string,
+  title: string,
+  priority: TaskPriority,
+): Promise<TaskResponse> {
+  const { data } = await api.put<TaskResponse>(`/api/tarefas/${taskId}`, {
+    title,
+    priority,
+  })
+  return data
+}
+
+// Remoção real — não há soft delete em tarefa.
+export async function deleteTask(taskId: string): Promise<void> {
+  await api.delete(`/api/tarefas/${taskId}`)
+}
