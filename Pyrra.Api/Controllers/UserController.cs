@@ -42,6 +42,27 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
+        [HttpPost("onboarding/concluir")]
+        public async Task<ActionResult<UserResponse>> CompleteOnboarding(CompleteOnboardingRequest request, CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            try {
+                var user = await _preferencesService.CompleteOnboardingAsync(
+                    userId,
+                    request.CommunicationTone,
+                    request.EveningNotificationTime,
+                    cancellationToken);
+
+                return Ok(UserResponse.FromEntity(user));
+            } catch (InvalidPreferencesException ex) {
+                return BadRequest(new { message = ex.Message });
+            } catch (NotFoundException ex) {
+                return NotFound(new { message = ex.Message });
+            }
+        }
+
         // O userId vem SEMPRE do token (claim NameIdentifier), nunca do corpo da requisição.
         private bool TryGetUserId(out Guid userId) {
             var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);

@@ -22,6 +22,9 @@ export interface AuthContextValue {
   /** Recarrega o usuário do servidor. Usado após editar preferências, para o
    *  contexto não ficar com dados antigos ao navegar de volta à tela. */
   refreshUser: () => Promise<void>
+  /** Substitui o usuário do contexto por uma versão já conhecida (ex.: a resposta
+   *  de concluir o onboarding), evitando um GET a mais só para ressincronizar. */
+  applyUser: (user: UserResponse) => void
   logout: () => void
 }
 

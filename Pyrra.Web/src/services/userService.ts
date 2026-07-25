@@ -17,3 +17,20 @@ export async function updatePreferences(
   })
   return data
 }
+
+/**
+ * Conclui (ou pula) o onboarding de primeiro acesso. As preferências são
+ * OPCIONAIS: ao configurar, o frontend manda as duas; ao pular, manda só o
+ * horário (21:00). O backend sempre marca o onboarding como feito e devolve o
+ * usuário atualizado, com onboardingCompleted = true.
+ */
+export async function completeOnboarding(prefs?: {
+  communicationTone?: CommunicationTone
+  eveningNotificationTime?: string
+}): Promise<UserResponse> {
+  const { data } = await api.post<UserResponse>(
+    '/api/usuario/onboarding/concluir',
+    prefs ?? {},
+  )
+  return data
+}

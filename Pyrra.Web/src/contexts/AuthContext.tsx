@@ -78,6 +78,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(await authService.me())
   }, [])
 
+  // Aplica um usuário já conhecido (ex.: a resposta do onboarding) direto no
+  // contexto, sem ir ao servidor de novo.
+  const applyUser = useCallback((next: UserResponse) => {
+    setUser(next)
+  }, [])
+
   const logout = useCallback(() => {
     clearToken()
     setUser(null)
@@ -86,8 +92,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo(
-    () => ({ user, loading, login, register, refreshUser, logout }),
-    [user, loading, login, register, refreshUser, logout],
+    () => ({ user, loading, login, register, refreshUser, applyUser, logout }),
+    [user, loading, login, register, refreshUser, applyUser, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

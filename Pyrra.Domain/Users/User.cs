@@ -10,6 +10,11 @@ namespace Pyrra.Domain.Users {
         public CommunicationTone CommunicationTone { get; set; }
         public TimeOnly EveningNotificationTime { get; set; }
         public UserPlan Plan { get; set; } = UserPlan.Free;
+
+        // Quando o usuário concluiu (ou pulou) o onboarding de primeiro acesso. Nulo = ainda não
+        // passou por ele, e é isso que o frontend usa para decidir mostrar o fluxo uma única vez.
+        public DateTime? OnboardingCompletedAt { get; set; }
+
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
     }

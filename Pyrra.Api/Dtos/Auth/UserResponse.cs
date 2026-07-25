@@ -10,6 +10,9 @@ namespace Pyrra.Api.Dtos.Auth {
         string CommunicationTone,
         string EveningNotificationTime,
         string Plan,
+        // Booleano em vez do timestamp: o frontend só precisa saber SE o onboarding já foi feito,
+        // para decidir mostrar o fluxo. O instante em si não tem uso na UI.
+        bool OnboardingCompleted,
         DateTime CreatedAt) {
         // PasswordHash NUNCA entra aqui: a projeção explícita campo a campo é o que impede a senha
         // de vazar numa resposta. Enums vão como nome; a hora, como HH:mm.
@@ -21,6 +24,7 @@ namespace Pyrra.Api.Dtos.Auth {
                 user.CommunicationTone.ToString(),
                 user.EveningNotificationTime.ToString("HH:mm"),
                 user.Plan.ToString(),
+                user.OnboardingCompletedAt is not null,
                 user.CreatedAt);
     }
 }

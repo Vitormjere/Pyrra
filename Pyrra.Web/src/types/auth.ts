@@ -31,6 +31,8 @@ export interface UserResponse {
   /** Hora local no formato "HH:mm". */
   eveningNotificationTime: string
   plan: UserPlan
+  /** true depois que o usuário concluiu ou pulou o onboarding de primeiro acesso. */
+  onboardingCompleted: boolean
   createdAt: string
 }
 

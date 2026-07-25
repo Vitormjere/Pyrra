@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import AppLayout from './components/AppLayout'
 import ProtectedRoute from './components/ProtectedRoute'
+import RequireOnboarding from './components/RequireOnboarding'
 import { AuthProvider } from './contexts/AuthContext'
 import Agenda from './pages/Agenda'
 import Cadastro from './pages/Cadastro'
@@ -9,6 +10,7 @@ import Financas from './pages/Financas'
 import Hoje from './pages/Hoje'
 import Login from './pages/Login'
 import Nutricao from './pages/Nutricao'
+import Onboarding from './pages/Onboarding'
 import Perfil from './pages/Perfil'
 import Tarefas from './pages/Tarefas'
 import Treino from './pages/Treino'
@@ -32,16 +34,23 @@ function App() {
               não está logado. O ProtectedRoute também segura a renderização
               enquanto a sessão está sendo verificada, então nem a casca pisca. */}
           <Route element={<ProtectedRoute />}>
-            <Route element={<AppLayout />}>
-              <Route path="/hoje" element={<Hoje />} />
-              <Route path="/agenda" element={<Agenda />} />
-              <Route path="/treino" element={<Treino />} />
-              <Route path="/tarefas" element={<Tarefas />} />
-              <Route path="/financas" element={<Financas />} />
-              <Route path="/nutricao" element={<Nutricao />} />
-              <Route path="/zelo" element={<Zelo />} />
-              <Route path="/diario" element={<Diario />} />
-              <Route path="/perfil" element={<Perfil />} />
+            {/* /onboarding vive dentro do guard de sessão, mas FORA do
+                RequireOnboarding — senão a tela redirecionaria para si mesma. */}
+            <Route path="/onboarding" element={<Onboarding />} />
+
+            {/* O resto do app só é acessível depois do onboarding concluído/pulado. */}
+            <Route element={<RequireOnboarding />}>
+              <Route element={<AppLayout />}>
+                <Route path="/hoje" element={<Hoje />} />
+                <Route path="/agenda" element={<Agenda />} />
+                <Route path="/treino" element={<Treino />} />
+                <Route path="/tarefas" element={<Tarefas />} />
+                <Route path="/financas" element={<Financas />} />
+                <Route path="/nutricao" element={<Nutricao />} />
+                <Route path="/zelo" element={<Zelo />} />
+                <Route path="/diario" element={<Diario />} />
+                <Route path="/perfil" element={<Perfil />} />
+              </Route>
             </Route>
           </Route>
 
