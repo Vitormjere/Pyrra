@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { NotebookPen } from 'lucide-react'
 import SectionHeader from '../../components/SectionHeader'
+import Skeleton from '../../components/Skeleton'
+import EmptyState from '../../components/EmptyState'
+import ErrorRetry from '../../components/ErrorRetry'
 import { getHistory } from '../../services/planningService'
 import { getApiErrorMessage } from '../../services/apiError'
 import { formatDayLabel } from '../../utils/format'
@@ -11,9 +14,9 @@ const HISTORY_DAYS = 30
 function LoadingState() {
   return (
     <div className="flex flex-col gap-3" aria-busy="true" aria-label="Carregando">
-      <div className="h-24 animate-pulse rounded-md bg-surface" />
-      <div className="h-24 animate-pulse rounded-md bg-surface" />
-      <div className="h-24 animate-pulse rounded-md bg-surface" />
+      <Skeleton className="h-24" />
+      <Skeleton className="h-24" />
+      <Skeleton className="h-24" />
     </div>
   )
 }
@@ -63,20 +66,7 @@ export function Diario() {
 
   if (loading) return <LoadingState />
 
-  if (error) {
-    return (
-      <div className="flex flex-col items-center gap-4 py-12 text-center">
-        <p className="text-sm text-red-300">{error}</p>
-        <button
-          type="button"
-          onClick={handleRetry}
-          className="rounded-xl bg-brand-green px-4 py-2.5 font-semibold text-brand-dark transition hover:brightness-95"
-        >
-          Tentar de novo
-        </button>
-      </div>
-    )
-  }
+  if (error) return <ErrorRetry message={error} onRetry={handleRetry} />
 
   return (
     <div className="flex flex-col gap-5">
@@ -108,20 +98,11 @@ export function Diario() {
           ))}
         </section>
       ) : (
-        <div className="rounded-md bg-surface px-5 py-10 text-center ring-1 ring-line">
-          <NotebookPen
-            size={28}
-            className="mx-auto text-slate-500"
-            aria-hidden="true"
-          />
-          <p className="mt-3 font-medium text-slate-200">
-            Nenhuma reflexão ainda.
-          </p>
-          <p className="mt-1.5 text-sm text-slate-400">
-            Escreva no campo "Reflexão do dia" na tela Hoje e ela aparecerá
-            aqui.
-          </p>
-        </div>
+        <EmptyState
+          icon={NotebookPen}
+          title="Nenhuma reflexão ainda."
+          description='Escreva no campo "Reflexão do dia" na tela Hoje e ela aparecerá aqui.'
+        />
       )}
     </div>
   )

@@ -3,6 +3,7 @@ import type { FormEvent, ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Dumbbell,
+  Flame,
   Footprints,
   Eye,
   EyeOff,
@@ -13,6 +14,10 @@ import {
   Wallet,
 } from 'lucide-react'
 import CheckCircle from '../../components/CheckCircle'
+import Skeleton from '../../components/Skeleton'
+import EmptyState from '../../components/EmptyState'
+import ErrorRetry from '../../components/ErrorRetry'
+import { useConfirm } from '../../hooks/useConfirm'
 import MilestoneCelebration from '../../components/MilestoneCelebration'
 import FreezeUseNotice from '../../components/FreezeUseNotice'
 import PreviewCard from '../../components/PreviewCard'
@@ -134,15 +139,16 @@ function EmptyBlock({ children }: { children: ReactNode }) {
 function LoadingState() {
   return (
     <div className="flex flex-col gap-4" aria-busy="true" aria-label="Carregando">
-      <div className="h-28 animate-pulse rounded-md bg-surface" />
-      <div className="h-16 animate-pulse rounded-md bg-surface" />
-      <div className="h-14 animate-pulse rounded-md bg-surface" />
-      <div className="h-14 animate-pulse rounded-md bg-surface" />
+      <Skeleton className="h-28" />
+      <Skeleton className="h-16" />
+      <Skeleton className="h-14" />
+      <Skeleton className="h-14" />
     </div>
   )
 }
 
 export function Hoje() {
+  const { confirm, dialog } = useConfirm()
   const [score, setScore] = useState<DailyScoreResponse | null>(null)
   const [workoutPlan, setWorkoutPlan] = useState<
     WorkoutPlanDayResponse[] | null
@@ -437,7 +443,13 @@ export function Hoje() {
   }
 
   async function handleDeleteFocus(focus: { focusId: string; name: string }) {
-    if (!window.confirm(`Remover o foco "${focus.name}"?`)) return
+    const ok = await confirm({
+      title: 'Remover foco',
+      message: `Remover o foco "${focus.name}"?`,
+      confirmLabel: 'Remover',
+      destructive: true,
+    })
+    if (!ok) return
 
     setDeletingFocusId(focus.focusId)
     setError(null)
@@ -566,18 +578,7 @@ export function Hoje() {
   }
 
   if (error && !score) {
-    return (
-      <div className="flex flex-col items-center gap-4 py-12 text-center">
-        <p className="text-sm text-red-300">{error}</p>
-        <button
-          type="button"
-          onClick={handleRetry}
-          className="rounded-xl bg-brand-green px-4 py-2.5 font-semibold text-brand-dark transition hover:brightness-95"
-        >
-          Tentar de novo
-        </button>
-      </div>
-    )
+    return <ErrorRetry message={error} onRetry={handleRetry} />
   }
 
   if (!score || !streak) {
@@ -810,15 +811,11 @@ export function Hoje() {
             })}
           </ul>
         ) : (
-          <div className="rounded-md bg-surface px-5 py-8 text-center ring-1 ring-line">
-            <p className="font-medium text-slate-200">
-              Você ainda não tem focos.
-            </p>
-            <p className="mt-1.5 text-sm text-slate-400">
-              Focos são os hábitos que você quer seguir todo dia. Crie o
-              primeiro para o seu foguinho começar a contar.
-            </p>
-          </div>
+          <EmptyState
+            icon={Flame}
+            title="Você ainda não tem focos."
+            description="Focos são os hábitos que você quer seguir todo dia. Crie o primeiro para o seu foguinho começar a contar."
+          />
         )}
 
         {/*
@@ -1189,6 +1186,8 @@ export function Hoje() {
           onConfirm={handleAcknowledgeFreezeUse}
         />
       )}
+
+      {dialog}
     </div>
   )
 }

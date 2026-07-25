@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronRight, Dumbbell, Plus } from 'lucide-react'
 import ItemActions from './ItemActions'
+import EmptyState from './EmptyState'
+import { useConfirm } from '../hooks/useConfirm'
 import {
   deleteWorkout,
   getWorkoutHistory,
@@ -18,6 +20,8 @@ interface GymHistorySectionProps {
   onWorkoutUpdated: (updated: WorkoutResponse) => void
   /** Sincroniza a lista mestre da página quando uma entrada é removida aqui. */
   onWorkoutDeleted: (workoutId: string) => void
+  /** Abre o formulário de registro na página; usado pelo CTA do estado vazio. */
+  onRegister?: () => void
 }
 
 // Campo vazio ou não numérico vira null.
@@ -34,7 +38,9 @@ export function GymHistorySection({
   workouts,
   onWorkoutUpdated,
   onWorkoutDeleted,
+  onRegister,
 }: GymHistorySectionProps) {
+  const { confirm, dialog } = useConfirm()
   // Cache por exercício: reabrir um já consultado não refaz a requisição.
   const [historyByExercise, setHistoryByExercise] = useState<
     Record<string, WorkoutResponse[]>
@@ -119,9 +125,13 @@ export function GymHistorySection({
   }
 
   async function handleDelete(entry: WorkoutResponse, exerciseName: string) {
-    if (!window.confirm(`Remover o registro de ${formatShortDate(entry.date)}?`)) {
-      return
-    }
+    const ok = await confirm({
+      title: 'Remover registro',
+      message: `Remover o registro de ${formatShortDate(entry.date)}?`,
+      confirmLabel: 'Remover',
+      destructive: true,
+    })
+    if (!ok) return
 
     setDeletingId(entry.id)
     setError(null)
@@ -176,11 +186,23 @@ export function GymHistorySection({
 
   if (exerciseNames.length === 0) {
     return (
-      <div className="rounded-md bg-surface px-5 py-8 text-center ring-1 ring-line">
-        <p className="text-sm text-slate-400">
-          Nenhum treino de academia registrado ainda.
-        </p>
-      </div>
+      <EmptyState
+        icon={Dumbbell}
+        title="Nenhum treino de academia ainda."
+        description="Registre exercícios para acompanhar sua evolução de carga ao longo do tempo."
+        action={
+          onRegister && (
+            <button
+              type="button"
+              onClick={onRegister}
+              className="inline-flex items-center gap-2 rounded-xl bg-brand-green px-4 py-2.5 text-sm font-semibold text-brand-dark transition hover:brightness-95"
+            >
+              <Plus size={16} aria-hidden="true" />
+              Registrar treino
+            </button>
+          )
+        }
+      />
     )
   }
 
@@ -312,6 +334,8 @@ export function GymHistorySection({
           {error}
         </p>
       )}
+
+      {dialog}
     </div>
   )
 }

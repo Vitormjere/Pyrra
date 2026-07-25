@@ -1,13 +1,20 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { Check, Circle } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { getApiErrorMessage } from '../../services/apiError'
 
-// Espelha a regra do backend (AuthService.RegisterAsync rejeita senha com menos
-// de 8 caracteres). Validar aqui evita uma ida à API só para ouvir "senha fraca";
-// o backend continua sendo a autoridade, esta é só a checagem adiantada.
-const MIN_PASSWORD_LENGTH = 8
+// Requisitos de força da senha, checados no cliente e mostrados como lista viva
+// abaixo do campo. ATENÇÃO: o backend (AuthService.RegisterAsync) só exige 8
+// caracteres — maiúscula/número/especial são regras só do frontend por enquanto,
+// então são mais estritas que o servidor, não conflitantes.
+const PASSWORD_RULES: readonly { label: string; test: (value: string) => boolean }[] = [
+  { label: 'Pelo menos 8 caracteres', test: (v) => v.length >= 8 },
+  { label: 'Uma letra maiúscula', test: (v) => /[A-Z]/.test(v) },
+  { label: 'Um número', test: (v) => /[0-9]/.test(v) },
+  { label: 'Um caractere especial (ex: !@#$)', test: (v) => /[^A-Za-z0-9]/.test(v) },
+]
 
 // Checagem de formato deliberadamente frouxa: só descarta o que é claramente
 // inválido. Se um e-mail existe de verdade, quem decide é o servidor.
@@ -17,9 +24,15 @@ interface FieldErrors {
   name?: string
   email?: string
   password?: string
+  confirmPassword?: string
 }
 
-function validate(name: string, email: string, password: string): FieldErrors {
+function validate(
+  name: string,
+  email: string,
+  password: string,
+  confirmPassword: string,
+): FieldErrors {
   const errors: FieldErrors = {}
 
   if (!name.trim()) {
@@ -30,8 +43,15 @@ function validate(name: string, email: string, password: string): FieldErrors {
     errors.email = 'Informe um e-mail válido.'
   }
 
-  if (password.length < MIN_PASSWORD_LENGTH) {
-    errors.password = `A senha precisa ter pelo menos ${MIN_PASSWORD_LENGTH} caracteres.`
+  if (PASSWORD_RULES.some((rule) => !rule.test(password))) {
+    errors.password = 'A senha não atende a todos os requisitos abaixo.'
+  }
+
+  // Igualdade é só client-side: o backend não conhece o campo de confirmação.
+  if (!confirmPassword) {
+    errors.confirmPassword = 'Confirme sua senha.'
+  } else if (password !== confirmPassword) {
+    errors.confirmPassword = 'As senhas não coincidem.'
   }
 
   return errors
@@ -47,6 +67,7 @@ export function Cadastro() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -72,7 +93,7 @@ export function Cadastro() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    const validation = validate(name, email, password)
+    const validation = validate(name, email, password, confirmPassword)
     setFieldErrors(validation)
     setError(null)
 
@@ -171,14 +192,70 @@ export function Cadastro() {
               onChange={(event) => {
                 setPassword(event.target.value)
                 clearErrors('password')
+                // Mudar a senha invalida um "não coincidem" anterior: limpa o erro
+                // da confirmação para não afirmar algo que deixou de ser verdade.
+                clearErrors('confirmPassword')
               }}
               autoComplete="new-password"
-              placeholder="Pelo menos 8 caracteres"
+              placeholder="Crie uma senha forte"
               aria-invalid={fieldErrors.password !== undefined}
               className={inputClasses}
             />
             {fieldErrors.password && (
               <p className="text-sm text-red-300">{fieldErrors.password}</p>
+            )}
+
+            {/* Lista viva de requisitos: cada critério fica verde assim que é
+                atendido, dando feedback enquanto o usuário digita. */}
+            <ul className="mt-1 flex flex-col gap-1" aria-label="Requisitos da senha">
+              {PASSWORD_RULES.map((rule) => {
+                const met = rule.test(password)
+                return (
+                  <li key={rule.label} className="flex items-center gap-2 text-xs">
+                    {met ? (
+                      <Check
+                        size={14}
+                        className="shrink-0 text-brand-green"
+                        aria-hidden="true"
+                      />
+                    ) : (
+                      <Circle
+                        size={14}
+                        className="shrink-0 text-slate-600"
+                        aria-hidden="true"
+                      />
+                    )}
+                    <span className={met ? 'text-slate-300' : 'text-slate-500'}>
+                      {rule.label}
+                    </span>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label
+              htmlFor="confirmPassword"
+              className="text-sm font-medium text-slate-300"
+            >
+              Confirmar senha
+            </label>
+            <input
+              id="confirmPassword"
+              type="password"
+              value={confirmPassword}
+              onChange={(event) => {
+                setConfirmPassword(event.target.value)
+                clearErrors('confirmPassword')
+              }}
+              autoComplete="new-password"
+              placeholder="Repita a senha"
+              aria-invalid={fieldErrors.confirmPassword !== undefined}
+              className={inputClasses}
+            />
+            {fieldErrors.confirmPassword && (
+              <p className="text-sm text-red-300">{fieldErrors.confirmPassword}</p>
             )}
           </div>
 

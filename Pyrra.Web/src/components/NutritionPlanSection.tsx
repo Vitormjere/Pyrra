@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Plus, X } from 'lucide-react'
+import Skeleton from './Skeleton'
 import {
   addPlanItem,
   getPlan,
@@ -136,8 +137,8 @@ export function NutritionPlanSection() {
   if (loading) {
     return (
       <div className="flex flex-col gap-2" aria-busy="true" aria-label="Carregando">
-        <div className="h-12 animate-pulse rounded-md bg-surface" />
-        <div className="h-12 animate-pulse rounded-md bg-surface" />
+        <Skeleton className="h-12" />
+        <Skeleton className="h-12" />
       </div>
     )
   }

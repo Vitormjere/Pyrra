@@ -4,6 +4,7 @@ import { LogOut } from 'lucide-react'
 import Segmented from '../../components/Segmented'
 import SectionHeader from '../../components/SectionHeader'
 import { useAuth } from '../../hooks/useAuth'
+import { useConfirm } from '../../hooks/useConfirm'
 import { updatePreferences } from '../../services/userService'
 import { getApiErrorMessage } from '../../services/apiError'
 import type { CommunicationTone } from '../../types/auth'
@@ -23,6 +24,7 @@ const TONE_HINTS: Record<CommunicationTone, string> = {
 
 export function Perfil() {
   const { user, refreshUser, logout } = useAuth()
+  const { confirm, dialog } = useConfirm()
 
   // Inicializa do contexto. O usuário já vem carregado — o ProtectedRoute só
   // renderiza esta tela depois que a sessão foi verificada.
@@ -60,12 +62,13 @@ export function Perfil() {
     }
   }
 
-  function handleLogout() {
-    // window.confirm é síncrono e bloqueia a UI, mas para uma ação isolada e
-    // reversível (basta entrar de novo) não compensa manter um modal próprio.
-    if (window.confirm('Deseja sair da sua conta?')) {
-      logout()
-    }
+  async function handleLogout() {
+    const ok = await confirm({
+      title: 'Sair da conta',
+      message: 'Deseja sair da sua conta? Você poderá entrar de novo quando quiser.',
+      confirmLabel: 'Sair',
+    })
+    if (ok) logout()
   }
 
   return (
@@ -160,6 +163,8 @@ export function Perfil() {
         <LogOut size={18} aria-hidden="true" />
         Sair da conta
       </button>
+
+      {dialog}
     </div>
   )
 }

@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { CalendarDays, Check, Plus } from 'lucide-react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { CalendarDays, Check, ListChecks, Plus } from 'lucide-react'
 import CheckCircle from '../../components/CheckCircle'
 import SectionHeader from '../../components/SectionHeader'
+import Skeleton from '../../components/Skeleton'
+import EmptyState from '../../components/EmptyState'
+import ErrorRetry from '../../components/ErrorRetry'
+import { useConfirm } from '../../hooks/useConfirm'
 import {
   createTask,
   deleteTask,
@@ -239,10 +243,10 @@ function TaskRow({
 function LoadingState() {
   return (
     <div className="flex flex-col gap-3" aria-busy="true" aria-label="Carregando">
-      <div className="h-10 animate-pulse rounded-md bg-surface" />
-      <div className="h-16 animate-pulse rounded-md bg-surface" />
-      <div className="h-16 animate-pulse rounded-md bg-surface" />
-      <div className="h-16 animate-pulse rounded-md bg-surface" />
+      <Skeleton className="h-10" />
+      <Skeleton className="h-16" />
+      <Skeleton className="h-16" />
+      <Skeleton className="h-16" />
     </div>
   )
 }
@@ -272,6 +276,11 @@ export function Tarefas() {
   // ?data= vem da Agenda: abre já com o formulário pronto naquela data.
   const [searchParams] = useSearchParams()
   const prefillDate = searchParams.get('data')
+  // ?from=agenda marca que o usuário partiu da Agenda; ao fechar o formulário
+  // sem salvar ele volta para lá, em vez de ficar preso nesta tela.
+  const navigate = useNavigate()
+  const cameFromAgenda = searchParams.get('from') === 'agenda'
+  const { confirm, dialog } = useConfirm()
 
   const [formOpen, setFormOpen] = useState(prefillDate !== null)
   const [title, setTitle] = useState('')
@@ -428,8 +437,14 @@ export function Tarefas() {
   }
 
   async function handleDelete(task: TaskResponse) {
-    // Confirmação simples, mesmo padrão do logout — remoção é real, sem lixeira.
-    if (!window.confirm(`Remover a tarefa "${task.title}"?`)) return
+    // Remoção é real, sem lixeira — daí a confirmação.
+    const ok = await confirm({
+      title: 'Remover tarefa',
+      message: `Remover a tarefa "${task.title}"?`,
+      confirmLabel: 'Remover',
+      destructive: true,
+    })
+    if (!ok) return
 
     setDeletingTaskId(task.id)
     setError(null)
@@ -487,6 +502,11 @@ export function Tarefas() {
   }
 
   function closeForm() {
+    // Veio da Agenda: fechar sem salvar devolve para lá (o contexto de origem).
+    if (cameFromAgenda) {
+      navigate('/agenda')
+      return
+    }
     setFormOpen(false)
     setTitle('')
     setCreateError(null)
@@ -497,18 +517,7 @@ export function Tarefas() {
   }
 
   if (error && todayTasks.length === 0 && overdueTasks.length === 0) {
-    return (
-      <div className="flex flex-col items-center gap-4 py-12 text-center">
-        <p className="text-sm text-red-300">{error}</p>
-        <button
-          type="button"
-          onClick={handleRetry}
-          className="rounded-xl bg-brand-green px-4 py-2.5 font-semibold text-brand-dark transition hover:brightness-95"
-        >
-          Tentar de novo
-        </button>
-      </div>
-    )
+    return <ErrorRetry message={error} onRetry={handleRetry} />
   }
 
   const overdueCount = overdueTasks.filter((task) => !task.completed).length
@@ -594,15 +603,11 @@ export function Tarefas() {
               ))}
             </ul>
           ) : (
-            <div className="rounded-md bg-surface px-5 py-8 text-center ring-1 ring-line">
-              <p className="font-medium text-slate-200">
-                Nenhuma tarefa para hoje.
-              </p>
-              <p className="mt-1.5 text-sm text-slate-400">
-                Anote o que precisa sair do papel hoje e marque conforme for
-                concluindo.
-              </p>
-            </div>
+            <EmptyState
+              icon={ListChecks}
+              title="Nenhuma tarefa para hoje."
+              description="Anote o que precisa sair do papel hoje e marque conforme for concluindo."
+            />
           )}
 
           {/* Mesmo padrão de Focos: o formulário fica aberto após salvar, porque
@@ -743,40 +748,22 @@ export function Tarefas() {
                 </li>
               ))}
             </ul>
+          ) : isFirstDayOfWeek ? (
+            // Neutro, e sem o verde: não houve conquista a celebrar, a semana
+            // apenas começou.
+            <EmptyState
+              icon={CalendarDays}
+              title="Comece a semana zerado."
+              description="Ainda não há dias anteriores nesta semana para cobrar."
+            />
           ) : (
-            <div className="rounded-md bg-surface px-5 py-8 text-center ring-1 ring-line">
-              {isFirstDayOfWeek ? (
-                // Neutro, e sem o verde: não houve conquista a celebrar, a
-                // semana apenas começou.
-                <>
-                  <CalendarDays
-                    size={28}
-                    className="mx-auto text-slate-400"
-                    aria-hidden="true"
-                  />
-                  <p className="mt-2 font-medium text-slate-200">
-                    Comece a semana zerado.
-                  </p>
-                  <p className="mt-1.5 text-sm text-slate-400">
-                    Ainda não há dias anteriores nesta semana para cobrar.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <Check
-                    size={28}
-                    className="mx-auto text-brand-green"
-                    aria-hidden="true"
-                  />
-                  <p className="mt-2 font-medium text-slate-200">
-                    Nenhuma pendência da semana.
-                  </p>
-                  <p className="mt-1.5 text-sm text-slate-400">
-                    Você não deixou nada para trás nesta semana.
-                  </p>
-                </>
-              )}
-            </div>
+            // Verde: aqui houve conquista — nada ficou para trás.
+            <EmptyState
+              icon={Check}
+              iconClassName="text-brand-green"
+              title="Nenhuma pendência da semana."
+              description="Você não deixou nada para trás nesta semana."
+            />
           )}
         </section>
       )}
@@ -790,6 +777,8 @@ export function Tarefas() {
           {error}
         </p>
       )}
+
+      {dialog}
     </div>
   )
 }

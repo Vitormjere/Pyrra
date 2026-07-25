@@ -4,6 +4,9 @@ import { Plus } from 'lucide-react'
 import SectionHeader from '../../components/SectionHeader'
 import ItemActions from '../../components/ItemActions'
 import NutritionPlanSection from '../../components/NutritionPlanSection'
+import Skeleton from '../../components/Skeleton'
+import ErrorRetry from '../../components/ErrorRetry'
+import { useConfirm } from '../../hooks/useConfirm'
 import {
   addItem,
   getForDay,
@@ -47,9 +50,9 @@ const inputClasses =
 function LoadingState() {
   return (
     <div className="flex flex-col gap-3" aria-busy="true" aria-label="Carregando">
-      <div className="h-10 animate-pulse rounded-md bg-surface" />
-      <div className="h-28 animate-pulse rounded-md bg-surface" />
-      <div className="h-28 animate-pulse rounded-md bg-surface" />
+      <Skeleton className="h-10" />
+      <Skeleton className="h-28" />
+      <Skeleton className="h-28" />
     </div>
   )
 }
@@ -57,6 +60,7 @@ function LoadingState() {
 type Tab = 'hoje' | 'semana' | 'plano'
 
 export function Nutricao() {
+  const { confirm, dialog } = useConfirm()
   const [day, setDay] = useState<DayNutritionResponse | null>(null)
   const [week, setWeek] = useState<WeekNutritionResponse | null>(null)
   const [loading, setLoading] = useState(true)
@@ -179,8 +183,13 @@ export function Nutricao() {
   }
 
   async function handleRemove(itemId: string, itemLabel: string, meal: MealType) {
-    // Confirmação simples, mesmo padrão dos outros módulos.
-    if (!window.confirm(`Remover "${itemLabel}"?`)) return
+    const ok = await confirm({
+      title: 'Remover item',
+      message: `Remover "${itemLabel}"?`,
+      confirmLabel: 'Remover',
+      destructive: true,
+    })
+    if (!ok) return
 
     setRemovingId(itemId)
     setError(null)
@@ -281,18 +290,7 @@ export function Nutricao() {
   if (loading) return <LoadingState />
 
   if (error && !day) {
-    return (
-      <div className="flex flex-col items-center gap-4 py-12 text-center">
-        <p className="text-sm text-red-300">{error}</p>
-        <button
-          type="button"
-          onClick={handleRetry}
-          className="rounded-xl bg-brand-green px-4 py-2.5 font-semibold text-brand-dark transition hover:brightness-95"
-        >
-          Tentar de novo
-        </button>
-      </div>
-    )
+    return <ErrorRetry message={error} onRetry={handleRetry} />
   }
 
   return (
@@ -579,6 +577,8 @@ export function Nutricao() {
           {error}
         </p>
       )}
+
+      {dialog}
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -10,11 +10,16 @@ import {
   Trash2,
   TrendingDown,
   TrendingUp,
+  Wallet,
 } from 'lucide-react'
 import Segmented from '../../components/Segmented'
 import SectionHeader from '../../components/SectionHeader'
 import ItemActions from '../../components/ItemActions'
 import WeekNav from '../../components/WeekNav'
+import Skeleton from '../../components/Skeleton'
+import EmptyState from '../../components/EmptyState'
+import ErrorRetry from '../../components/ErrorRetry'
+import { useConfirm } from '../../hooks/useConfirm'
 import {
   createCategory,
   createEntry,
@@ -69,9 +74,9 @@ const labelClasses = 'text-xs font-medium text-slate-400'
 function LoadingState() {
   return (
     <div className="flex flex-col gap-3" aria-busy="true" aria-label="Carregando">
-      <div className="h-24 animate-pulse rounded-md bg-surface" />
-      <div className="h-20 animate-pulse rounded-md bg-surface" />
-      <div className="h-16 animate-pulse rounded-md bg-surface" />
+      <Skeleton className="h-24" />
+      <Skeleton className="h-20" />
+      <Skeleton className="h-16" />
     </div>
   )
 }
@@ -99,6 +104,10 @@ export function Financas() {
   // ?data= vem da Agenda: abre já com o formulário pronto naquela data.
   const [searchParams] = useSearchParams()
   const prefillDate = searchParams.get('data')
+  // ?from=agenda: fechar o formulário sem salvar devolve o usuário para a Agenda.
+  const navigate = useNavigate()
+  const cameFromAgenda = searchParams.get('from') === 'agenda'
+  const { confirm, dialog } = useConfirm()
 
   // Formulário de lançamento.
   const [formOpen, setFormOpen] = useState(prefillDate !== null)
@@ -311,8 +320,22 @@ export function Financas() {
     setCreateError(null)
   }
 
+  // Botão "Fechar/Cancelar" do formulário. Se o usuário veio da Agenda, volta para
+  // lá; senão só fecha. cancelEntryForm é reusado internamente (ao remover um
+  // lançamento em edição) e por isso não navega sozinho — só este handler navega.
+  function handleCloseEntryForm() {
+    cancelEntryForm()
+    if (cameFromAgenda) navigate('/agenda')
+  }
+
   async function handleDeleteEntry(entry: FinanceEntryResponse) {
-    if (!window.confirm('Remover este lançamento?')) return
+    const ok = await confirm({
+      title: 'Remover lançamento',
+      message: 'Remover este lançamento? Essa ação não pode ser desfeita.',
+      confirmLabel: 'Remover',
+      destructive: true,
+    })
+    if (!ok) return
 
     setDeletingEntryId(entry.id)
     setError(null)
@@ -333,7 +356,13 @@ export function Financas() {
   }
 
   async function handleDeleteCategory(category: FinanceCategoryResponse) {
-    if (!window.confirm(`Remover a categoria "${category.name}"?`)) return
+    const ok = await confirm({
+      title: 'Remover categoria',
+      message: `Remover a categoria "${category.name}"?`,
+      confirmLabel: 'Remover',
+      destructive: true,
+    })
+    if (!ok) return
 
     setDeletingCategoryId(category.id)
     setCategoryError(null)
@@ -412,18 +441,7 @@ export function Financas() {
   if (loading) return <LoadingState />
 
   if (error && !balance) {
-    return (
-      <div className="flex flex-col items-center gap-4 py-12 text-center">
-        <p className="text-sm text-red-300">{error}</p>
-        <button
-          type="button"
-          onClick={handleRetry}
-          className="rounded-xl bg-brand-green px-4 py-2.5 font-semibold text-brand-dark transition hover:brightness-95"
-        >
-          Tentar de novo
-        </button>
-      </div>
-    )
+    return <ErrorRetry message={error} onRetry={handleRetry} />
   }
 
   return (
@@ -515,11 +533,7 @@ export function Financas() {
         </section>
       )}
 
-      <Suspense
-        fallback={
-          <div className="h-64 animate-pulse rounded-md bg-surface" aria-hidden="true" />
-        }
-      >
+      <Suspense fallback={<Skeleton className="h-64" />}>
         <BalanceChart history={history} days={BALANCE_HISTORY_DAYS} />
       </Suspense>
 
@@ -632,7 +646,7 @@ export function Financas() {
             </button>
             <button
               type="button"
-              onClick={cancelEntryForm}
+              onClick={handleCloseEntryForm}
               className="rounded-md px-4 py-2.5 font-medium text-slate-400 transition hover:bg-surface hover:text-slate-200"
             >
               {editingEntryId ? 'Cancelar' : 'Fechar'}
@@ -781,15 +795,11 @@ export function Financas() {
             })}
           </ul>
         ) : (
-          <div className="rounded-md bg-surface px-5 py-8 text-center ring-1 ring-line">
-            <p className="font-medium text-slate-200">
-              Nenhum lançamento nesta semana.
-            </p>
-            <p className="mt-1.5 text-sm text-slate-400">
-              Registre entradas e saídas para acompanhar para onde seu dinheiro
-              está indo.
-            </p>
-          </div>
+          <EmptyState
+            icon={Wallet}
+            title="Nenhum lançamento nesta semana."
+            description="Registre entradas e saídas para acompanhar para onde seu dinheiro está indo."
+          />
         )}
       </section>
 
@@ -801,6 +811,8 @@ export function Financas() {
           {error}
         </p>
       )}
+
+      {dialog}
     </div>
   )
 }

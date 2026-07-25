@@ -8,6 +8,7 @@ import {
   YAxis,
 } from 'recharts'
 import SectionHeader from './SectionHeader'
+import EmptyState from './EmptyState'
 import { formatCurrency, formatShortDate } from '../utils/format'
 import type { DailyBalanceResponse } from '../types/finance'
 
@@ -30,11 +31,7 @@ export function BalanceChart({ history, days }: BalanceChartProps) {
     return (
       <section className="flex flex-col gap-2">
         <SectionHeader>Saldo nos últimos {days} dias</SectionHeader>
-        <div className="rounded-md bg-surface px-5 py-8 text-center ring-1 ring-line">
-          <p className="text-sm text-slate-400">
-            Ainda não há dados suficientes para o gráfico.
-          </p>
-        </div>
+        <EmptyState title="Ainda não há dados suficientes para o gráfico." />
       </section>
     )
   }

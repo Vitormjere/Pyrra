@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react'
+import { CalendarPlus, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react'
 import SectionHeader from '../../components/SectionHeader'
+import Skeleton from '../../components/Skeleton'
+import EmptyState from '../../components/EmptyState'
 import { getTasksForRange } from '../../services/taskService'
 import { getWorkoutsForRange } from '../../services/workoutService'
 import { getEntriesForRange } from '../../services/financeService'
@@ -69,8 +71,8 @@ function monthLabel(year: number, month: number): string {
 function LoadingState() {
   return (
     <div className="flex flex-col gap-3" aria-busy="true" aria-label="Carregando">
-      <div className="h-10 animate-pulse rounded-md bg-surface" />
-      <div className="h-64 animate-pulse rounded-md bg-surface" />
+      <Skeleton className="h-10" />
+      <Skeleton className="h-64" />
     </div>
   )
 }
@@ -405,11 +407,21 @@ export function Agenda() {
                 )}
               </div>
             ) : (
-              <div className="rounded-md bg-surface px-5 py-8 text-center ring-1 ring-line">
-                <p className="text-sm text-slate-400">
-                  Nada registrado neste dia.
-                </p>
-              </div>
+              <EmptyState
+                icon={CalendarPlus}
+                title="Dia livre."
+                description="Nada registrado neste dia. Que tal planejar tarefa, treino ou lançamento?"
+                action={
+                  <button
+                    type="button"
+                    onClick={() => setAddMenuOpen(true)}
+                    className="inline-flex items-center gap-2 rounded-xl bg-brand-green px-4 py-2.5 text-sm font-semibold text-brand-dark transition hover:brightness-95"
+                  >
+                    <Plus size={16} aria-hidden="true" />
+                    Adicionar
+                  </button>
+                }
+              />
             )}
           </section>
         </>
@@ -470,7 +482,9 @@ export function Agenda() {
               ].map((option) => (
                 <Link
                   key={option.to}
-                  to={`${option.to}?data=${selectedDate}`}
+                  // from=agenda: a tela de destino usa isso para, ao fechar o
+                  // formulário sem salvar, devolver o usuário à Agenda.
+                  to={`${option.to}?data=${selectedDate}&from=agenda`}
                   className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm text-slate-200 transition hover:bg-surface-hi"
                 >
                   <span className={`size-1.5 rounded-full ${option.color}`} />

@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Footprints, Plus } from 'lucide-react'
 import Segmented from '../../components/Segmented'
 import ItemActions from '../../components/ItemActions'
 import WorkoutPlanSection from '../../components/WorkoutPlanSection'
 import GymHistorySection from '../../components/GymHistorySection'
 import SectionHeader from '../../components/SectionHeader'
+import Skeleton from '../../components/Skeleton'
+import EmptyState from '../../components/EmptyState'
+import ErrorRetry from '../../components/ErrorRetry'
+import { useConfirm } from '../../hooks/useConfirm'
 import {
   createWorkout,
   deleteWorkout,
@@ -57,9 +61,9 @@ function parseNumber(value: string): number | null {
 function LoadingState() {
   return (
     <div className="flex flex-col gap-3" aria-busy="true" aria-label="Carregando">
-      <div className="h-10 animate-pulse rounded-md bg-surface" />
-      <div className="h-16 animate-pulse rounded-md bg-surface" />
-      <div className="h-16 animate-pulse rounded-md bg-surface" />
+      <Skeleton className="h-10" />
+      <Skeleton className="h-16" />
+      <Skeleton className="h-16" />
     </div>
   )
 }
@@ -75,6 +79,10 @@ export function Treino() {
   // efeito) já abre a tela com o formulário pronto na data escolhida.
   const [searchParams] = useSearchParams()
   const prefillDate = searchParams.get('data')
+  // ?from=agenda: fechar o formulário sem salvar devolve o usuário para a Agenda.
+  const navigate = useNavigate()
+  const cameFromAgenda = searchParams.get('from') === 'agenda'
+  const { confirm, dialog } = useConfirm()
 
   const [formOpen, setFormOpen] = useState(prefillDate !== null)
   const [type, setType] = useState<WorkoutType>('Academia')
@@ -204,6 +212,10 @@ export function Treino() {
   }
 
   function closeForm() {
+    if (cameFromAgenda) {
+      navigate('/agenda')
+      return
+    }
     setFormOpen(false)
     resetFields()
     setCreateError(null)
@@ -270,7 +282,13 @@ export function Treino() {
   }
 
   async function handleDeleteWorkout(workout: WorkoutResponse, label: string) {
-    if (!window.confirm(`Remover o treino de ${label}?`)) return
+    const ok = await confirm({
+      title: 'Remover treino',
+      message: `Remover o treino de ${label}?`,
+      confirmLabel: 'Remover',
+      destructive: true,
+    })
+    if (!ok) return
 
     setDeletingId(workout.id)
     setError(null)
@@ -293,18 +311,16 @@ export function Treino() {
   if (loading) return <LoadingState />
 
   if (error && workouts.length === 0) {
-    return (
-      <div className="flex flex-col items-center gap-4 py-12 text-center">
-        <p className="text-sm text-red-300">{error}</p>
-        <button
-          type="button"
-          onClick={handleRetry}
-          className="rounded-xl bg-brand-green px-4 py-2.5 font-semibold text-brand-dark transition hover:brightness-95"
-        >
-          Tentar de novo
-        </button>
-      </div>
-    )
+    return <ErrorRetry message={error} onRetry={handleRetry} />
+  }
+
+  // Abre o formulário já na modalidade escolhida — usado pelos CTAs dos estados
+  // vazios (corrida e academia), que levam à ação de registrar que já existe.
+  function openFormFor(workoutType: WorkoutType) {
+    setType(workoutType)
+    resetFields()
+    setCreateError(null)
+    setFormOpen(true)
   }
 
   return (
@@ -499,6 +515,7 @@ export function Treino() {
             workouts={workouts}
             onWorkoutUpdated={applyWorkoutUpdate}
             onWorkoutDeleted={applyWorkoutRemoval}
+            onRegister={() => openFormFor('Academia')}
           />
         ) : runWorkouts.length > 0 ? (
           <ul className="divide-y divide-line overflow-hidden rounded-md bg-surface ring-1 ring-line">
@@ -626,11 +643,21 @@ export function Treino() {
             )}
           </ul>
         ) : (
-          <div className="rounded-md bg-surface px-5 py-8 text-center ring-1 ring-line">
-            <p className="text-sm text-slate-400">
-              Nenhuma corrida registrada ainda.
-            </p>
-          </div>
+          <EmptyState
+            icon={Footprints}
+            title="Nenhuma corrida ainda."
+            description="Registre suas corridas para acompanhar distância e pace ao longo do tempo."
+            action={
+              <button
+                type="button"
+                onClick={() => openFormFor('Corrida')}
+                className="inline-flex items-center gap-2 rounded-xl bg-brand-green px-4 py-2.5 text-sm font-semibold text-brand-dark transition hover:brightness-95"
+              >
+                <Plus size={16} aria-hidden="true" />
+                Registrar corrida
+              </button>
+            }
+          />
         )}
       </section>
 
@@ -642,6 +669,8 @@ export function Treino() {
           {error}
         </p>
       )}
+
+      {dialog}
     </div>
   )
 }
