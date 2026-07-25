@@ -12,6 +12,7 @@ import Nutricao from './pages/Nutricao'
 import Perfil from './pages/Perfil'
 import Tarefas from './pages/Tarefas'
 import Treino from './pages/Treino'
+import Zelo from './pages/Zelo'
 
 // AuthProvider fica DENTRO do BrowserRouter para poder usar hooks do router
 // (useNavigate, useLocation) quando o fluxo de autenticação crescer.
@@ -38,6 +39,7 @@ function App() {
               <Route path="/tarefas" element={<Tarefas />} />
               <Route path="/financas" element={<Financas />} />
               <Route path="/nutricao" element={<Nutricao />} />
+              <Route path="/zelo" element={<Zelo />} />
               <Route path="/diario" element={<Diario />} />
               <Route path="/perfil" element={<Perfil />} />
             </Route>

@@ -9,6 +9,7 @@ import {
   Menu,
   NotebookPen,
   Plus,
+  Sparkles,
   User,
   Wallet,
   X,
@@ -25,6 +26,7 @@ interface NavItem {
 // Todas as seções — este é o índice completo do app, no drawer.
 const ALL_SECTIONS: NavItem[] = [
   { to: '/hoje', label: 'Hoje', icon: Flame },
+  { to: '/zelo', label: 'Zelo', icon: Sparkles },
   { to: '/agenda', label: 'Agenda', icon: CalendarDays },
   { to: '/treino', label: 'Treino', icon: Dumbbell },
   { to: '/tarefas', label: 'Tarefas', icon: ListChecks },
@@ -34,12 +36,41 @@ const ALL_SECTIONS: NavItem[] = [
   { to: '/perfil', label: 'Perfil', icon: User },
 ]
 
-// Subconjunto na barra inferior. Tarefas saiu porque a lista do dia agora vive
-// na seção "Foco" da tela Hoje — mantê-la aqui daria dois caminhos para a mesma
-// informação. A tela completa continua no drawer.
-const QUICK_SECTIONS: NavItem[] = ALL_SECTIONS.filter((item) =>
-  ['/hoje', '/financas', '/nutricao', '/perfil'].includes(item.to),
+// Barra inferior
+const QUICK_ROUTES = ['/hoje', '/financas', '/zelo', '/nutricao', '/perfil']
+const QUICK_SECTIONS: NavItem[] = QUICK_ROUTES.map(
+  (route) => ALL_SECTIONS.find((section) => section.to === route)!,
 )
+
+function BottomNavItem({ to, label, icon: Icon }: NavItem) {
+  return (
+    <li className="flex-1">
+      <NavLink
+        to={to}
+        className={({ isActive }) =>
+          [
+            'flex min-h-13 w-full flex-col items-center justify-center gap-1 transition',
+            isActive
+              ? 'text-brand-green'
+              : 'text-slate-500 hover:text-slate-300',
+          ].join(' ')
+        }
+      >
+        {({ isActive }) => (
+          <>
+            <Icon
+              size={19}
+              strokeWidth={1.75}
+              aria-hidden="true"
+              className={isActive ? 'glow-icon' : undefined}
+            />
+            <span className="text-[10px] tracking-wide">{label}</span>
+          </>
+        )}
+      </NavLink>
+    </li>
+  )
+}
 
 export function AppLayout() {
   const { user } = useAuth()
@@ -174,35 +205,10 @@ export function AppLayout() {
         aria-label="Navegação rápida"
         className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-brand-dark/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
       >
+        {/* Cinco itens iguais, o Zelo no centro sem tratamento especial. */}
         <ul className="mx-auto flex w-full max-w-md">
-          {QUICK_SECTIONS.map(({ to, label, icon: Icon }) => (
-            <li key={to} className="flex-1">
-              <NavLink
-                to={to}
-                className={({ isActive }) =>
-                  [
-                    'flex min-h-13 w-full flex-col items-center justify-center gap-1 transition',
-                    isActive
-                      ? 'text-brand-green'
-                      : 'text-slate-500 hover:text-slate-300',
-                  ].join(' ')
-                }
-              >
-                {({ isActive }) => (
-                  <>
-                    <Icon
-                      size={19}
-                      strokeWidth={1.75}
-                      aria-hidden="true"
-                      // Glow só no ativo: é o que substitui o preenchimento que
-                      // a barra tinha antes, marcando a aba sem caixa colorida.
-                      className={isActive ? 'glow-icon' : undefined}
-                    />
-                    <span className="text-[10px] tracking-wide">{label}</span>
-                  </>
-                )}
-              </NavLink>
-            </li>
+          {QUICK_SECTIONS.map((item) => (
+            <BottomNavItem key={item.to} {...item} />
           ))}
         </ul>
       </nav>

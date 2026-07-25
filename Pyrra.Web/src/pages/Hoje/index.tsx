@@ -22,7 +22,6 @@ import SectionHeader from '../../components/SectionHeader'
 import Segmented from '../../components/Segmented'
 import StreakPill from '../../components/StreakPill'
 import ItemActions from '../../components/ItemActions'
-import ZeloCard from '../../components/ZeloCard'
 import {
   createFocus,
   deactivateFocus,
@@ -658,9 +657,6 @@ export function Hoje() {
           </p>
         </div>
       </section>
-
-      {/* ZELO — o assistente logo abaixo do anel, o ponto central da tela. */}
-      <ZeloCard />
 
       {/*
         FOCO — hábitos e tarefas debaixo do mesmo header, alternados por abas.
