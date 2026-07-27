@@ -1,170 +1,148 @@
-import { useState } from 'react'
-import type { FormEvent } from 'react'
-import { LogOut } from 'lucide-react'
-import Segmented from '../../components/Segmented'
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { Flame, Settings, Trophy, Users } from 'lucide-react'
 import SectionHeader from '../../components/SectionHeader'
 import { useAuth } from '../../hooks/useAuth'
-import { useConfirm } from '../../hooks/useConfirm'
-import { updatePreferences } from '../../services/userService'
-import { getApiErrorMessage } from '../../services/apiError'
+import { getFriendsCount } from '../../services/friendService'
+import { getStreakStatus } from '../../services/streakService'
 import type { CommunicationTone } from '../../types/auth'
 
-const TONES: readonly CommunicationTone[] = [
-  'Direto',
-  'Acolhedor',
-  'Desafiador',
-]
-
-// O que cada tom significa na prática — sem isso a escolha é adivinhação.
-const TONE_HINTS: Record<CommunicationTone, string> = {
-  Direto: 'Objetivo, sem rodeios.',
-  Acolhedor: 'Gentil e compreensivo.',
-  Desafiador: 'Provocador, te cutuca a ir além.',
+const TONE_LABELS: Record<CommunicationTone, string> = {
+  Direto: 'Direto',
+  Acolhedor: 'Acolhedor',
+  Desafiador: 'Desafiador',
 }
 
+// Tela pública/social: identidade (nome, @username, avatar), números que valem a pena mostrar
+// (amigos, streak) e um resumo SÓ LEITURA das preferências — editar qualquer coisa daqui em
+// diante é em /configuracoes, que concentra os formulários. Perfil não tem form nenhum.
 export function Perfil() {
-  const { user, refreshUser, logout } = useAuth()
-  const { confirm, dialog } = useConfirm()
+  const { user } = useAuth()
 
-  // Inicializa do contexto. O usuário já vem carregado — o ProtectedRoute só
-  // renderiza esta tela depois que a sessão foi verificada.
-  const [tone, setTone] = useState<CommunicationTone>(
-    user?.communicationTone ?? 'Direto',
-  )
-  const [notificationTime, setNotificationTime] = useState(
-    user?.eveningNotificationTime ?? '21:00',
-  )
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
+  const [friendCount, setFriendCount] = useState<number | null>(null)
+  const [streak, setStreak] = useState<{ current: number; best: number } | null>(null)
+
+  useEffect(() => {
+    let active = true
+
+    async function run() {
+      try {
+        const count = await getFriendsCount()
+        if (active) setFriendCount(count)
+      } catch {
+        // Silencioso: um número a menos não deve derrubar a tela.
+      }
+
+      try {
+        const status = await getStreakStatus()
+        if (active) setStreak({ current: status.displayCount, best: status.bestCount })
+      } catch {
+        // Idem — o streak é um extra, não o núcleo da tela.
+      }
+    }
+
+    void run()
+    return () => {
+      active = false
+    }
+  }, [])
 
   if (!user) return null
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-
-    setSaving(true)
-    setError(null)
-    setSaved(false)
-
-    try {
-      await updatePreferences(tone, notificationTime)
-      // Sincroniza o contexto: sem isso, sair da tela e voltar mostraria os
-      // valores antigos, já que o formulário inicializa a partir dele.
-      await refreshUser()
-      setSaved(true)
-    } catch (err) {
-      setError(
-        getApiErrorMessage(err, {}, 'Não foi possível salvar suas preferências.'),
-      )
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function handleLogout() {
-    const ok = await confirm({
-      title: 'Sair da conta',
-      message: 'Deseja sair da sua conta? Você poderá entrar de novo quando quiser.',
-      confirmLabel: 'Sair',
-    })
-    if (ok) logout()
-  }
-
   return (
     <div className="flex flex-col gap-5">
-      <header>
-        <h1 className="glow-ink font-display text-3xl font-semibold tracking-tight text-ink">Perfil</h1>
+      <header className="flex items-center justify-between">
+        <h1 className="glow-ink font-display text-3xl font-semibold tracking-tight text-ink">
+          Perfil
+        </h1>
+        <Link
+          to="/configuracoes"
+          aria-label="Configurações"
+          className="rounded-lg p-2 text-slate-400 transition hover:bg-surface hover:text-ink"
+        >
+          <Settings size={22} />
+        </Link>
       </header>
 
-      {/* DADOS DA CONTA */}
-      <section className="rounded-md bg-surface px-5 py-4 ring-1 ring-line">
-        <p className="text-lg font-semibold text-ink">{user.name}</p>
-        <p className="mt-0.5 text-sm text-slate-400">{user.email}</p>
-        <span className="mt-3 inline-block rounded-full bg-brand-green/10 px-3 py-1 text-xs font-medium text-brand-green">
+      {/* IDENTIDADE */}
+      <section className="flex flex-col items-center gap-3 rounded-md bg-surface px-5 py-6 ring-1 ring-line">
+        <span
+          aria-hidden="true"
+          className="flex size-16 items-center justify-center rounded-full bg-surface-hi text-2xl font-semibold text-ink ring-1 ring-line"
+        >
+          {user.name.charAt(0).toUpperCase()}
+        </span>
+        <div className="text-center">
+          <p className="text-lg font-semibold text-ink">{user.name}</p>
+          {user.username && (
+            <p className="mt-0.5 text-sm font-medium text-brand-green">@{user.username}</p>
+          )}
+        </div>
+        <span className="inline-block rounded-full bg-brand-green/10 px-3 py-1 text-xs font-medium text-brand-green">
           Plano {user.plan}
         </span>
+
+        {/* Números — amigos e streak, lado a lado. Cada um aparece só quando carregou, sem
+            placeholder de "0" enquanto a chamada está em voo (evita mostrar zero e depois pular
+            para o valor real). */}
+        {(friendCount !== null || streak !== null) && (
+          <div className="mt-1 flex w-full divide-x divide-line border-t border-line pt-3">
+            {friendCount !== null && (
+              <Link
+                to="/amigos"
+                className="flex flex-1 flex-col items-center gap-0.5 rounded-lg py-1 transition hover:bg-surface-hi"
+              >
+                <span className="flex items-center gap-1.5 text-lg font-semibold tabular-nums text-ink">
+                  <Users size={16} className="text-brand-green" aria-hidden="true" />
+                  {friendCount}
+                </span>
+                <span className="text-xs text-slate-500">
+                  {friendCount === 1 ? 'amigo' : 'amigos'}
+                </span>
+              </Link>
+            )}
+            {streak !== null && (
+              <div className="flex flex-1 flex-col items-center gap-0.5 py-1">
+                <span className="flex items-center gap-1.5 text-lg font-semibold tabular-nums text-ink">
+                  <Flame size={16} className="text-brand-green" aria-hidden="true" />
+                  {streak.current}
+                </span>
+                <span className="flex items-center gap-1 text-xs text-slate-500">
+                  <Trophy size={11} aria-hidden="true" />
+                  recorde {streak.best}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
-      {/* PREFERÊNCIAS */}
-      <form
-        onSubmit={handleSubmit}
-        className="flex flex-col gap-4 rounded-md bg-surface px-5 py-4 ring-1 ring-line"
-      >
+      {/* PREFERÊNCIAS — só leitura. Editar é em Configurações. */}
+      <section className="flex flex-col gap-3 rounded-md bg-surface px-5 py-4 ring-1 ring-line">
         <SectionHeader>Preferências</SectionHeader>
 
-        <div className="flex flex-col gap-2">
-          <p className="text-xs font-medium text-slate-400">
-            Tom das mensagens
-          </p>
-          <Segmented
-            label="Tom de comunicação"
-            options={TONES}
-            value={tone}
-            onChange={(next) => {
-              setTone(next)
-              setSaved(false)
-            }}
-          />
-          <p className="text-xs text-slate-500">{TONE_HINTS[tone]}</p>
-        </div>
+        <dl className="flex flex-col gap-2 text-sm">
+          <div className="flex items-center justify-between">
+            <dt className="text-slate-400">Tom das mensagens</dt>
+            <dd className="font-medium text-ink">{TONE_LABELS[user.communicationTone]}</dd>
+          </div>
+          <div className="flex items-center justify-between">
+            <dt className="text-slate-400">Mensagem noturna</dt>
+            <dd className="font-medium text-ink">{user.eveningNotificationTime}</dd>
+          </div>
+          <div className="flex items-center justify-between">
+            <dt className="text-slate-400">Fuso horário</dt>
+            <dd className="font-medium text-ink">{user.timezone}</dd>
+          </div>
+        </dl>
 
-        <div className="flex flex-col gap-1.5">
-          <label
-            htmlFor="horario-notificacao"
-            className="text-xs font-medium text-slate-400"
-          >
-            Horário da mensagem noturna
-          </label>
-          <input
-            id="horario-notificacao"
-            type="time"
-            value={notificationTime}
-            onChange={(event) => {
-              setNotificationTime(event.target.value)
-              setSaved(false)
-            }}
-            required
-            className="w-full rounded-md bg-surface px-4 py-3 text-ink ring-1 ring-line transition outline-none focus:ring-2 focus:ring-brand-green"
-          />
-        </div>
-
-        <button
-          type="submit"
-          disabled={saving}
-          className="w-full rounded-xl bg-brand-green px-4 py-2.5 font-semibold text-brand-dark transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+        <Link
+          to="/configuracoes"
+          className="text-center text-xs font-medium text-brand-green transition hover:brightness-110"
         >
-          {saving ? 'Salvando...' : 'Salvar preferências'}
-        </button>
-
-        {saved && (
-          <p role="status" className="text-center text-sm text-brand-green">
-            Preferências salvas.
-          </p>
-        )}
-
-        {error && (
-          <p
-            role="alert"
-            className="rounded-lg bg-red-500/10 px-3 py-2 text-center text-sm text-red-300 ring-1 ring-red-500/20"
-          >
-            {error}
-          </p>
-        )}
-      </form>
-
-      {/* SAIR — separado do resto e em vermelho: é a única ação destrutiva
-          da tela e não deve ser confundida com o botão de salvar. */}
-      <button
-        type="button"
-        onClick={handleLogout}
-        className="flex min-h-12 w-full items-center justify-center gap-2 rounded-md text-sm font-medium text-red-400 ring-1 ring-red-400/20 transition hover:bg-red-500/10"
-      >
-        <LogOut size={18} aria-hidden="true" />
-        Sair da conta
-      </button>
-
-      {dialog}
+          Editar em Configurações
+        </Link>
+      </section>
     </div>
   )
 }

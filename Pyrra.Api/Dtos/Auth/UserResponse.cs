@@ -6,6 +6,9 @@ namespace Pyrra.Api.Dtos.Auth {
         Guid Id,
         string Email,
         string Name,
+        // Nulo enquanto o usuário não escolheu um. O frontend usa isso para decidir o gate de
+        // username no primeiro acesso. Vem sem "@" — o "@" é adicionado só na exibição.
+        string? Username,
         string Timezone,
         string CommunicationTone,
         string EveningNotificationTime,
@@ -20,6 +23,7 @@ namespace Pyrra.Api.Dtos.Auth {
             new(user.Id,
                 user.Email,
                 user.Name,
+                user.Username,
                 user.Timezone,
                 user.CommunicationTone.ToString(),
                 user.EveningNotificationTime.ToString("HH:mm"),

@@ -1,4 +1,5 @@
-﻿Microsoft Visual Studio Solution File, Format Version 12.00
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
@@ -9,6 +10,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pyrra.Infrastructure", "Pyrra.Infrastructure\Pyrra.Infrastructure.csproj", "{683AC73E-D41D-4B29-BA95-24A7E2BA412B}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pyrra.Api", "Pyrra.Api\Pyrra.Api.csproj", "{63B06080-5EDB-4869-BF5B-F33718091732}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pyrra.Application.Tests", "Pyrra.Application.Tests\Pyrra.Application.Tests.csproj", "{39479201-5C5F-42FD-A99A-18BFF43A048A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -68,6 +71,18 @@ Global
 		{63B06080-5EDB-4869-BF5B-F33718091732}.Release|x64.Build.0 = Release|Any CPU
 		{63B06080-5EDB-4869-BF5B-F33718091732}.Release|x86.ActiveCfg = Release|Any CPU
 		{63B06080-5EDB-4869-BF5B-F33718091732}.Release|x86.Build.0 = Release|Any CPU
+		{39479201-5C5F-42FD-A99A-18BFF43A048A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{39479201-5C5F-42FD-A99A-18BFF43A048A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{39479201-5C5F-42FD-A99A-18BFF43A048A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{39479201-5C5F-42FD-A99A-18BFF43A048A}.Debug|x64.Build.0 = Debug|Any CPU
+		{39479201-5C5F-42FD-A99A-18BFF43A048A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{39479201-5C5F-42FD-A99A-18BFF43A048A}.Debug|x86.Build.0 = Debug|Any CPU
+		{39479201-5C5F-42FD-A99A-18BFF43A048A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{39479201-5C5F-42FD-A99A-18BFF43A048A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{39479201-5C5F-42FD-A99A-18BFF43A048A}.Release|x64.ActiveCfg = Release|Any CPU
+		{39479201-5C5F-42FD-A99A-18BFF43A048A}.Release|x64.Build.0 = Release|Any CPU
+		{39479201-5C5F-42FD-A99A-18BFF43A048A}.Release|x86.ActiveCfg = Release|Any CPU
+		{39479201-5C5F-42FD-A99A-18BFF43A048A}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

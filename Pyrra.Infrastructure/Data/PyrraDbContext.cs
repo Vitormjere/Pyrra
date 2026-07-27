@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
+using Pyrra.Domain.Comunidade;
 using Pyrra.Domain.Financas;
 using Pyrra.Domain.Focos;
 using Pyrra.Domain.Nutricao;
@@ -32,11 +33,36 @@ namespace Pyrra.Infrastructure.Data {
         public DbSet<NutritionPlanItem> NutritionPlanItems => Set<NutritionPlanItem>();
         public DbSet<NutritionPlanSeedLog> NutritionPlanSeedLogs => Set<NutritionPlanSeedLog>();
         public DbSet<ZeloQueryLog> ZeloQueryLogs => Set<ZeloQueryLog>();
+        public DbSet<Friendship> Friendships => Set<Friendship>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder) {
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Email)
                 .IsUnique();
+
+            // Username é público e único, mas OPCIONAL (nulo até o usuário escolher). Índice único
+            // FILTRADO em NOT NULL: sem o filtro, os vários nulos dos usuários antigos colidiriam
+            // entre si. O nome IX_Users_Username é o que o UserRepository procura para traduzir a
+            // violação de corrida.
+            modelBuilder.Entity<User>()
+                .Property(u => u.Username)
+                .HasMaxLength(20);
+
+            modelBuilder.Entity<User>()
+                .HasIndex(u => u.Username)
+                .IsUnique()
+                .HasFilter("[Username] IS NOT NULL");
+
+            // Token do link de convite: 32 hex, único e opcional. Índice único filtrado pelo mesmo
+            // motivo do username. Usado na busca por token ao abrir um convite.
+            modelBuilder.Entity<User>()
+                .Property(u => u.InviteToken)
+                .HasMaxLength(32);
+
+            modelBuilder.Entity<User>()
+                .HasIndex(u => u.InviteToken)
+                .IsUnique()
+                .HasFilter("[InviteToken] IS NOT NULL");
 
             // Nome de foco é rótulo curto de tela ("beber agua"). Sem limite a coluna nasceria
             // nvarchar(max), que nem indexar dá — e o mesmo 100 vale no CreateFocusRequest e no
@@ -200,6 +226,21 @@ namespace Pyrra.Infrastructure.Data {
             modelBuilder.Entity<ZeloQueryLog>()
                 .HasIndex(l => new { l.UserId, l.Date })
                 .IsUnique();
+
+            // Amizade: sem FK para Users, seguindo a convenção do projeto (os módulos guardam UserId
+            // sem constraint). Uma linha por par (A,B) numa direção: o índice único barra o pedido
+            // duplicado exato no banco; o pedido recíproco (B→A) é barrado no FriendshipService.
+            modelBuilder.Entity<Friendship>()
+                .HasIndex(f => new { f.RequesterId, f.AddresseeId })
+                .IsUnique();
+
+            // As duas leituras do módulo: pedidos recebidos/contagem (addressee + status) e a lista
+            // de amigos (que filtra por status e pelos dois lados).
+            modelBuilder.Entity<Friendship>()
+                .HasIndex(f => new { f.AddresseeId, f.Status });
+
+            modelBuilder.Entity<Friendship>()
+                .HasIndex(f => new { f.RequesterId, f.Status });
         }
     }
 }

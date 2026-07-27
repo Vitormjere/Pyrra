@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Pyrra.Application.Auth;
 using Pyrra.Application.Common.Interfaces;
+using Pyrra.Application.Comunidade;
 using Pyrra.Application.Financas;
 using Pyrra.Application.Focos;
 using Pyrra.Application.Notificacoes;
@@ -135,7 +136,12 @@ builder.Services.AddScoped<INutritionPlanSeedLogRepository, NutritionPlanSeedLog
 builder.Services.AddScoped<INutritionService, NutritionService>();
 
 builder.Services.AddScoped<IUserPreferencesService, UserPreferencesService>();
+builder.Services.AddScoped<IUsernameService, UsernameService>();
+builder.Services.AddScoped<IUserAccountService, UserAccountService>();
 builder.Services.AddScoped<INightlyMessageService, NightlyMessageService>();
+
+builder.Services.AddScoped<IFriendshipRepository, FriendshipRepository>();
+builder.Services.AddScoped<IFriendshipService, FriendshipService>();
 
 // Cliente nomeado para a API da Anthropic. BaseAddress termina em / e os caminhos relativos
 // (v1/messages) não começam com /, para o Uri concatenar em vez de substituir. A x-api-key sai da

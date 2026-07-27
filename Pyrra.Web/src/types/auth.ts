@@ -25,6 +25,9 @@ export interface UserResponse {
   id: string
   email: string
   name: string
+  /** Identificador público (ex.: "vitorj", exibido como "@vitorj"). null até ser escolhido —
+   *  é o que o gate de username usa para forçar a escolha no primeiro acesso. Vem sem "@". */
+  username: string | null
   /** IANA time zone (ex.: "America/Sao_Paulo"). */
   timezone: string
   communicationTone: CommunicationTone

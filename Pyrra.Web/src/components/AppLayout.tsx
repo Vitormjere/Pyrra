@@ -10,11 +10,13 @@ import {
   NotebookPen,
   Sparkles,
   User,
+  Users,
   Wallet,
   X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
+import { useFriendRequests } from '../hooks/useFriendRequests'
 
 interface NavItem {
   to: string
@@ -33,6 +35,7 @@ const ALL_SECTIONS: NavItem[] = [
   { to: '/financas', label: 'Finanças', icon: Wallet },
   { to: '/nutricao', label: 'Nutrição', icon: Apple },
   { to: '/diario', label: 'Diário', icon: NotebookPen },
+  { to: '/amigos', label: 'Amigos', icon: Users },
   { to: '/perfil', label: 'Perfil', icon: User },
 ]
 
@@ -76,38 +79,51 @@ function BottomNavItem({ to, label, icon: Icon }: NavItem) {
 // deixa o drawer fechar ao clicar num item; a sidebar permanente não passa nada,
 // pois não fecha. Manter uma cópia única evita as duas navegações divergirem.
 function SectionNav({ onNavigate }: { onNavigate?: () => void }) {
+  // Contagem de pedidos pendentes para o badge do item "Amigos". O SectionNav sempre é renderizado
+  // dentro do FriendRequestsProvider (que envolve o AppLayout), então o hook está disponível.
+  const { count } = useFriendRequests()
+
   return (
     <ul className="flex-1 overflow-y-auto p-3">
-      {ALL_SECTIONS.map(({ to, label, icon: Icon }) => (
-        <li key={to}>
-          <NavLink
-            to={to}
-            // Fecha ao navegar. Feito no clique, e não num efeito sobre a rota:
-            // é reação a uma ação do usuário, não sincronização com sistema
-            // externo. Ausente na sidebar fixa (onNavigate undefined = no-op).
-            onClick={onNavigate}
-            className={({ isActive }) =>
-              [
-                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition',
-                isActive
-                  ? 'bg-surface font-medium text-ink'
-                  : 'text-slate-400 hover:bg-surface hover:text-slate-200',
-              ].join(' ')
-            }
-          >
-            {({ isActive }) => (
-              <>
-                <Icon
-                  size={18}
-                  aria-hidden="true"
-                  className={isActive ? 'text-brand-green' : undefined}
-                />
-                {label}
-              </>
-            )}
-          </NavLink>
-        </li>
-      ))}
+      {ALL_SECTIONS.map(({ to, label, icon: Icon }) => {
+        const badge = to === '/amigos' ? count : 0
+
+        return (
+          <li key={to}>
+            <NavLink
+              to={to}
+              // Fecha ao navegar. Feito no clique, e não num efeito sobre a rota:
+              // é reação a uma ação do usuário, não sincronização com sistema
+              // externo. Ausente na sidebar fixa (onNavigate undefined = no-op).
+              onClick={onNavigate}
+              className={({ isActive }) =>
+                [
+                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition',
+                  isActive
+                    ? 'bg-surface font-medium text-ink'
+                    : 'text-slate-400 hover:bg-surface hover:text-slate-200',
+                ].join(' ')
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <Icon
+                    size={18}
+                    aria-hidden="true"
+                    className={isActive ? 'text-brand-green' : undefined}
+                  />
+                  <span className="flex-1">{label}</span>
+                  {badge > 0 && (
+                    <span className="rounded-full bg-brand-green px-1.5 py-0.5 text-[10px] font-semibold text-brand-dark tabular-nums">
+                      {badge}
+                    </span>
+                  )}
+                </>
+              )}
+            </NavLink>
+          </li>
+        )
+      })}
     </ul>
   )
 }
