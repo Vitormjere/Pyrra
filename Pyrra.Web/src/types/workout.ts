@@ -60,3 +60,30 @@ export interface WorkoutPlanDayResponse {
   label: string | null
   exercises: WorkoutPlanExerciseResponse[]
 }
+
+// Exercício de um template (só leitura, para o preview). Sem id nem type: o catálogo
+// é todo de Academia e o card não edita, só mostra.
+export interface WorkoutTemplateExercisePreview {
+  exerciseName: string
+  sets: number | null
+  reps: number | null
+}
+
+// Um dia do template. label "Descanso" é explícito (diferente do plano do usuário).
+export interface WorkoutTemplateDayPreview {
+  dayOfWeek: WeekDay
+  label: string
+  exercises: WorkoutTemplateExercisePreview[]
+}
+
+// GET /api/treinos/templates — catálogo fixo de planos prontos.
+// isCustom = "Personalizado": não aplica estrutura, só leva ao editor manual.
+export interface WorkoutTemplate {
+  id: string
+  name: string
+  description: string
+  trainingDaysPerWeek: number
+  restDaysPerWeek: number
+  isCustom: boolean
+  days: WorkoutTemplateDayPreview[]
+}

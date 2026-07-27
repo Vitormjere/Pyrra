@@ -17,10 +17,12 @@ namespace Pyrra.Api.Controllers {
     [Authorize]
     [Route("api/treinos")]
     public class WorkoutController : ControllerBase {
-        private readonly IWorkoutService _workoutService;
+        private readonly IWorkoutService         _workoutService;
+        private readonly IWorkoutTemplateService _templateService;
 
-        public WorkoutController(IWorkoutService workoutService) {
-            _workoutService = workoutService;
+        public WorkoutController(IWorkoutService workoutService, IWorkoutTemplateService templateService) {
+            _workoutService  = workoutService;
+            _templateService = templateService;
         }
 
         [HttpPost]
@@ -122,6 +124,33 @@ namespace Pyrra.Api.Controllers {
             // Devolve o plano COMPLETO, com exercícios: o PUT só altera labels, mas
             // responder num formato diferente do GET faria a tela ter dois caminhos
             // para o mesmo dado.
+            var plan = await _workoutService.GetPlanWithExercisesAsync(userId, cancellationToken);
+            return Ok(plan.Select(WorkoutPlanDayResponse.FromEntity));
+        }
+
+        // Catálogo de templates prontos. Não depende do usuário — é dado fixo —, mas fica sob
+        // [Authorize] como o resto do controller: só faz sentido para quem vai aplicar um.
+        [HttpGet("templates")]
+        public async Task<ActionResult<IEnumerable<WorkoutTemplateResponse>>> GetTemplates(CancellationToken cancellationToken) {
+            var templates = await _templateService.GetAllAsync(cancellationToken);
+            return Ok(templates.Select(WorkoutTemplateResponse.FromEntity));
+        }
+
+        // Aplica um template ao Plano da Semana, SOBRESCREVENDO o que houver. Devolve o plano
+        // resultante no mesmo formato do GET plano, para a tela recarregar sem um segundo caminho.
+        // A confirmação de "já tem algo preenchido" é do front; aqui a sobrescrita é incondicional.
+        [HttpPost("templates/{id:guid}/aplicar")]
+        public async Task<ActionResult<IEnumerable<WorkoutPlanDayResponse>>> ApplyTemplate(Guid id, CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            try {
+                await _templateService.ApplyAsync(userId, id, cancellationToken);
+            } catch (NotFoundException ex) {
+                return NotFound(new { message = ex.Message });
+            }
+
             var plan = await _workoutService.GetPlanWithExercisesAsync(userId, cancellationToken);
             return Ok(plan.Select(WorkoutPlanDayResponse.FromEntity));
         }

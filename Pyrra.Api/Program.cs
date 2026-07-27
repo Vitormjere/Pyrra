@@ -117,7 +117,9 @@ builder.Services.AddScoped<IStreakService, StreakService>();
 builder.Services.AddScoped<IWorkoutLogRepository, WorkoutLogRepository>();
 builder.Services.AddScoped<IWorkoutPlanDayRepository, WorkoutPlanDayRepository>();
 builder.Services.AddScoped<IWorkoutPlanExerciseRepository, WorkoutPlanExerciseRepository>();
+builder.Services.AddScoped<IWorkoutTemplateRepository, WorkoutTemplateRepository>();
 builder.Services.AddScoped<IWorkoutService, WorkoutService>();
+builder.Services.AddScoped<IWorkoutTemplateService, WorkoutTemplateService>();
 
 builder.Services.AddScoped<IDailyPlanNoteRepository, DailyPlanNoteRepository>();
 builder.Services.AddScoped<IDailyPlanNoteService, DailyPlanNoteService>();
