@@ -1,7 +1,8 @@
 import {
+  Area,
   CartesianGrid,
+  ComposedChart,
   Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -51,7 +52,17 @@ export function BalanceChart({ history, days }: BalanceChartProps) {
             concreta do pai para calcular a sua. */}
         <div className="h-52 w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
+            <ComposedChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
+              {/* Gradiente vertical do glow sob a linha: verde translúcido colado
+                  à linha (topo) esmaecendo até transparente na base. id referenciado
+                  pelo fill da Area abaixo. */}
+              <defs>
+                <linearGradient id="balanceGlow" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#02F5A1" stopOpacity={0.4} />
+                  <stop offset="100%" stopColor="#02F5A1" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+
               {/* Só linhas horizontais: as verticais competiriam com a própria
                   série num gráfico de 30 pontos. */}
               <CartesianGrid
@@ -88,6 +99,18 @@ export function BalanceChart({ history, days }: BalanceChartProps) {
                 // conversão é explícita em vez de assumir number.
                 formatter={(value) => [formatCurrency(Number(value)), 'Saldo']}
               />
+              {/* Glow em degradê sob a linha. Sem traço próprio (stroke=none) e
+                  antes da Line no DOM, para a linha verde ficar por cima. Mesmo
+                  type/dataKey da Line, então a base da área acompanha a curva.
+                  activeDot=false: o ponto de hover é responsabilidade da Line. */}
+              <Area
+                type="monotone"
+                dataKey="balance"
+                stroke="none"
+                fill="url(#balanceGlow)"
+                activeDot={false}
+                isAnimationActive={false}
+              />
               <Line
                 type="monotone"
                 dataKey="balance"
@@ -104,7 +127,7 @@ export function BalanceChart({ history, days }: BalanceChartProps) {
                 dot={false}
                 activeDot={{ r: 4, fill: '#02F5A1' }}
               />
-            </LineChart>
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
       </div>
