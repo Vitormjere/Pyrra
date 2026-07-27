@@ -659,6 +659,8 @@ export function Hoje() {
         </div>
       </section>
 
+      <ReflectionCard />
+
       {/*
         FOCO — hábitos e tarefas debaixo do mesmo header, alternados por abas.
         Os dois respondem à mesma pergunta ("o que eu preciso fazer hoje?"), e
@@ -1001,8 +1003,6 @@ export function Hoje() {
           </>
         )}
       </section>
-
-      <ReflectionCard />
 
       {/*
         TREINO — agora só o PLANEJADO para hoje, não o histórico real. O que foi

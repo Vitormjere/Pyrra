@@ -267,6 +267,19 @@ export function Cadastro() {
             {submitting ? 'Criando conta...' : 'Criar conta'}
           </button>
 
+          {/* Aceite: o cadastro é o ato de concordância com os Termos. Link abre
+              a página pública /termos, acessível sem sessão. */}
+          <p className="text-center text-xs leading-relaxed text-slate-500">
+            Ao criar sua conta, você concorda com os{' '}
+            <Link
+              to="/termos"
+              className="font-medium text-brand-green transition hover:brightness-110"
+            >
+              Termos de Uso
+            </Link>
+            .
+          </p>
+
           {/* role=alert faz o leitor de tela anunciar o erro assim que ele aparece. */}
           {error && (
             <p

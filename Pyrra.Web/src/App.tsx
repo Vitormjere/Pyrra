@@ -13,6 +13,7 @@ import Nutricao from './pages/Nutricao'
 import Onboarding from './pages/Onboarding'
 import Perfil from './pages/Perfil'
 import Tarefas from './pages/Tarefas'
+import Termos from './pages/Termos'
 import Treino from './pages/Treino'
 import Zelo from './pages/Zelo'
 
@@ -26,6 +27,7 @@ function App() {
           {/* Públicas: as únicas alcançáveis sem sessão. */}
           <Route path="/login" element={<Login />} />
           <Route path="/cadastro" element={<Cadastro />} />
+          <Route path="/termos" element={<Termos />} />
 
           {/* Duas rotas de layout aninhadas, e a ordem importa: o guard vem por
               FORA da casca. Assim, para quem não tem sessão, o AppLayout nunca

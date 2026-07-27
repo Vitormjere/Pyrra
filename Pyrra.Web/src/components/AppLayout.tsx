@@ -8,7 +8,6 @@ import {
   ListChecks,
   Menu,
   NotebookPen,
-  Plus,
   Sparkles,
   User,
   Wallet,
@@ -23,7 +22,8 @@ interface NavItem {
   icon: LucideIcon
 }
 
-// Todas as seções — este é o índice completo do app, no drawer.
+// Todas as seções — índice completo do app, compartilhado pelo drawer (mobile)
+// e pela sidebar permanente (desktop).
 const ALL_SECTIONS: NavItem[] = [
   { to: '/hoje', label: 'Hoje', icon: Flame },
   { to: '/zelo', label: 'Zelo', icon: Sparkles },
@@ -72,6 +72,65 @@ function BottomNavItem({ to, label, icon: Icon }: NavItem) {
   )
 }
 
+// Índice de seções, reutilizado pelo drawer e pela sidebar fixa. onNavigate
+// deixa o drawer fechar ao clicar num item; a sidebar permanente não passa nada,
+// pois não fecha. Manter uma cópia única evita as duas navegações divergirem.
+function SectionNav({ onNavigate }: { onNavigate?: () => void }) {
+  return (
+    <ul className="flex-1 overflow-y-auto p-3">
+      {ALL_SECTIONS.map(({ to, label, icon: Icon }) => (
+        <li key={to}>
+          <NavLink
+            to={to}
+            // Fecha ao navegar. Feito no clique, e não num efeito sobre a rota:
+            // é reação a uma ação do usuário, não sincronização com sistema
+            // externo. Ausente na sidebar fixa (onNavigate undefined = no-op).
+            onClick={onNavigate}
+            className={({ isActive }) =>
+              [
+                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition',
+                isActive
+                  ? 'bg-surface font-medium text-ink'
+                  : 'text-slate-400 hover:bg-surface hover:text-slate-200',
+              ].join(' ')
+            }
+          >
+            {({ isActive }) => (
+              <>
+                <Icon
+                  size={18}
+                  aria-hidden="true"
+                  className={isActive ? 'text-brand-green' : undefined}
+                />
+                {label}
+              </>
+            )}
+          </NavLink>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+// Rodapé com a conta — âncora de "de quem é este app". Compartilhado entre o
+// drawer e a sidebar fixa.
+function AccountFooter({ name, email }: { name?: string; email?: string }) {
+  return (
+    <div className="flex items-center gap-3 border-t border-line px-4 py-3">
+      <span
+        aria-hidden="true"
+        className="flex size-8 shrink-0 items-center justify-center rounded-full bg-surface text-xs font-semibold text-slate-300 ring-1 ring-line"
+      >
+        {name?.charAt(0).toUpperCase() ?? '?'}
+      </span>
+      <div className="min-w-0">
+        <p className="truncate text-sm font-medium">{name ?? 'Conta'}</p>
+        <p className="truncate text-xs text-slate-500">{email}</p>
+      </div>
+    </div>
+  )
+}
+
 export function AppLayout() {
   const { user } = useAuth()
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -89,8 +148,9 @@ export function AppLayout() {
 
   return (
     <div className="min-h-screen">
-      {/* BARRA SUPERIOR — só o gatilho do menu e o wordmark. */}
-      <header className="sticky top-0 z-30 border-b border-line bg-brand-dark/90 backdrop-blur">
+      {/* BARRA SUPERIOR — só o gatilho do menu e o wordmark. Só no mobile: no
+          desktop (lg+) a sidebar permanente ocupa seu lugar. */}
+      <header className="sticky top-0 z-30 border-b border-line bg-brand-dark/90 backdrop-blur lg:hidden">
         <div className="mx-auto flex h-14 w-full max-w-md items-center gap-3 px-4">
           <button
             type="button"
@@ -105,8 +165,24 @@ export function AppLayout() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-md px-4 pt-5 pb-24">
-        <Outlet />
+      {/* SIDEBAR PERMANENTE — só no desktop (lg+). Substitui hambúrguer + drawer
+          + tab bar, reusando o mesmo índice de seções e o mesmo rodapé de conta.
+          Fixa à esquerda; o <main> reserva o espaço dela com lg:pl-72. */}
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 flex-col border-r border-line bg-brand-dark lg:flex">
+        <div className="flex h-14 items-center border-b border-line px-4">
+          <span className="font-display text-lg font-semibold tracking-tight">Pyrra</span>
+        </div>
+        <SectionNav />
+        <AccountFooter name={user?.name} email={user?.email} />
+      </aside>
+
+      {/* No desktop o conteúdo desloca para além da sidebar (lg:pl-72) e ganha
+          uma coluna mais larga, porém contida (lg:max-w-2xl) e centralizada — a
+          largura cheia deixaria as linhas longas demais, o "mobile esticado". */}
+      <main className="w-full px-4 pt-5 pb-24 lg:pb-12 lg:pl-72">
+        <div className="mx-auto w-full max-w-md lg:max-w-2xl">
+          <Outlet />
+        </div>
       </main>
 
       {/* DRAWER */}
@@ -136,74 +212,19 @@ export function AppLayout() {
               </button>
             </div>
 
-            <ul className="flex-1 overflow-y-auto p-3">
-              {ALL_SECTIONS.map(({ to, label, icon: Icon }) => (
-                <li key={to}>
-                  <NavLink
-                    to={to}
-                    // Fecha ao navegar. Feito no clique, e não num efeito sobre
-                    // a rota: é reação a uma ação do usuário, não sincronização
-                    // com sistema externo.
-                    onClick={() => setDrawerOpen(false)}
-                    className={({ isActive }) =>
-                      [
-                        'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition',
-                        isActive
-                          ? 'bg-surface font-medium text-ink'
-                          : 'text-slate-400 hover:bg-surface hover:text-slate-200',
-                      ].join(' ')
-                    }
-                  >
-                    {({ isActive }) => (
-                      <>
-                        <Icon
-                          size={18}
-                          aria-hidden="true"
-                          className={isActive ? 'text-brand-green' : undefined}
-                        />
-                        {label}
-                      </>
-                    )}
-                  </NavLink>
-                </li>
-              ))}
-            </ul>
+            <SectionNav onNavigate={() => setDrawerOpen(false)} />
 
-            {/* Ainda sem ação: por ora define o lugar do atalho de criação. */}
-            <div className="px-3 pb-3">
-              <button
-                type="button"
-                className="flex w-full items-center gap-3 rounded-lg border border-dashed border-line px-3 py-2.5 text-sm text-slate-400 transition hover:border-slate-600 hover:text-slate-200"
-              >
-                <Plus size={18} aria-hidden="true" />
-                Adicionar
-              </button>
-            </div>
-
-            {/* Rodapé com a conta — âncora de "de quem é este app". */}
-            <div className="flex items-center gap-3 border-t border-line px-4 py-3">
-              <span
-                aria-hidden="true"
-                className="flex size-8 shrink-0 items-center justify-center rounded-full bg-surface text-xs font-semibold text-slate-300 ring-1 ring-line"
-              >
-                {user?.name.charAt(0).toUpperCase() ?? '?'}
-              </span>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium">
-                  {user?.name ?? 'Conta'}
-                </p>
-                <p className="truncate text-xs text-slate-500">{user?.email}</p>
-              </div>
-            </div>
+            <AccountFooter name={user?.name} email={user?.email} />
           </nav>
         </>
       )}
 
       {/* BARRA INFERIOR — monocromática, sem preenchimento. O item ativo muda só
-          a cor do ícone e do rótulo; nada de pílula colorida atrás. */}
+          a cor do ícone e do rótulo; nada de pílula colorida atrás. Só no mobile:
+          no desktop (lg+) a sidebar permanente cobre a navegação. */}
       <nav
         aria-label="Navegação rápida"
-        className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-brand-dark/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
+        className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-brand-dark/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
       >
         {/* Cinco itens iguais, o Zelo no centro sem tratamento especial. */}
         <ul className="mx-auto flex w-full max-w-md">
