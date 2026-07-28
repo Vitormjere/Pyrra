@@ -3,8 +3,11 @@ import { Link } from 'react-router-dom'
 import {
   Check,
   Copy,
+  Crown,
+  Flame,
   Link2,
   Search,
+  Trophy,
   UserMinus,
   UserPlus,
   Users,
@@ -20,6 +23,7 @@ import {
   getFriends,
   getInviteLink,
   getPendingRequests,
+  getRanking,
   removeFriendship,
   searchUsers,
   sendFriendRequest,
@@ -28,11 +32,12 @@ import { getApiErrorMessage } from '../../services/apiError'
 import type {
   Friend,
   FriendRequest,
+  RankingEntry,
   UserSearchResult,
   UserSummary,
 } from '../../types/community'
 
-type Tab = 'amigos' | 'pedidos' | 'buscar'
+type Tab = 'amigos' | 'ranking' | 'pedidos' | 'buscar'
 
 // Avatar por inicial — não há foto no modelo; a inicial num círculo é o mesmo recurso do rodapé
 // de conta do menu.
@@ -86,6 +91,48 @@ function UserRow({
   )
 }
 
+// Linha do ranking: posição (coroa no #1), avatar, nome/@username e o streak atual. A linha do
+// próprio usuário ganha um fundo diferenciado para ele se achar rápido na lista, já que ela pode
+// aparecer em qualquer posição.
+function RankingRow({ entry }: { entry: RankingEntry }) {
+  const isTop = entry.position === 1
+
+  return (
+    <li
+      className={[
+        'flex items-center gap-3 px-4 py-3',
+        entry.isSelf ? 'bg-brand-green/10 ring-1 ring-inset ring-brand-green/30' : '',
+      ].join(' ')}
+    >
+      <span
+        aria-hidden="true"
+        className={[
+          'flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular-nums',
+          isTop ? 'bg-brand-green/15 text-brand-green' : 'text-slate-500',
+        ].join(' ')}
+      >
+        {isTop ? <Crown size={14} /> : `#${entry.position}`}
+      </span>
+      <Avatar name={entry.user.name} />
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-medium text-ink">
+          {entry.user.name}
+          {entry.isSelf && (
+            <span className="ml-1.5 text-xs font-normal text-brand-green">(você)</span>
+          )}
+        </p>
+        {entry.user.username && (
+          <p className="truncate text-xs text-slate-500">@{entry.user.username}</p>
+        )}
+      </div>
+      <span className="flex shrink-0 items-center gap-1 text-sm font-semibold text-ink tabular-nums">
+        <Flame size={14} className="text-brand-green" aria-hidden="true" />
+        {entry.currentStreak}
+      </span>
+    </li>
+  )
+}
+
 const listClasses =
   'divide-y divide-line overflow-hidden rounded-md bg-surface ring-1 ring-line'
 
@@ -99,6 +146,9 @@ export function Amigos() {
   const [friends, setFriends] = useState<Friend[]>([])
   const [pending, setPending] = useState<FriendRequest[]>([])
   const [loading, setLoading] = useState(true)
+
+  const [ranking, setRanking] = useState<RankingEntry[]>([])
+  const [rankingLoading, setRankingLoading] = useState(true)
 
   const [busyId, setBusyId] = useState<string | null>(null)
 
@@ -152,6 +202,44 @@ export function Amigos() {
       setError(getApiErrorMessage(err, {}, 'Não foi possível recarregar seus amigos.'))
     }
   }, [fetchLists])
+
+  // Recarrega o ranking (usado após aceitar um pedido ou remover um amigo) sem duplicar a lógica
+  // de fetch usada na carga inicial logo abaixo.
+  const loadRanking = useCallback(async () => {
+    try {
+      const data = await getRanking()
+      setRanking(data)
+    } catch (err) {
+      setError(getApiErrorMessage(err, {}, 'Não foi possível carregar o ranking.'))
+    } finally {
+      setRankingLoading(false)
+    }
+  }, [])
+
+  // Efeito próprio (não reaproveita loadRanking): um problema no ranking não deve impedir o resto
+  // da tela de carregar, e o setState precisa ficar depois de um await dentro do efeito, não
+  // escondido atrás de uma função só referenciada por nome (regra react-hooks/set-state-in-effect).
+  useEffect(() => {
+    let active = true
+
+    async function run() {
+      try {
+        const data = await getRanking()
+        if (!active) return
+        setRanking(data)
+      } catch (err) {
+        if (!active) return
+        setError(getApiErrorMessage(err, {}, 'Não foi possível carregar o ranking.'))
+      } finally {
+        if (active) setRankingLoading(false)
+      }
+    }
+
+    void run()
+    return () => {
+      active = false
+    }
+  }, [])
 
   // Link de convite: montado com a origem do próprio front, então vale em dev e produção.
   useEffect(() => {
@@ -216,7 +304,7 @@ export function Amigos() {
     try {
       await acceptFriendRequest(friendshipId)
       setPending((current) => current.filter((p) => p.friendshipId !== friendshipId))
-      await Promise.all([loadLists(), refreshCount()])
+      await Promise.all([loadLists(), refreshCount(), loadRanking()])
     } catch (err) {
       setError(getApiErrorMessage(err, {}, 'Não foi possível aceitar o pedido.'))
     } finally {
@@ -254,6 +342,7 @@ export function Amigos() {
       setFriends((current) =>
         current.filter((f) => f.friendshipId !== friend.friendshipId),
       )
+      await loadRanking()
     } catch (err) {
       setError(getApiErrorMessage(err, {}, 'Não foi possível remover a amizade.'))
     } finally {
@@ -281,6 +370,7 @@ export function Amigos() {
 
   const tabs: { id: Tab; label: string; badge?: number }[] = [
     { id: 'amigos', label: 'Meus Amigos' },
+    { id: 'ranking', label: 'Ranking' },
     { id: 'pedidos', label: 'Pedidos', badge: count },
     { id: 'buscar', label: 'Buscar' },
   ]
@@ -392,6 +482,24 @@ export function Amigos() {
               />
             ))}
           </ul>
+        ))}
+
+      {/* RANKING */}
+      {tab === 'ranking' &&
+        (rankingLoading ? (
+          <Skeleton className="h-20" />
+        ) : ranking.length <= 1 ? (
+          <EmptyState
+            icon={Trophy}
+            title="Adicione amigos para competir no ranking."
+            description="Assim que você tiver amigos confirmados, o ranking por streak aparece aqui."
+          />
+        ) : (
+          <ol className={listClasses}>
+            {ranking.map((entry) => (
+              <RankingRow key={entry.user.id} entry={entry} />
+            ))}
+          </ol>
         ))}
 
       {/* PEDIDOS RECEBIDOS */}

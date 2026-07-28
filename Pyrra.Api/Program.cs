@@ -143,6 +143,9 @@ builder.Services.AddScoped<INightlyMessageService, NightlyMessageService>();
 builder.Services.AddScoped<IFriendshipRepository, FriendshipRepository>();
 builder.Services.AddScoped<IFriendshipService, FriendshipService>();
 
+// Depende de IStreakService/IStreakRepository (registrados acima) para o ranking de amigos.
+builder.Services.AddScoped<IRankingService, RankingService>();
+
 // Depende de IStreakService (registrado acima) para compor o streak no perfil público.
 builder.Services.AddScoped<IUserProfileService, UserProfileService>();
 

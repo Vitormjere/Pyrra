@@ -4,6 +4,7 @@ import type {
   FriendRequest,
   InviteLink,
   InviteResult,
+  RankingEntry,
   UserSearchResult,
 } from '../types/community'
 
@@ -62,5 +63,11 @@ export async function acceptInvite(token: string): Promise<InviteResult> {
   const { data } = await api.post<InviteResult>(
     `/api/amigos/convite/${encodeURIComponent(token)}/aceitar`,
   )
+  return data
+}
+
+// Ranking do usuário + amigos confirmados por streak atual — sempre inclui o próprio usuário.
+export async function getRanking(): Promise<RankingEntry[]> {
+  const { data } = await api.get<RankingEntry[]>('/api/amigos/ranking')
   return data
 }

@@ -16,9 +16,11 @@ namespace Pyrra.Api.Controllers {
     [Route("api/amigos")]
     public class FriendshipController : ControllerBase {
         private readonly IFriendshipService _friendshipService;
+        private readonly IRankingService    _rankingService;
 
-        public FriendshipController(IFriendshipService friendshipService) {
+        public FriendshipController(IFriendshipService friendshipService, IRankingService rankingService) {
             _friendshipService = friendshipService;
+            _rankingService    = rankingService;
         }
 
         // Busca por username ou email
@@ -51,6 +53,22 @@ namespace Pyrra.Api.Controllers {
 
             var count = await _friendshipService.GetFriendsCountAsync(userId, cancellationToken);
             return Ok(new FriendCountResponse(count));
+        }
+
+        // Ranking do usuário + amigos confirmados por streak atual, sempre incluindo o próprio
+        // usuário mesmo sem nenhum amigo.
+        [HttpGet("ranking")]
+        public async Task<ActionResult<IEnumerable<RankingEntryResponse>>> GetRanking(CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            try {
+                var ranking = await _rankingService.GetRankingAsync(userId, cancellationToken);
+                return Ok(ranking.Select((e, index) => RankingEntryResponse.FromEntry(e, index + 1)));
+            } catch (NotFoundException ex) {
+                return NotFound(new { message = ex.Message });
+            }
         }
 
         [HttpGet("pedidos")]

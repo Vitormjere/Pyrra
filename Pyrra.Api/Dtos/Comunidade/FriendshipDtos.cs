@@ -43,4 +43,12 @@ namespace Pyrra.Api.Dtos.Comunidade {
         public static InviteResultResponse FromResult(InviteResult r) =>
             new(UserSummaryResponse.FromSummary(r.Owner), r.Outcome.ToString());
     }
+
+    // Uma posição no ranking de streak entre o usuário e seus amigos. Position é calculada aqui
+    // (1-based, pela ordem em que o service já devolveu a lista) para o front não precisar somar 1
+    // ao índice em toda renderização.
+    public record RankingEntryResponse(int Position, UserSummaryResponse User, int CurrentStreak, bool IsSelf) {
+        public static RankingEntryResponse FromEntry(RankingEntry e, int position) =>
+            new(position, UserSummaryResponse.FromSummary(e.User), e.CurrentStreak, e.IsSelf);
+    }
 }

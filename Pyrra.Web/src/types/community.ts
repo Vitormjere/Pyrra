@@ -55,3 +55,12 @@ export interface InviteResult {
   owner: UserSummary
   outcome: InviteOutcome
 }
+
+// GET /api/amigos/ranking — usuário + amigos confirmados, ordenados por streak atual.
+export interface RankingEntry {
+  /** 1-based, já na ordem devolvida pelo backend. */
+  position: number
+  user: UserSummary
+  currentStreak: number
+  isSelf: boolean
+}
