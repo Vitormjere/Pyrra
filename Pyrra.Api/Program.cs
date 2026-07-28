@@ -5,8 +5,10 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Pyrra.Application.Auth;
+using Pyrra.Application.Common;
 using Pyrra.Application.Common.Interfaces;
 using Pyrra.Application.Comunidade;
+using Pyrra.Application.Desafios;
 using Pyrra.Application.Financas;
 using Pyrra.Application.Focos;
 using Pyrra.Application.Notificacoes;
@@ -155,6 +157,14 @@ builder.Services.AddScoped<IRankingService, RankingService>();
 
 // Depende de IStreakService (registrado acima) para compor o streak no perfil público.
 builder.Services.AddScoped<IUserProfileService, UserProfileService>();
+
+// IAdminAuthorizationService depende só de IUserRepository (registrado acima); usado por todo
+// serviço administrativo do módulo de Desafios (categorias, desafios e, nas próximas etapas,
+// torneios).
+builder.Services.AddScoped<IAdminAuthorizationService, AdminAuthorizationService>();
+builder.Services.AddScoped<IChallengeCategoryRepository, ChallengeCategoryRepository>();
+builder.Services.AddScoped<IChallengeRepository, ChallengeRepository>();
+builder.Services.AddScoped<IChallengeCatalogService, ChallengeCatalogService>();
 
 // Cliente nomeado para a API da Anthropic. BaseAddress termina em / e os caminhos relativos
 // (v1/messages) não começam com /, para o Uri concatenar em vez de substituir. A x-api-key sai da

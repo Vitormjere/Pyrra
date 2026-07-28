@@ -40,6 +40,11 @@ namespace Pyrra.Domain.Users {
         // a restauração manual (suporte zerando este campo) trivial.
         public DateTime? DeletedAt { get; set; }
 
+        // Acesso aos endpoints administrativos de curadoria (categorias/desafios/torneios). Não
+        // existe fluxo de "virar admin" pela UI — o campo só muda via migration de dados ou SQL
+        // manual, nunca por uma requisição autenticada.
+        public bool IsAdmin { get; set; }
+
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
     }

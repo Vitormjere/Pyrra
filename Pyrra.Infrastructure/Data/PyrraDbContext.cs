@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Pyrra.Domain.Comunidade;
+using Pyrra.Domain.Desafios;
 using Pyrra.Domain.Financas;
 using Pyrra.Domain.Focos;
 using Pyrra.Domain.Nutricao;
@@ -37,6 +38,8 @@ namespace Pyrra.Infrastructure.Data {
         public DbSet<Team> Teams => Set<Team>();
         public DbSet<TeamMember> TeamMembers => Set<TeamMember>();
         public DbSet<TeamInvite> TeamInvites => Set<TeamInvite>();
+        public DbSet<ChallengeCategory> ChallengeCategories => Set<ChallengeCategory>();
+        public DbSet<Challenge> Challenges => Set<Challenge>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder) {
             modelBuilder.Entity<User>()
@@ -294,6 +297,33 @@ namespace Pyrra.Infrastructure.Data {
 
             modelBuilder.Entity<TeamInvite>()
                 .HasIndex(i => new { i.InviteeId, i.Status });
+
+            // Categoria de desafio: sem FK para nada, mesma convenção do projeto. Nome curto de
+            // tela e ícone (nome do componente lucide-react) não precisam de nvarchar(max).
+            modelBuilder.Entity<ChallengeCategory>()
+                .Property(c => c.Name)
+                .HasMaxLength(100);
+
+            modelBuilder.Entity<ChallengeCategory>()
+                .Property(c => c.Description)
+                .HasMaxLength(500);
+
+            modelBuilder.Entity<ChallengeCategory>()
+                .Property(c => c.Icon)
+                .HasMaxLength(50);
+
+            modelBuilder.Entity<Challenge>()
+                .Property(c => c.Title)
+                .HasMaxLength(200);
+
+            modelBuilder.Entity<Challenge>()
+                .Property(c => c.Description)
+                .HasMaxLength(1000);
+
+            // Cobre a listagem por categoria (admin) e, na próxima etapa, os desafios disponíveis
+            // de um time a partir das categorias ativas dele.
+            modelBuilder.Entity<Challenge>()
+                .HasIndex(c => c.CategoryId);
         }
     }
 }
