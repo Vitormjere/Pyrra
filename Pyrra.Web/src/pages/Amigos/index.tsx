@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   Check,
   Copy,
@@ -47,15 +48,20 @@ function Avatar({ name }: { name: string }) {
 }
 
 // Linha de usuário reutilizada nas três abas: avatar + nome + @username, e a ação à direita.
+// `to` (só na aba Meus Amigos) torna o bloco avatar+nome um link para o perfil público — fica
+// FORA de `trailing` (não envolve o botão de remover) porque um link não pode aninhar outro
+// elemento interativo dentro dele.
 function UserRow({
   user,
   trailing,
+  to,
 }: {
   user: UserSummary
   trailing: React.ReactNode
+  to?: string
 }) {
-  return (
-    <li className="flex items-center gap-3 px-4 py-3">
+  const identity = (
+    <>
       <Avatar name={user.name} />
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium text-ink">{user.name}</p>
@@ -63,6 +69,18 @@ function UserRow({
           <p className="truncate text-xs text-slate-500">@{user.username}</p>
         )}
       </div>
+    </>
+  )
+
+  return (
+    <li className="flex items-center gap-3 px-4 py-3">
+      {to ? (
+        <Link to={to} className="flex min-w-0 flex-1 items-center gap-3 rounded-lg -m-1 p-1 transition hover:bg-surface-hi">
+          {identity}
+        </Link>
+      ) : (
+        <div className="flex min-w-0 flex-1 items-center gap-3">{identity}</div>
+      )}
       {trailing}
     </li>
   )
@@ -356,6 +374,10 @@ export function Amigos() {
               <UserRow
                 key={friend.friendshipId}
                 user={friend.user}
+                // Sem username não há como montar a rota /perfil/:username — não deveria
+                // acontecer (só quem já escolheu username pode virar amigo), mas a linha
+                // continua útil mesmo sem o link nesse caso defensivo.
+                to={friend.user.username ? `/perfil/${friend.user.username}` : undefined}
                 trailing={
                   <button
                     type="button"

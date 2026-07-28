@@ -94,6 +94,15 @@ namespace Pyrra.Application.Usuario {
             return user;
         }
 
+        public async Task<User> UpdateProfileVisibilityAsync(Guid userId, ProfileVisibility visibility, CancellationToken cancellationToken = default) {
+            var user = await GetOwnedUserAsync(userId, cancellationToken);
+            user.ProfileVisibility = visibility;
+            user.UpdatedAt         = _clock.UtcNow;
+
+            await _userRepository.UpdateAsync(user, cancellationToken);
+            return user;
+        }
+
         public async Task DeleteAccountAsync(Guid userId, string currentPassword, CancellationToken cancellationToken = default) {
             var user = await GetOwnedUserAsync(userId, cancellationToken);
             VerifyPassword(user, currentPassword);

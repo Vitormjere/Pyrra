@@ -184,8 +184,6 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // O userId vem SEMPRE do token (claim NameIdentifier), nunca do corpo da requisição.
-        // É o que garante que a listagem de categorias e o extrato nunca cruzem de usuário.
         private bool TryGetUserId(out Guid userId) {
             var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
             return Guid.TryParse(claim, out userId);

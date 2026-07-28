@@ -1,5 +1,6 @@
 import api from './api'
-import type { CommunicationTone, UserResponse } from '../types/auth'
+import type { CommunicationTone, ProfileVisibility, UserResponse } from '../types/auth'
+import type { PublicProfile } from '../types/profile'
 
 export interface UsernameAvailability {
   available: boolean
@@ -101,4 +102,26 @@ export async function updateTimezone(timezone: string): Promise<UserResponse> {
  */
 export async function deleteAccount(currentPassword: string): Promise<void> {
   await api.delete('/api/usuario', { data: { currentPassword } })
+}
+
+/** Quem pode ver o perfil público: Publico (qualquer logado) ou SomenteAmigos. */
+export async function updateProfileVisibility(
+  visibility: ProfileVisibility,
+): Promise<UserResponse> {
+  const { data } = await api.patch<UserResponse>('/api/usuario/privacidade', {
+    visibility,
+  })
+  return data
+}
+
+/**
+ * Perfil público de um terceiro, por username. Lança (via axios) 403 se o perfil for
+ * "Somente amigos" e quem pede não for amigo confirmado, ou 404 se o username não existir —
+ * a tela trata os dois com getApiErrorMessage/status, não há necessidade de um try aqui.
+ */
+export async function getPublicProfile(username: string): Promise<PublicProfile> {
+  const { data } = await api.get<PublicProfile>(
+    `/api/usuario/${encodeURIComponent(username)}/perfil`,
+  )
+  return data
 }

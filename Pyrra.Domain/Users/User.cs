@@ -22,6 +22,12 @@ namespace Pyrra.Domain.Users {
         public TimeOnly EveningNotificationTime { get; set; }
         public UserPlan Plan { get; set; } = UserPlan.Free;
 
+        // Quem pode ver o perfil público deste usuário (nome, @username, contagem de amigos,
+        // streak). Padrão Público: a feature de Amigos só faz sentido se dá para conhecer alguém
+        // antes de virar amigo. SomenteAmigos restringe a quem já é amigo CONFIRMADO — pedido
+        // pendente não conta.
+        public ProfileVisibility ProfileVisibility { get; set; } = ProfileVisibility.Publico;
+
         // Quando o usuário concluiu (ou pulou) o onboarding de primeiro acesso. Nulo = ainda não
         // passou por ele, e é isso que o frontend usa para decidir mostrar o fluxo uma única vez.
         public DateTime? OnboardingCompletedAt { get; set; }
@@ -47,5 +53,10 @@ namespace Pyrra.Domain.Users {
     public enum UserPlan {
         Free,
         Premium
+    }
+
+    public enum ProfileVisibility {
+        Publico,
+        SomenteAmigos
     }
 }

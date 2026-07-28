@@ -165,6 +165,19 @@ namespace Pyrra.Application.Tests.Usuario {
                 () => service.UpdateTimezoneAsync(Alice, "Nao/Existe"));
         }
 
+        // ---- privacidade do perfil ----
+
+        [Fact]
+        public async Task UpdateProfileVisibilityAsync_Atualiza() {
+            var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
+            var (service, users, clock) = Build(alice);
+
+            var updated = await service.UpdateProfileVisibilityAsync(Alice, ProfileVisibility.SomenteAmigos);
+
+            Assert.Equal(ProfileVisibility.SomenteAmigos, updated.ProfileVisibility);
+            Assert.Equal(clock.UtcNow, users.Users.Single(u => u.Id == Alice).UpdatedAt);
+        }
+
         // ---- exclusão de conta ----
 
         [Fact]

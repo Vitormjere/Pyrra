@@ -10,7 +10,7 @@ namespace Pyrra.Api.Dtos.Financas {
         DateOnly Date,
         string?  Description,
         DateTime CreatedAt) {
-        // Type como nome ("Entrada"), mesmo critério dos outros módulos.
+        // Retorna o tipo em formato de texto
         public static FinanceEntryResponse FromEntity(FinanceEntry entry) =>
             new(entry.Id, entry.CategoryId, entry.Amount, entry.Type.ToString(), entry.Date, entry.Description, entry.CreatedAt);
     }

@@ -128,8 +128,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // O userId vem SEMPRE do token (claim NameIdentifier), nunca do corpo da requisição,
-        // impedindo que um usuário manipule focos de outro passando outro id no payload.
+        // O userId SEMPRRE vem do token, nunca do corpo da requisição, impedindo que um usuário manipule focos de outro passando outro id no payload
         private bool TryGetUserId(out Guid userId) {
             var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
             return Guid.TryParse(claim, out userId);

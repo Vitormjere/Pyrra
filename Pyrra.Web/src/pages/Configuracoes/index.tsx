@@ -14,13 +14,26 @@ import {
   setUsername as setUsernameApi,
   updateName,
   updatePreferences,
+  updateProfileVisibility,
   updateTimezone,
 } from '../../services/userService'
 import { getApiErrorMessage } from '../../services/apiError'
 import { TIMEZONE_OPTIONS } from '../../utils/timezones'
-import type { CommunicationTone } from '../../types/auth'
+import type { CommunicationTone, ProfileVisibility } from '../../types/auth'
 
 const TONES: readonly CommunicationTone[] = ['Direto', 'Acolhedor', 'Desafiador']
+
+const VISIBILITY_OPTIONS: readonly ProfileVisibility[] = ['Publico', 'SomenteAmigos']
+
+const VISIBILITY_LABELS: Record<ProfileVisibility, string> = {
+  Publico: 'Público',
+  SomenteAmigos: 'Somente amigos',
+}
+
+const VISIBILITY_HINTS: Record<ProfileVisibility, string> = {
+  Publico: 'Qualquer usuário logado pode ver seu perfil.',
+  SomenteAmigos: 'Só quem é seu amigo confirmado pode ver.',
+}
 
 const TONE_HINTS: Record<CommunicationTone, string> = {
   Direto: 'Objetivo, sem rodeios.',
@@ -85,6 +98,10 @@ export function Configuracoes() {
       <UsernameSection
         currentUsername={user.username}
         onSaved={applyUser}
+      />
+      <PrivacySection
+        visibility={user.profileVisibility}
+        onSaved={refreshUser}
       />
 
       <button
@@ -575,6 +592,62 @@ function UsernameSection({
       {saved && <p role="status" className="text-center text-xs text-brand-green">Username atualizado.</p>}
       {error && <p role="alert" className="text-center text-xs text-red-300">{error}</p>}
     </form>
+  )
+}
+
+// --- Privacidade do perfil ---
+
+function PrivacySection({
+  visibility: initialVisibility,
+  onSaved,
+}: {
+  visibility: ProfileVisibility
+  onSaved: () => Promise<void>
+}) {
+  const [visibility, setVisibility] = useState(initialVisibility)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Salva assim que o usuário escolhe outra opção — igual ao tom em Preferências, mas aqui é a
+  // ÚNICA coisa da seção, então um toggle que já persiste é mais direto que exigir outro clique.
+  async function handleChange(next: ProfileVisibility) {
+    if (next === visibility || saving) return
+
+    setVisibility(next)
+    setSaving(true)
+    setError(null)
+    setSaved(false)
+
+    try {
+      await updateProfileVisibility(next)
+      await onSaved()
+      setSaved(true)
+    } catch (err) {
+      setVisibility(initialVisibility)
+      setError(getApiErrorMessage(err, {}, 'Não foi possível salvar a privacidade.'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <section className={cardClasses}>
+      <SectionHeader>Privacidade do perfil</SectionHeader>
+
+      <Segmented
+        label="Quem pode ver seu perfil"
+        options={VISIBILITY_OPTIONS}
+        labels={VISIBILITY_LABELS}
+        value={visibility}
+        onChange={handleChange}
+      />
+      <p className="text-xs text-slate-500">{VISIBILITY_HINTS[visibility]}</p>
+
+      {saving && <p className="text-center text-xs text-slate-500">Salvando…</p>}
+      {saved && <p role="status" className="text-center text-xs text-brand-green">Privacidade atualizada.</p>}
+      {error && <p role="alert" className="text-center text-xs text-red-300">{error}</p>}
+    </section>
   )
 }
 

@@ -51,7 +51,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Intervalo arbitrário, com concluídas e pendentes — usado pela Agenda.
+        // Retorna as tarefas do período informado para a agenda
         [HttpGet("intervalo")]
         public async Task<ActionResult<IEnumerable<TaskResponse>>> GetForRange(
             [FromQuery(Name = "inicio")] DateOnly inicio,
@@ -123,8 +123,6 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // O userId vem SEMPRE do token (claim NameIdentifier), nunca do corpo da requisição,
-        // impedindo que um usuário leia ou conclua tarefas de outro.
         private bool TryGetUserId(out Guid userId) {
             var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
             return Guid.TryParse(claim, out userId);

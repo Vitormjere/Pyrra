@@ -6,19 +6,16 @@ namespace Pyrra.Api.Dtos.Auth {
         Guid Id,
         string Email,
         string Name,
-        // Nulo enquanto o usuário não escolheu um. O frontend usa isso para decidir o gate de
-        // username no primeiro acesso. Vem sem "@" — o "@" é adicionado só na exibição.
+        // username é nulo até ser definido e é retornado sem o "@"
         string? Username,
         string Timezone,
         string CommunicationTone,
         string EveningNotificationTime,
         string Plan,
-        // Booleano em vez do timestamp: o frontend só precisa saber SE o onboarding já foi feito,
-        // para decidir mostrar o fluxo. O instante em si não tem uso na UI.
+        // informa apenas se o onboarding já foi concluído
         bool OnboardingCompleted,
         DateTime CreatedAt) {
-        // PasswordHash NUNCA entra aqui: a projeção explícita campo a campo é o que impede a senha
-        // de vazar numa resposta. Enums vão como nome; a hora, como HH:mm.
+        // mapeia apenas os campos permitidos, evitando a exposição da senha
         public static UserResponse FromEntity(User user) =>
             new(user.Id,
                 user.Email,

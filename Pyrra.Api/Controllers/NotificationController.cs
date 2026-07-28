@@ -19,8 +19,7 @@ namespace Pyrra.Api.Controllers {
             _nightlyMessageService = nightlyMessageService;
         }
 
-        // Devolve o texto que SERIA enviado hoje, no estado atual do usuário, sem esperar o horário
-        // configurado nem integrar push. É o ponto de teste da lógica de mensagem isolada.
+        // Retorna a mensagem que seria enviada ao usuário, sem aguardar o horário configurado
         [HttpGet("preview")]
         public async Task<ActionResult<NightlyMessagePreviewResponse>> Preview(CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {

@@ -21,7 +21,7 @@ namespace Pyrra.Api.Controllers {
             _friendshipService = friendshipService;
         }
 
-        // Busca por username ou email; termo curto/vazio devolve lista vazia (o service trata).
+        // Busca por username ou email
         [HttpGet("buscar")]
         public async Task<ActionResult<IEnumerable<UserSearchResultResponse>>> Search([FromQuery(Name = "termo")] string termo, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -42,8 +42,7 @@ namespace Pyrra.Api.Controllers {
             return Ok(friends.Select(FriendResponse.FromSummary));
         }
 
-        // Contagem para o Perfil. Rota própria, mesmo critério de pedidos/contagem: poupa hidratar
-        // a lista inteira de amigos só para mostrar um número.
+        // Retorna apenas a quantidade de amigos para o Perfil, sem carregar a lista completa
         [HttpGet("contagem")]
         public async Task<ActionResult<FriendCountResponse>> GetFriendsCount(CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -64,7 +63,7 @@ namespace Pyrra.Api.Controllers {
             return Ok(pending.Select(FriendRequestResponse.FromSummary));
         }
 
-        // Contagem para o badge do menu. Rota própria para não trazer a lista inteira só para o número.
+        // Retorna apenas a quantidade para o badge do menu, sem carregar a lista completa
         [HttpGet("pedidos/contagem")]
         public async Task<ActionResult<PendingCountResponse>> GetPendingCount(CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -123,7 +122,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Remove/desfaz — amizade aceita (desfazer) ou pedido enviado (cancelar).
+        // Desfaz uma amizade ou cancela um pedido enviado
         [HttpDelete("{id:guid}")]
         public async Task<IActionResult> Remove(Guid id, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -138,7 +137,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Link de convite pessoal (estável). Criado sob demanda na primeira chamada.
+        // retorna o link de convite do usuário, criando automaticamente caso ainda não exista
         [HttpGet("convite")]
         public async Task<ActionResult<InviteLinkResponse>> GetInviteLink(CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -153,8 +152,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Abrir um convite: envia o pedido ao dono do link e devolve o desfecho. Duplicado/já-amigos
-        // não são erro (o link é idempotente); token inválido é 404.
+        // processa um convite por link; pedidos duplicados ou amizades existentes não são tratados como erro
         [HttpPost("convite/{token}/aceitar")]
         public async Task<ActionResult<InviteResultResponse>> AcceptInvite(string token, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {

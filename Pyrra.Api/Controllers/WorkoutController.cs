@@ -51,7 +51,7 @@ namespace Pyrra.Api.Controllers {
             return Ok(logs.Select(WorkoutResponse.FromEntity));
         }
 
-        // Plano semanal: sempre os 7 dias, mesmo os sem label.
+        //  os 7 dias do plano semanal, mesmo sem refeições cadastradas
         [HttpGet("plano")]
         public async Task<ActionResult<IEnumerable<WorkoutPlanDayResponse>>> GetPlan(CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -62,7 +62,7 @@ namespace Pyrra.Api.Controllers {
             return Ok(plan.Select(WorkoutPlanDayResponse.FromEntity));
         }
 
-        // Acrescenta um exercício ao dia. O Order é calculado no service.
+        // Adiciona um exercício ao dia, definindo a ordem automaticamente.
         [HttpPost("plano/{diaDaSemana}/exercicios")]
         public async Task<ActionResult<WorkoutPlanExerciseResponse>> AddPlanExercise(
             WeekDay diaDaSemana,
@@ -119,14 +119,12 @@ namespace Pyrra.Api.Controllers {
 
             await _workoutService.SavePlanAsync(userId, days, cancellationToken);
 
-            // Devolve o plano COMPLETO, com exercícios: o PUT só altera labels, mas
-            // responder num formato diferente do GET faria a tela ter dois caminhos
-            // para o mesmo dado.
+            // Retorna o plano completo para manter o mesmo formato de resposta do GET
             var plan = await _workoutService.GetPlanWithExercisesAsync(userId, cancellationToken);
             return Ok(plan.Select(WorkoutPlanDayResponse.FromEntity));
         }
 
-        // Reaproveita CreateWorkoutRequest: a forma do corpo é idêntica à da criação.
+        // Reutiliza o CreateWorkoutRequest por ter a mesma estrutura da criação
         [HttpPut("{id:guid}")]
         public async Task<ActionResult<WorkoutResponse>> Update(Guid id, CreateWorkoutRequest request, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -159,9 +157,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Intervalo arbitrário — usado pela Agenda. Rota própria em vez de
-        // parâmetros opcionais no GET raiz: o filtro por tipo e o por período
-        // respondem a perguntas diferentes e misturá-los deixaria a assinatura ambígua.
+        // Busca as tarefas do período informado, usado pela Agenda
         [HttpGet("intervalo")]
         public async Task<ActionResult<IEnumerable<WorkoutResponse>>> GetForRange(
             [FromQuery(Name = "inicio")] DateOnly inicio,
@@ -189,8 +185,6 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // O userId vem SEMPRE do token (claim NameIdentifier), nunca do corpo da requisição,
-        // impedindo que um usuário registre ou leia treinos de outro passando outro id no payload.
         private bool TryGetUserId(out Guid userId) {
             var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
             return Guid.TryParse(claim, out userId);

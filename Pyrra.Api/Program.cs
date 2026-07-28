@@ -143,6 +143,9 @@ builder.Services.AddScoped<INightlyMessageService, NightlyMessageService>();
 builder.Services.AddScoped<IFriendshipRepository, FriendshipRepository>();
 builder.Services.AddScoped<IFriendshipService, FriendshipService>();
 
+// Depende de IStreakService (registrado acima) para compor o streak no perfil público.
+builder.Services.AddScoped<IUserProfileService, UserProfileService>();
+
 // Cliente nomeado para a API da Anthropic. BaseAddress termina em / e os caminhos relativos
 // (v1/messages) não começam com /, para o Uri concatenar em vez de substituir. A x-api-key sai da
 // configuração — vazia no appsettings, preenchida por user-secrets em dev e App Settings em produção;

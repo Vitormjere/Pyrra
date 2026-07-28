@@ -18,6 +18,7 @@ import Login from './pages/Login'
 import Nutricao from './pages/Nutricao'
 import Onboarding from './pages/Onboarding'
 import Perfil from './pages/Perfil'
+import PerfilPublico from './pages/PerfilPublico'
 import Tarefas from './pages/Tarefas'
 import Termos from './pages/Termos'
 import Treino from './pages/Treino'
@@ -71,6 +72,10 @@ function App() {
                     <Route path="/diario" element={<Diario />} />
                     <Route path="/amigos" element={<Amigos />} />
                     <Route path="/perfil" element={<Perfil />} />
+                    {/* Perfil de TERCEIRO, por username — precisa vir depois de /perfil na
+                        árvore para não colidir com ela (react-router já resolveria certo mesmo
+                        com a ordem trocada, mas a leitura fica mais clara assim). */}
+                    <Route path="/perfil/:username" element={<PerfilPublico />} />
                     {/* Não entra no menu principal (ALL_SECTIONS): é destino ocasional, alcançado
                         pelo ícone de engrenagem no Perfil, não uma seção de uso diário. */}
                     <Route path="/configuracoes" element={<Configuracoes />} />

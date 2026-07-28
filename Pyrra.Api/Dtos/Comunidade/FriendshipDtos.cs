@@ -3,8 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using Pyrra.Application.Comunidade;
 
 namespace Pyrra.Api.Dtos.Comunidade {
-    // Projeção pública de um usuário. Espelha o UserSummary da Application — só Id, nome e username,
-    // nunca email. O "@" NÃO vem embutido: o frontend adiciona na exibição.
+    // aqui retorna apenas os dados públicos do usuário, sem incluir o email ou o "@" no username
     public record UserSummaryResponse(Guid Id, string Name, string? Username) {
         public static UserSummaryResponse FromSummary(UserSummary s) => new(s.Id, s.Name, s.Username);
     }
@@ -19,29 +18,27 @@ namespace Pyrra.Api.Dtos.Comunidade {
             new(s.FriendshipId, UserSummaryResponse.FromSummary(s.Requester), s.CreatedAt);
     }
 
-    // state vai como nome ("None"/"RequestSent"/"RequestReceived"/"Friends") — o front decide o botão.
+    // retorna o estado da amizade como texto para facilitar no frontend
     public record UserSearchResultResponse(UserSummaryResponse User, string State) {
         public static UserSearchResultResponse FromResult(UserSearchResult r) =>
             new(UserSummaryResponse.FromSummary(r.User), r.State.ToString());
     }
 
-    // POST pedidos: o id do usuário a quem enviar o pedido (obtido na busca).
+    // Dados necessários para enviar um pedido de amizade
     public record SendFriendRequestRequest([Required] Guid? AddresseeId);
 
-    // Só a contagem, para o badge.
+    // Retorna a quantidade de pedidos pendentes
     public record PendingCountResponse(int Count);
 
-    // Só a contagem, para o número de amigos do Perfil.
+    // Retorna a quantidade de amigos do usuário
     public record FriendCountResponse(int Count);
 
-    // Link de convite: o token e o caminho relativo. O front compõe a URL absoluta com sua própria
-    // origem (window.location.origin), então o mesmo backend serve dev e produção sem configuração.
+    // Retorna o token e o caminho do link de convite
     public record InviteLinkResponse(string Token, string Path) {
         public static InviteLinkResponse FromToken(string token) => new(token, $"/convite/{token}");
     }
 
-    // Desfecho de abrir um convite: quem é o dono e o que aconteceu (outcome como nome), para o
-    // front mostrar a mensagem certa.
+    // Retorna o resultado do convite e os dados do usuário relacionado
     public record InviteResultResponse(UserSummaryResponse Owner, string Outcome) {
         public static InviteResultResponse FromResult(InviteResult r) =>
             new(UserSummaryResponse.FromSummary(r.Owner), r.Outcome.ToString());

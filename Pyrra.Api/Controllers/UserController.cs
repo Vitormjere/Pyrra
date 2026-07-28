@@ -1,5 +1,6 @@
 using System;
 using System.Security.Claims;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -15,20 +16,22 @@ namespace Pyrra.Api.Controllers {
     [Route("api/usuario")]
     public class UserController : ControllerBase {
         private readonly IUserPreferencesService _preferencesService;
-        private readonly IUsernameService        _usernameService;
-        private readonly IUserAccountService     _accountService;
+        private readonly IUsernameService _usernameService;
+        private readonly IUserAccountService _accountService;
+        private readonly IUserProfileService _profileService;
 
         public UserController(
             IUserPreferencesService preferencesService,
-            IUsernameService        usernameService,
-            IUserAccountService     accountService) {
+            IUsernameService usernameService,
+            IUserAccountService accountService,
+            IUserProfileService profileService) {
             _preferencesService = preferencesService;
-            _usernameService    = usernameService;
-            _accountService     = accountService;
+            _usernameService = usernameService;
+            _accountService = accountService;
+            _profileService = profileService;
         }
 
-        // Configurações — edição de conta. Ficam depois de username/preferências no arquivo só para
-        // acompanhar a ordem em que a tela de Configurações as usa.
+        // Métodos de edição da conta, seguindo a ordem da tela de config
 
         [HttpPatch("nome")]
         public async Task<ActionResult<UserResponse>> UpdateName(UpdateNameRequest request, CancellationToken cancellationToken) {
@@ -100,9 +103,36 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Soft delete: a partir daqui, GetById/GetByEmail/etc. do UserRepository nunca mais
-        // devolvem este usuário — o token atual perde efeito na próxima chamada a qualquer
-        // endpoint que carregue o usuário.
+        [HttpPatch("privacidade")]
+        public async Task<ActionResult<UserResponse>> UpdateProfileVisibility(UpdateProfileVisibilityRequest request, CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            var user = await _accountService.UpdateProfileVisibilityAsync(userId, request.Visibility!.Value, cancellationToken);
+            return Ok(UserResponse.FromEntity(user));
+        }
+
+        // Perfil PÚBLICO de terceiro, por username — a única rota deste controller em que o alvo
+        // vem da URL, não do token. O token ainda identifica QUEM está pedindo (viewerId), usado
+        // para a regra de visibilidade: dono sempre vê; SomenteAmigos exige amizade confirmada.
+        [HttpGet("{username}/perfil")]
+        public async Task<ActionResult<PublicProfileResponse>> GetPublicProfile(string username, CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var viewerId)) {
+                return Unauthorized();
+            }
+
+            try {
+                var profile = await _profileService.GetPublicProfileAsync(viewerId, username, cancellationToken);
+                return Ok(PublicProfileResponse.FromResult(profile));
+            } catch (PrivateProfileException ex) {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
+            } catch (NotFoundException ex) {
+                return NotFound(new { message = ex.Message });
+            }
+        }
+
+        // Marca o usuário como excluído, bloqueando o acesso nas próximas requisições
         [HttpDelete]
         public async Task<IActionResult> DeleteAccount(DeleteAccountRequest request, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -119,7 +149,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Define ou troca o username. Devolve o usuário atualizado pela mesma projeção do /auth/me.
+        // Define ou altera o username e retorna o usuário atualizado
         [HttpPut("username")]
         public async Task<ActionResult<UserResponse>> SetUsername(SetUsernameRequest request, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -138,7 +168,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Checagem de disponibilidade para a UI, enquanto o usuário digita. Sem gravar nada.
+        // Verifica a disponibilidade do username sem salvar nenhuma alteração
         [HttpGet("username/disponivel")]
         public async Task<ActionResult<UsernameAvailabilityResponse>> CheckUsername([FromQuery] string username, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -192,7 +222,6 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // O userId vem SEMPRE do token (claim NameIdentifier), nunca do corpo da requisição.
         private bool TryGetUserId(out Guid userId) {
             var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
             return Guid.TryParse(claim, out userId);

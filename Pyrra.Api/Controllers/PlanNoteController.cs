@@ -21,9 +21,7 @@ namespace Pyrra.Api.Controllers {
             _planNoteService = planNoteService;
         }
 
-        // PUT e não POST: a operação é idempotente por (usuário, data) — salvar duas vezes o mesmo
-        // conteúdo no mesmo dia deixa o sistema no mesmo estado, e não existe "criar uma segunda
-        // nota". Por isso responde 200, nunca 201.
+        // Usa PUT porque a nota do dia é atualizada, sem criar uma nova a cada envio
         [HttpPut]
         public async Task<ActionResult<PlanNoteResponse>> Save([FromQuery] DateOnly? date, SavePlanNoteRequest request, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -54,7 +52,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Histórico de reflexões: só os dias em que o usuário escreveu algo.
+        // Histórico de reflexões: só os dias em que o usuário escreveu algo
         [HttpGet("historico")]
         public async Task<ActionResult<IEnumerable<PlanNoteResponse>>> GetHistory([FromQuery(Name = "dias")] int dias = 30, CancellationToken cancellationToken = default) {
             if (!TryGetUserId(out var userId)) {
@@ -69,8 +67,6 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // O userId vem SEMPRE do token (claim NameIdentifier), nunca do corpo da requisição,
-        // impedindo que um usuário leia ou sobrescreva a nota de outro.
         private bool TryGetUserId(out Guid userId) {
             var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
             return Guid.TryParse(claim, out userId);

@@ -85,7 +85,6 @@ namespace Pyrra.Api.Controllers {
             return Ok(new AcknowledgeFreezeUsesResponse(acknowledged));
         }
 
-        // O userId vem SEMPRE do token (claim NameIdentifier), nunca do corpo da requisição.
         private bool TryGetUserId(out Guid userId) {
             var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
             return Guid.TryParse(claim, out userId);

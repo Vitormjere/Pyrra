@@ -21,6 +21,10 @@ namespace Pyrra.Application.Usuario {
 
         Task<User> UpdateTimezoneAsync(Guid userId, string timezoneId, CancellationToken cancellationToken = default);
 
+        // Quem pode ver o perfil público (Público/SomenteAmigos). Sem validação de formato — é um
+        // enum, o model binding do controller já recusa valores fora dele antes de chegar aqui.
+        Task<User> UpdateProfileVisibilityAsync(Guid userId, ProfileVisibility visibility, CancellationToken cancellationToken = default);
+
         // Soft delete: marca DeletedAt e nunca mais que devolve o usuário em nenhuma consulta do
         // UserRepository. Exige a senha atual, mesmo critério das outras ações sensíveis.
         Task DeleteAccountAsync(Guid userId, string currentPassword, CancellationToken cancellationToken = default);

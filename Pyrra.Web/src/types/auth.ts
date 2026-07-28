@@ -9,6 +9,10 @@ export type CommunicationTone = 'Direto' | 'Acolhedor' | 'Desafiador'
 
 export type UserPlan = 'Free' | 'Premium'
 
+// Quem pode ver o perfil público do usuário. Publico: qualquer usuário logado. SomenteAmigos: só
+// amigos confirmados — pedido pendente não conta.
+export type ProfileVisibility = 'Publico' | 'SomenteAmigos'
+
 // POST /api/auth/login e POST /api/auth/register
 export interface AuthResponse {
   userId: string
@@ -34,6 +38,7 @@ export interface UserResponse {
   /** Hora local no formato "HH:mm". */
   eveningNotificationTime: string
   plan: UserPlan
+  profileVisibility: ProfileVisibility
   /** true depois que o usuário concluiu ou pulou o onboarding de primeiro acesso. */
   onboardingCompleted: boolean
   createdAt: string
