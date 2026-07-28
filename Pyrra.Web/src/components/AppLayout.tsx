@@ -8,6 +8,8 @@ import {
   ListChecks,
   Menu,
   NotebookPen,
+  Settings,
+  Shield,
   Sparkles,
   User,
   Users,
@@ -17,6 +19,7 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useFriendRequests } from '../hooks/useFriendRequests'
+import { useTeamInvites } from '../hooks/useTeamInvites'
 
 interface NavItem {
   to: string
@@ -36,7 +39,13 @@ const ALL_SECTIONS: NavItem[] = [
   { to: '/nutricao', label: 'Nutrição', icon: Apple },
   { to: '/diario', label: 'Diário', icon: NotebookPen },
   { to: '/amigos', label: 'Amigos', icon: Users },
+  // Shield (não UsersRound): a variante arredondada de Users era fácil de confundir com o ícone
+  // de Amigos logo acima — Shield tem silhueta bem distinta e combina com o "emblema" de time.
+  { to: '/times', label: 'Times', icon: Shield },
   { to: '/perfil', label: 'Perfil', icon: User },
+  // Destino ocasional (edição de conta), não uso diário — por isso só entra aqui (menu completo),
+  // não em QUICK_SECTIONS, que já tem seus 5 slots de telas de consulta diária ocupados.
+  { to: '/configuracoes', label: 'Configurações', icon: Settings },
 ]
 
 // Barra inferior
@@ -79,14 +88,16 @@ function BottomNavItem({ to, label, icon: Icon }: NavItem) {
 // deixa o drawer fechar ao clicar num item; a sidebar permanente não passa nada,
 // pois não fecha. Manter uma cópia única evita as duas navegações divergirem.
 function SectionNav({ onNavigate }: { onNavigate?: () => void }) {
-  // Contagem de pedidos pendentes para o badge do item "Amigos". O SectionNav sempre é renderizado
-  // dentro do FriendRequestsProvider (que envolve o AppLayout), então o hook está disponível.
+  // Contagem de pedidos/convites pendentes para os badges de "Amigos" e "Times". O SectionNav
+  // sempre é renderizado dentro dos dois providers (que envolvem o AppLayout), então os hooks
+  // estão disponíveis.
   const { count } = useFriendRequests()
+  const { count: teamInviteCount } = useTeamInvites()
 
   return (
     <ul className="flex-1 overflow-y-auto p-3">
       {ALL_SECTIONS.map(({ to, label, icon: Icon }) => {
-        const badge = to === '/amigos' ? count : 0
+        const badge = to === '/amigos' ? count : to === '/times' ? teamInviteCount : 0
 
         return (
           <li key={to}>

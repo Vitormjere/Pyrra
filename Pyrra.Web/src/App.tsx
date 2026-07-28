@@ -5,11 +5,13 @@ import RequireOnboarding from './components/RequireOnboarding'
 import RequireUsername from './components/RequireUsername'
 import { AuthProvider } from './contexts/AuthContext'
 import { FriendRequestsProvider } from './contexts/FriendRequestsProvider'
+import { TeamInvitesProvider } from './contexts/TeamInvitesProvider'
 import Agenda from './pages/Agenda'
 import Amigos from './pages/Amigos'
 import Cadastro from './pages/Cadastro'
 import Configuracoes from './pages/Configuracoes'
 import Convite from './pages/Convite'
+import ConviteTime from './pages/ConviteTime'
 import Diario from './pages/Diario'
 import EscolherUsername from './pages/EscolherUsername'
 import Financas from './pages/Financas'
@@ -21,6 +23,9 @@ import Perfil from './pages/Perfil'
 import PerfilPublico from './pages/PerfilPublico'
 import Tarefas from './pages/Tarefas'
 import Termos from './pages/Termos'
+import CriarTime from './pages/Times/Criar'
+import TimeDetalhe from './pages/Times/Detalhe'
+import Times from './pages/Times'
 import Treino from './pages/Treino'
 import Zelo from './pages/Zelo'
 
@@ -39,6 +44,9 @@ function App() {
           {/* Convite é público de propósito: quem abre deslogado precisa chegar aqui para o token
               ser guardado antes do redirect ao login. Logado, envia o pedido na hora. */}
           <Route path="/convite/:token" element={<Convite />} />
+
+          {/* Mesmo raciocínio do convite de amizade, agora para o link de convite de time. */}
+          <Route path="/times/convite/:token" element={<ConviteTime />} />
 
           {/* Duas rotas de layout aninhadas, e a ordem importa: o guard vem por
               FORA da casca. Assim, para quem não tem sessão, o AppLayout nunca
@@ -60,7 +68,10 @@ function App() {
               <Route element={<RequireUsername />}>
                 {/* Provider da contagem de pedidos ACIMA do AppLayout, para o badge do menu e a
                     tela de Amigos lerem a mesma contagem — e onde o convite pendente é consumido. */}
-                <Route element={<FriendRequestsProvider><Outlet /></FriendRequestsProvider>}>
+                {/* TeamInvitesProvider aninhado ao FriendRequestsProvider: mesma posição acima do
+                    AppLayout, para o badge do menu e a tela de Times lerem a mesma contagem — e
+                    onde o convite de time pendente é consumido. */}
+                <Route element={<FriendRequestsProvider><TeamInvitesProvider><Outlet /></TeamInvitesProvider></FriendRequestsProvider>}>
                   <Route element={<AppLayout />}>
                     <Route path="/hoje" element={<Hoje />} />
                     <Route path="/agenda" element={<Agenda />} />
@@ -71,6 +82,9 @@ function App() {
                     <Route path="/zelo" element={<Zelo />} />
                     <Route path="/diario" element={<Diario />} />
                     <Route path="/amigos" element={<Amigos />} />
+                    <Route path="/times" element={<Times />} />
+                    <Route path="/times/novo" element={<CriarTime />} />
+                    <Route path="/times/:id" element={<TimeDetalhe />} />
                     <Route path="/perfil" element={<Perfil />} />
                     {/* Perfil de TERCEIRO, por username — precisa vir depois de /perfil na
                         árvore para não colidir com ela (react-router já resolveria certo mesmo

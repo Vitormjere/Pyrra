@@ -34,6 +34,9 @@ namespace Pyrra.Infrastructure.Data {
         public DbSet<NutritionPlanSeedLog> NutritionPlanSeedLogs => Set<NutritionPlanSeedLog>();
         public DbSet<ZeloQueryLog> ZeloQueryLogs => Set<ZeloQueryLog>();
         public DbSet<Friendship> Friendships => Set<Friendship>();
+        public DbSet<Team> Teams => Set<Team>();
+        public DbSet<TeamMember> TeamMembers => Set<TeamMember>();
+        public DbSet<TeamInvite> TeamInvites => Set<TeamInvite>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder) {
             modelBuilder.Entity<User>()
@@ -241,6 +244,56 @@ namespace Pyrra.Infrastructure.Data {
 
             modelBuilder.Entity<Friendship>()
                 .HasIndex(f => new { f.RequesterId, f.Status });
+
+            // Time: sem FK para Users, mesma convenção do módulo de Amigos. O dono é só um campo
+            // (OwnerId) — não tem linha própria em TeamMember, ver comentário na entidade Team.
+            modelBuilder.Entity<Team>()
+                .Property(t => t.Name)
+                .HasMaxLength(100);
+
+            modelBuilder.Entity<Team>()
+                .Property(t => t.Description)
+                .HasMaxLength(500);
+
+            // Token do link de convite do time: 32 hex, único. Mesmo padrão do InviteToken do User,
+            // ainda que aqui o token seja sempre gerado na criação (nunca nulo na prática) — o filtro
+            // continua inofensivo e consistente com o restante do contexto.
+            modelBuilder.Entity<Team>()
+                .Property(t => t.InviteToken)
+                .HasMaxLength(32);
+
+            modelBuilder.Entity<Team>()
+                .HasIndex(t => t.InviteToken)
+                .IsUnique()
+                .HasFilter("[InviteToken] IS NOT NULL");
+
+            // Único filtro novo de leitura (aba Explorar): times por Visibilidade.
+            modelBuilder.Entity<Team>()
+                .HasIndex(t => t.Visibility);
+
+            // URL do blob no Azure Storage — nunca é filtrada, só exibida, então sem índice.
+            modelBuilder.Entity<Team>()
+                .Property(t => t.BannerImageUrl)
+                .HasMaxLength(500);
+
+            // Um usuário não pode ter duas linhas no mesmo time. O índice solto em UserId cobre a
+            // consulta "times de um usuário" usada por TeamRepository.GetForUserAsync.
+            modelBuilder.Entity<TeamMember>()
+                .HasIndex(m => new { m.TeamId, m.UserId })
+                .IsUnique();
+
+            modelBuilder.Entity<TeamMember>()
+                .HasIndex(m => m.UserId);
+
+            // Convite direto de time: uma linha por (TeamId, InviteeId), reaproveitada em Recusado —
+            // mesmo padrão do índice único de Friendship. O segundo índice cobre os pedidos pendentes
+            // recebidos por usuário (equivalente ao (AddresseeId, Status) de Friendship).
+            modelBuilder.Entity<TeamInvite>()
+                .HasIndex(i => new { i.TeamId, i.InviteeId })
+                .IsUnique();
+
+            modelBuilder.Entity<TeamInvite>()
+                .HasIndex(i => new { i.InviteeId, i.Status });
         }
     }
 }

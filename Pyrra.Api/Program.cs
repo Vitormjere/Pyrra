@@ -22,6 +22,7 @@ using Pyrra.Infrastructure.Auth;
 using Pyrra.Infrastructure.Common;
 using Pyrra.Infrastructure.Data;
 using Pyrra.Infrastructure.Repositories;
+using Pyrra.Infrastructure.Storage;
 using Pyrra.Infrastructure.Zelo;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -142,6 +143,12 @@ builder.Services.AddScoped<INightlyMessageService, NightlyMessageService>();
 
 builder.Services.AddScoped<IFriendshipRepository, FriendshipRepository>();
 builder.Services.AddScoped<IFriendshipService, FriendshipService>();
+
+builder.Services.AddScoped<ITeamRepository, TeamRepository>();
+builder.Services.AddScoped<ITeamMemberRepository, TeamMemberRepository>();
+builder.Services.AddScoped<ITeamInviteRepository, TeamInviteRepository>();
+builder.Services.AddScoped<ITeamBannerStorageService, AzureBlobTeamBannerStorageService>();
+builder.Services.AddScoped<ITeamService, TeamService>();
 
 // Depende de IStreakService/IStreakRepository (registrados acima) para o ranking de amigos.
 builder.Services.AddScoped<IRankingService, RankingService>();

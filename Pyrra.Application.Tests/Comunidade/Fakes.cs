@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -14,6 +15,23 @@ namespace Pyrra.Application.Tests.Comunidade {
         public DateTime UtcNow { get; set; } = new(2026, 7, 27, 12, 0, 0, DateTimeKind.Utc);
         public DateOnly TodayIn(string timezoneId) => DateOnly.FromDateTime(UtcNow);
         public DateOnly ToLocalDate(DateTime utc, string timezoneId) => DateOnly.FromDateTime(utc);
+    }
+
+    // Só conta chamadas e devolve uma URL fake determinística — os testes de TeamService validam
+    // a lógica de tipo/tamanho/prioridade sem precisar de um Blob Storage real.
+    internal sealed class FakeTeamBannerStorageService : ITeamBannerStorageService {
+        public int UploadCallCount { get; private set; }
+        public int DeleteCallCount { get; private set; }
+
+        public Task<string> UploadAsync(Guid teamId, Stream content, string contentType, CancellationToken cancellationToken = default) {
+            UploadCallCount++;
+            return Task.FromResult($"https://fake.blob.core.windows.net/team-banners/{teamId:N}");
+        }
+
+        public Task DeleteAsync(Guid teamId, CancellationToken cancellationToken = default) {
+            DeleteCallCount++;
+            return Task.CompletedTask;
+        }
     }
 
     internal sealed class FakeUserRepository : IUserRepository {
@@ -109,6 +127,110 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         public Task DeleteAsync(Friendship friendship, CancellationToken cancellationToken = default) {
             Friendships.RemoveAll(f => f.Id == friendship.Id);
+            return Task.CompletedTask;
+        }
+    }
+
+    internal sealed class FakeTeamRepository : ITeamRepository {
+        public readonly List<Team> Teams = new();
+
+        // Referência à mesma lista usada pelo FakeTeamMemberRepository — GetForUserAsync precisa
+        // combinar "sou dono" com "tenho uma linha de membership", igual à query real do
+        // TeamRepository (Any() sobre TeamMembers, sem navigation property).
+        private readonly FakeTeamMemberRepository _members;
+
+        public FakeTeamRepository(FakeTeamMemberRepository members) {
+            _members = members;
+        }
+
+        public Task<Team?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Teams.FirstOrDefault(t => t.Id == id));
+
+        public Task<Team?> GetByInviteTokenAsync(string inviteToken, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Teams.FirstOrDefault(t => t.InviteToken == inviteToken));
+
+        public Task<IReadOnlyList<Team>> GetForUserAsync(Guid userId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<Team>>(Teams
+                .Where(t => t.OwnerId == userId || _members.Members.Any(m => m.TeamId == t.Id && m.UserId == userId))
+                .ToList());
+
+        public Task<IReadOnlyList<Team>> GetPublicAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<Team>>(Teams
+                .Where(t => t.Visibility == TeamVisibility.Publico)
+                .OrderBy(t => t.Name)
+                .ToList());
+
+        public Task AddAsync(Team team, CancellationToken cancellationToken = default) {
+            Teams.Add(team);
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateAsync(Team team, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task DeleteAsync(Team team, CancellationToken cancellationToken = default) {
+            Teams.RemoveAll(t => t.Id == team.Id);
+            return Task.CompletedTask;
+        }
+    }
+
+    internal sealed class FakeTeamMemberRepository : ITeamMemberRepository {
+        public readonly List<TeamMember> Members = new();
+
+        public Task<TeamMember?> GetAsync(Guid teamId, Guid userId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Members.FirstOrDefault(m => m.TeamId == teamId && m.UserId == userId));
+
+        public Task<IReadOnlyList<TeamMember>> GetByTeamAsync(Guid teamId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<TeamMember>>(Members.Where(m => m.TeamId == teamId).ToList());
+
+        public Task<int> CountByTeamAsync(Guid teamId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Members.Count(m => m.TeamId == teamId));
+
+        public Task<bool> ExistsAsync(Guid teamId, Guid userId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Members.Any(m => m.TeamId == teamId && m.UserId == userId));
+
+        public Task AddAsync(TeamMember member, CancellationToken cancellationToken = default) {
+            Members.Add(member);
+            return Task.CompletedTask;
+        }
+
+        public Task RemoveAsync(TeamMember member, CancellationToken cancellationToken = default) {
+            Members.RemoveAll(m => m.Id == member.Id);
+            return Task.CompletedTask;
+        }
+
+        public Task RemoveAllForTeamAsync(Guid teamId, CancellationToken cancellationToken = default) {
+            Members.RemoveAll(m => m.TeamId == teamId);
+            return Task.CompletedTask;
+        }
+    }
+
+    internal sealed class FakeTeamInviteRepository : ITeamInviteRepository {
+        public readonly List<TeamInvite> Invites = new();
+
+        public Task<TeamInvite?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Invites.FirstOrDefault(i => i.Id == id));
+
+        public Task<TeamInvite?> GetByTeamAndInviteeAsync(Guid teamId, Guid inviteeId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Invites.FirstOrDefault(i => i.TeamId == teamId && i.InviteeId == inviteeId));
+
+        public Task<IReadOnlyList<TeamInvite>> GetPendingReceivedAsync(Guid userId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<TeamInvite>>(Invites
+                .Where(i => i.Status == TeamInviteStatus.Pendente && i.InviteeId == userId)
+                .OrderByDescending(i => i.CreatedAt)
+                .ToList());
+
+        public Task<int> CountPendingReceivedAsync(Guid userId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Invites.Count(i => i.Status == TeamInviteStatus.Pendente && i.InviteeId == userId));
+
+        public Task AddAsync(TeamInvite invite, CancellationToken cancellationToken = default) {
+            Invites.Add(invite);
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateAsync(TeamInvite invite, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task RemoveAllForTeamAsync(Guid teamId, CancellationToken cancellationToken = default) {
+            Invites.RemoveAll(i => i.TeamId == teamId);
             return Task.CompletedTask;
         }
     }
