@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Pyrra.Application.Common.Exceptions;
 using Pyrra.Application.Common.Interfaces;
 using Pyrra.Domain.Desafios;
 
@@ -54,6 +56,80 @@ namespace Pyrra.Application.Tests.Desafios {
         public Task DeleteAsync(Challenge challenge, CancellationToken cancellationToken = default) {
             Challenges.RemoveAll(c => c.Id == challenge.Id);
             return Task.CompletedTask;
+        }
+    }
+
+    internal sealed class FakeTeamActiveCategoryRepository : ITeamActiveCategoryRepository {
+        public readonly List<TeamActiveCategory> Activations = new();
+
+        public Task<IReadOnlyList<TeamActiveCategory>> GetByTeamAsync(Guid teamId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<TeamActiveCategory>>(Activations.Where(a => a.TeamId == teamId).ToList());
+
+        public Task<TeamActiveCategory?> GetAsync(Guid teamId, Guid categoryId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Activations.FirstOrDefault(a => a.TeamId == teamId && a.CategoryId == categoryId));
+
+        public Task AddAsync(TeamActiveCategory activation, CancellationToken cancellationToken = default) {
+            Activations.Add(activation);
+            return Task.CompletedTask;
+        }
+
+        public Task RemoveAsync(TeamActiveCategory activation, CancellationToken cancellationToken = default) {
+            Activations.RemoveAll(a => a.Id == activation.Id);
+            return Task.CompletedTask;
+        }
+    }
+
+    internal sealed class FakeChallengeSubmissionRepository : IChallengeSubmissionRepository {
+        public readonly List<ChallengeSubmission> Submissions = new();
+
+        public Task<ChallengeSubmission?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Submissions.FirstOrDefault(s => s.Id == id));
+
+        public Task<IReadOnlyList<ChallengeSubmission>> GetForUserAndTeamAsync(Guid userId, Guid teamId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ChallengeSubmission>>(
+                Submissions.Where(s => s.UserId == userId && s.TeamId == teamId).ToList());
+
+        public Task<ChallengeSubmission?> GetActiveForUserChallengeAsync(Guid userId, Guid challengeId, Guid teamId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Submissions.FirstOrDefault(s =>
+                s.UserId == userId && s.ChallengeId == challengeId && s.TeamId == teamId &&
+                s.Status != ChallengeSubmissionStatus.Recusado));
+
+        public Task<IReadOnlyList<ChallengeSubmission>> GetPendingForTeamAsync(Guid teamId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ChallengeSubmission>>(
+                Submissions.Where(s => s.TeamId == teamId && s.Status == ChallengeSubmissionStatus.Pendente).ToList());
+
+        public Task AddAsync(ChallengeSubmission submission, CancellationToken cancellationToken = default) {
+            Submissions.Add(submission);
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateAsync(ChallengeSubmission submission, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
+    // Guarda os bytes em memória (chaveado por submissionId) pra permitir round-trip nos testes de
+    // GetSubmissionPhotoAsync — mesmo espírito de FakeTeamBannerStorageService (Comunidade), mas
+    // com download de verdade em vez de só contar chamadas, já que agora há um endpoint que lê de
+    // volta.
+    internal sealed class FakeChallengeSubmissionStorageService : IChallengeSubmissionStorageService {
+        public int UploadCallCount { get; private set; }
+        private readonly Dictionary<Guid, (byte[] Bytes, string ContentType)> _blobs = new();
+
+        public Task<string> UploadAsync(Guid submissionId, Stream content, string contentType, CancellationToken cancellationToken = default) {
+            UploadCallCount++;
+
+            using var buffer = new MemoryStream();
+            content.CopyTo(buffer);
+            _blobs[submissionId] = (buffer.ToArray(), contentType);
+
+            return Task.FromResult($"https://fake.blob.core.windows.net/challenge-submissions/{submissionId:N}");
+        }
+
+        public Task<(Stream Content, string ContentType)> DownloadAsync(Guid submissionId, CancellationToken cancellationToken = default) {
+            if (!_blobs.TryGetValue(submissionId, out var blob)) {
+                throw new NotFoundException("Foto da submissão não encontrada.");
+            }
+
+            return Task.FromResult<(Stream, string)>((new MemoryStream(blob.Bytes), blob.ContentType));
         }
     }
 }

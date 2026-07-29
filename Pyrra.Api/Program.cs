@@ -166,6 +166,13 @@ builder.Services.AddScoped<IChallengeCategoryRepository, ChallengeCategoryReposi
 builder.Services.AddScoped<IChallengeRepository, ChallengeRepository>();
 builder.Services.AddScoped<IChallengeCatalogService, ChallengeCatalogService>();
 
+// Depende de ITeamRepository/ITeamMemberRepository (registrados acima) para as guardas de
+// dono/membro, mesmo critério do TeamService.
+builder.Services.AddScoped<ITeamActiveCategoryRepository, TeamActiveCategoryRepository>();
+builder.Services.AddScoped<IChallengeSubmissionRepository, ChallengeSubmissionRepository>();
+builder.Services.AddScoped<IChallengeSubmissionStorageService, AzureBlobChallengeSubmissionStorageService>();
+builder.Services.AddScoped<ITeamChallengeService, TeamChallengeService>();
+
 // Cliente nomeado para a API da Anthropic. BaseAddress termina em / e os caminhos relativos
 // (v1/messages) não começam com /, para o Uri concatenar em vez de substituir. A x-api-key sai da
 // configuração — vazia no appsettings, preenchida por user-secrets em dev e App Settings em produção;

@@ -21,6 +21,17 @@ import TeamBanner from '../../components/TeamBanner'
 import { useConfirm } from '../../hooks/useConfirm'
 import { getFriends } from '../../services/friendService'
 import {
+  activateTeamCategory,
+  approveSubmission,
+  deactivateTeamCategory,
+  getAvailableChallenges,
+  getPendingSubmissions,
+  getSubmissionPhotoUrl,
+  getTeamCategories,
+  rejectSubmission,
+  submitChallengeProof,
+} from '../../services/challengeService'
+import {
   deleteTeam,
   getTeamDetails,
   inviteFriendToTeam,
@@ -33,8 +44,11 @@ import {
   uploadTeamBannerImage,
 } from '../../services/teamService'
 import { getApiErrorMessage } from '../../services/apiError'
+import { CHALLENGE_CATEGORY_SWATCH, CHALLENGE_CATEGORY_TEXT } from '../../utils/challengeCategoryColors'
+import { getCategoryIcon } from '../../utils/challengeCategoryIcons'
 import { TEAM_BANNER_SWATCH, TEAM_BANNER_THEMES } from '../../utils/teamBanners'
 import type { Friend } from '../../types/community'
+import type { AvailableChallenge, PendingSubmission, TeamCategoryStatus } from '../../types/challenges'
 import type { TeamBannerTheme, TeamDetails, TeamMember, TeamVisibility } from '../../types/teams'
 
 const VISIBILITY_OPTIONS: readonly TeamVisibility[] = ['Privado', 'Publico']
@@ -46,6 +60,9 @@ const VISIBILITY_LABELS: Record<TeamVisibility, string> = {
 
 const MAX_BANNER_BYTES = 3 * 1024 * 1024
 const ACCEPTED_BANNER_TYPES = 'image/jpeg,image/png,image/webp'
+
+const MAX_SUBMISSION_BYTES = 3 * 1024 * 1024
+const ACCEPTED_SUBMISSION_TYPES = 'image/jpeg,image/png,image/webp'
 
 function Avatar({ name }: { name: string }) {
   return (
@@ -113,6 +130,217 @@ function MemberRow({
   )
 }
 
+function CategoryRow({
+  category,
+  busy,
+  onToggle,
+}: {
+  category: TeamCategoryStatus
+  busy: boolean
+  onToggle: () => void
+}) {
+  const Icon = getCategoryIcon(category.icon)
+  return (
+    <li className="flex items-center gap-3 px-4 py-3">
+      <span
+        aria-hidden="true"
+        className={[
+          'flex size-9 shrink-0 items-center justify-center rounded-full text-brand-dark',
+          CHALLENGE_CATEGORY_SWATCH[category.color],
+        ].join(' ')}
+      >
+        <Icon size={16} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-medium text-ink">{category.name}</p>
+        {category.description && (
+          <p className="truncate text-xs text-slate-500">{category.description}</p>
+        )}
+      </div>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={onToggle}
+        aria-pressed={category.isActive}
+        className={[
+          'shrink-0 rounded-xl px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50',
+          category.isActive
+            ? 'text-slate-400 ring-1 ring-line hover:bg-surface-hi hover:text-ink'
+            : 'bg-brand-green text-brand-dark hover:brightness-95',
+        ].join(' ')}
+      >
+        {category.isActive ? 'Desativar' : 'Ativar'}
+      </button>
+    </li>
+  )
+}
+
+function ChallengeCard({
+  challenge,
+  busy,
+  onSubmitProof,
+}: {
+  challenge: AvailableChallenge
+  busy: boolean
+  onSubmitProof: (file: File) => void
+}) {
+  const Icon = getCategoryIcon(challenge.category.icon)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [fileError, setFileError] = useState<string | null>(null)
+
+  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    event.target.value = '' // permite escolher o mesmo arquivo de novo depois de um erro
+    if (!file) return
+
+    if (file.size > MAX_SUBMISSION_BYTES) {
+      setFileError('A imagem deve ter até 3MB.')
+      return
+    }
+
+    setFileError(null)
+    onSubmitProof(file)
+  }
+
+  return (
+    <li className="flex items-start gap-3 px-4 py-3">
+      <span
+        aria-hidden="true"
+        className={[
+          'mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full text-brand-dark',
+          CHALLENGE_CATEGORY_SWATCH[challenge.category.color],
+        ].join(' ')}
+      >
+        <Icon size={16} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="font-medium text-ink">{challenge.title}</p>
+        {challenge.description && <p className="text-xs text-slate-400">{challenge.description}</p>}
+        <p className={['mt-1 text-xs font-medium', CHALLENGE_CATEGORY_TEXT[challenge.category.color]].join(' ')}>
+          {challenge.category.name}
+        </p>
+        {fileError && <p className="mt-1 text-xs text-red-300">{fileError}</p>}
+      </div>
+      <div className="flex shrink-0 flex-col items-end gap-2">
+        <span className="rounded-full bg-brand-green/10 px-2.5 py-1 text-xs font-semibold text-brand-green ring-1 ring-brand-green/20">
+          +{challenge.points} pts
+        </span>
+
+        {challenge.mySubmissionStatus === 'Pendente' ? (
+          <span className="rounded-lg px-2.5 py-1 text-xs font-medium text-slate-400 ring-1 ring-line">
+            Aguardando aprovação
+          </span>
+        ) : challenge.mySubmissionStatus === 'Aprovado' ? (
+          <span className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium text-brand-green">
+            <Check size={13} aria-hidden="true" />
+            Aprovado
+          </span>
+        ) : (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => fileInputRef.current?.click()}
+            className="inline-flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-ink ring-1 ring-line transition hover:bg-surface-hi disabled:opacity-50"
+          >
+            <ImagePlus size={13} aria-hidden="true" />
+            {busy ? 'Enviando…' : challenge.mySubmissionStatus === 'Recusado' ? 'Enviar de novo' : 'Enviar foto'}
+          </button>
+        )}
+      </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={ACCEPTED_SUBMISSION_TYPES}
+        onChange={handleFileChange}
+        className="hidden"
+      />
+    </li>
+  )
+}
+
+function PendingSubmissionRow({
+  teamId,
+  submission,
+  busy,
+  onApprove,
+  onReject,
+}: {
+  teamId: string
+  submission: PendingSubmission
+  busy: boolean
+  onApprove: () => void
+  onReject: () => void
+}) {
+  // Container privado: sem URL pública, a foto é buscada autenticada e virou um object URL local
+  // — precisa ser revogado ao trocar de submissão ou desmontar, senão vaza memória.
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+    let objectUrl: string | null = null
+
+    void getSubmissionPhotoUrl(teamId, submission.id).then((url) => {
+      if (!active) {
+        URL.revokeObjectURL(url)
+        return
+      }
+      objectUrl = url
+      setPhotoUrl(url)
+    })
+
+    return () => {
+      active = false
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [teamId, submission.id])
+
+  return (
+    <li className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center">
+      {photoUrl ? (
+        <img
+          src={photoUrl}
+          alt={`Prova enviada por ${submission.submitter.name} para ${submission.challenge.title}`}
+          className="h-32 w-full shrink-0 rounded-lg object-cover ring-1 ring-line sm:h-14 sm:w-14"
+        />
+      ) : (
+        <div
+          aria-hidden="true"
+          className="h-32 w-full shrink-0 animate-pulse rounded-lg bg-surface-hi ring-1 ring-line sm:h-14 sm:w-14"
+        />
+      )}
+      <div className="min-w-0 flex-1">
+        <p className="font-medium text-ink">{submission.challenge.title}</p>
+        <p className="truncate text-xs text-slate-400">
+          Enviado por {submission.submitter.name}
+          {submission.submitter.username && ` (@${submission.submitter.username})`}
+        </p>
+        <p className="mt-1 text-xs font-semibold text-brand-green">+{submission.challenge.points} pts</p>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={onApprove}
+          className="inline-flex items-center gap-1 rounded-xl bg-brand-green px-3 py-1.5 text-sm font-semibold text-brand-dark transition hover:brightness-95 disabled:opacity-60"
+        >
+          <Check size={15} aria-hidden="true" />
+          Aprovar
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={onReject}
+          aria-label={`Recusar submissão de ${submission.submitter.name}`}
+          className="rounded-xl p-2 text-slate-400 ring-1 ring-line transition hover:bg-surface-hi hover:text-red-400 disabled:opacity-50"
+        >
+          <X size={15} />
+        </button>
+      </div>
+    </li>
+  )
+}
+
 export function TimeDetalhe() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -140,6 +368,18 @@ export function TimeDetalhe() {
   const [showInvitePicker, setShowInvitePicker] = useState(false)
   const [friends, setFriends] = useState<Friend[] | null>(null)
   const [invitedIds, setInvitedIds] = useState<string[]>([])
+
+  // Categorias ativas — só carregado pro dono (única visão que existe pra essa seção)
+  const [categories, setCategories] = useState<TeamCategoryStatus[] | null>(null)
+  const [categoryBusyId, setCategoryBusyId] = useState<string | null>(null)
+
+  // Desafios disponíveis — carregado pra qualquer membro
+  const [challenges, setChallenges] = useState<AvailableChallenge[] | null>(null)
+  const [submitBusyId, setSubmitBusyId] = useState<string | null>(null)
+
+  // Submissões pendentes — só carregado pro dono (única visão que existe pra essa seção)
+  const [pendingSubmissions, setPendingSubmissions] = useState<PendingSubmission[] | null>(null)
+  const [pendingBusyId, setPendingBusyId] = useState<string | null>(null)
 
   const loadDetails = useCallback(async () => {
     if (!id) return
@@ -173,6 +413,110 @@ export function TimeDetalhe() {
       active = false
     }
   }, [id])
+
+  const loadCategories = useCallback(async () => {
+    if (!id) return
+    try {
+      setCategories(await getTeamCategories(id))
+    } catch (err) {
+      setError(getApiErrorMessage(err, {}, 'Não foi possível carregar as categorias.'))
+    }
+  }, [id])
+
+  const loadChallenges = useCallback(async () => {
+    if (!id) return
+    try {
+      setChallenges(await getAvailableChallenges(id))
+    } catch (err) {
+      setError(getApiErrorMessage(err, {}, 'Não foi possível carregar os desafios.'))
+    }
+  }, [id])
+
+  const loadPendingSubmissions = useCallback(async () => {
+    if (!id) return
+    try {
+      setPendingSubmissions(await getPendingSubmissions(id))
+    } catch (err) {
+      setError(getApiErrorMessage(err, {}, 'Não foi possível carregar as submissões pendentes.'))
+    }
+  }, [id])
+
+  // Dispara só depois que os detalhes chegam (precisa saber se é dono antes de pedir as
+  // categorias/submissões — membro comum recebe 404 desses endpoints). Desafios disponíveis,
+  // todo membro vê.
+  useEffect(() => {
+    if (!details) return
+    void loadChallenges()
+    if (details.team.isOwner) {
+      void loadCategories()
+      void loadPendingSubmissions()
+    }
+  }, [details, loadChallenges, loadCategories, loadPendingSubmissions])
+
+  async function handleSubmitProof(challengeId: string, file: File) {
+    if (!id) return
+    setSubmitBusyId(challengeId)
+    setError(null)
+    try {
+      await submitChallengeProof(id, challengeId, file)
+      await loadChallenges()
+      // O dono também pode enviar prova pro próprio time (sem restrição de auto-aprovação) — se
+      // for o caso, a fila de pendentes que ele já está vendo precisa refletir o envio na hora.
+      if (details?.team.isOwner) {
+        await loadPendingSubmissions()
+      }
+    } catch (err) {
+      setError(getApiErrorMessage(err, {}, 'Não foi possível enviar a foto.'))
+    } finally {
+      setSubmitBusyId(null)
+    }
+  }
+
+  async function handleApproveSubmission(submissionId: string) {
+    if (!id) return
+    setPendingBusyId(submissionId)
+    setError(null)
+    try {
+      await approveSubmission(id, submissionId)
+      await Promise.all([loadPendingSubmissions(), loadChallenges()])
+    } catch (err) {
+      setError(getApiErrorMessage(err, {}, 'Não foi possível aprovar a submissão.'))
+    } finally {
+      setPendingBusyId(null)
+    }
+  }
+
+  async function handleRejectSubmission(submissionId: string) {
+    if (!id) return
+    setPendingBusyId(submissionId)
+    setError(null)
+    try {
+      await rejectSubmission(id, submissionId)
+      await Promise.all([loadPendingSubmissions(), loadChallenges()])
+    } catch (err) {
+      setError(getApiErrorMessage(err, {}, 'Não foi possível recusar a submissão.'))
+    } finally {
+      setPendingBusyId(null)
+    }
+  }
+
+  async function handleToggleCategory(category: TeamCategoryStatus) {
+    if (!id) return
+    setCategoryBusyId(category.id)
+    setError(null)
+    try {
+      if (category.isActive) {
+        await deactivateTeamCategory(id, category.id)
+      } else {
+        await activateTeamCategory(id, category.id)
+      }
+      await Promise.all([loadCategories(), loadChallenges()])
+    } catch (err) {
+      setError(getApiErrorMessage(err, {}, 'Não foi possível atualizar a categoria.'))
+    } finally {
+      setCategoryBusyId(null)
+    }
+  }
 
   const inviteUrl = details ? `${window.location.origin}${details.invitePath}` : null
 
@@ -545,6 +889,33 @@ export function TimeDetalhe() {
         </section>
       )}
 
+      {/* CATEGORIAS ATIVAS — só o dono ativa/desativa. Escondida de quem não é dono: o conteúdo
+          (quais categorias estão ativas) já aparece implícito em "Desafios disponíveis", que todo
+          membro vê logo abaixo — duplicar aqui sem nenhuma ação disponível não agregaria nada. */}
+      {team.isOwner && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-sm font-medium text-slate-300">Categorias ativas</h2>
+          {categories === null ? (
+            <Skeleton className="h-16" />
+          ) : categories.length === 0 ? (
+            <p className="rounded-md bg-surface px-4 py-3 text-sm text-slate-500 ring-1 ring-line">
+              Nenhuma categoria disponível no momento.
+            </p>
+          ) : (
+            <ul className={listClasses}>
+              {categories.map((category) => (
+                <CategoryRow
+                  key={category.id}
+                  category={category}
+                  busy={categoryBusyId === category.id}
+                  onToggle={() => handleToggleCategory(category)}
+                />
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
       {/* CONVIDAR AMIGO */}
       <section className="flex flex-col gap-2">
         {!showInvitePicker ? (
@@ -608,6 +979,58 @@ export function TimeDetalhe() {
             />
           ))}
         </ul>
+      </section>
+
+      {/* SUBMISSÕES PENDENTES — só o dono aprova/recusa */}
+      {team.isOwner && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-sm font-medium text-slate-300">Submissões pendentes</h2>
+          {pendingSubmissions === null ? (
+            <Skeleton className="h-16" />
+          ) : pendingSubmissions.length === 0 ? (
+            <p className="rounded-md bg-surface px-4 py-3 text-sm text-slate-500 ring-1 ring-line">
+              Nenhuma submissão aguardando aprovação.
+            </p>
+          ) : (
+            <ul className={listClasses}>
+              {pendingSubmissions.map((submission) => (
+                <PendingSubmissionRow
+                  key={submission.id}
+                  teamId={id!}
+                  submission={submission}
+                  busy={pendingBusyId === submission.id}
+                  onApprove={() => handleApproveSubmission(submission.id)}
+                  onReject={() => handleRejectSubmission(submission.id)}
+                />
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
+      {/* DESAFIOS DISPONÍVEIS — visível a todo membro */}
+      <section className="flex flex-col gap-2">
+        <h2 className="text-sm font-medium text-slate-300">Desafios disponíveis</h2>
+        {challenges === null ? (
+          <Skeleton className="h-16" />
+        ) : challenges.length === 0 ? (
+          <p className="rounded-md bg-surface px-4 py-3 text-sm text-slate-500 ring-1 ring-line">
+            {team.isOwner
+              ? 'Nenhuma categoria ativa — ative uma categoria acima para liberar desafios pro time.'
+              : 'Nenhum desafio disponível — o dono do time ainda não ativou nenhuma categoria.'}
+          </p>
+        ) : (
+          <ul className={listClasses}>
+            {challenges.map((challenge) => (
+              <ChallengeCard
+                key={challenge.id}
+                challenge={challenge}
+                busy={submitBusyId === challenge.id}
+                onSubmitProof={(file) => handleSubmitProof(challenge.id, file)}
+              />
+            ))}
+          </ul>
+        )}
       </section>
 
       {/* AÇÕES */}

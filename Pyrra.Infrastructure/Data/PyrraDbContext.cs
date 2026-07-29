@@ -40,6 +40,8 @@ namespace Pyrra.Infrastructure.Data {
         public DbSet<TeamInvite> TeamInvites => Set<TeamInvite>();
         public DbSet<ChallengeCategory> ChallengeCategories => Set<ChallengeCategory>();
         public DbSet<Challenge> Challenges => Set<Challenge>();
+        public DbSet<TeamActiveCategory> TeamActiveCategories => Set<TeamActiveCategory>();
+        public DbSet<ChallengeSubmission> ChallengeSubmissions => Set<ChallengeSubmission>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder) {
             modelBuilder.Entity<User>()
@@ -320,10 +322,30 @@ namespace Pyrra.Infrastructure.Data {
                 .Property(c => c.Description)
                 .HasMaxLength(1000);
 
-            // Cobre a listagem por categoria (admin) e, na próxima etapa, os desafios disponíveis
-            // de um time a partir das categorias ativas dele.
+            // Cobre a listagem por categoria (admin) e os desafios disponíveis de um time a partir
+            // das categorias ativas dele.
             modelBuilder.Entity<Challenge>()
                 .HasIndex(c => c.CategoryId);
+
+            // Um time não pode ativar a mesma categoria duas vezes — a existência da linha É a
+            // ativação. Mesmo padrão do índice único de TeamMember (TeamId, UserId).
+            modelBuilder.Entity<TeamActiveCategory>()
+                .HasIndex(a => new { a.TeamId, a.CategoryId })
+                .IsUnique();
+
+            // URL do blob — nunca filtrada, só exibida, mesmo critério do BannerImageUrl de Team.
+            modelBuilder.Entity<ChallengeSubmission>()
+                .Property(s => s.PhotoUrl)
+                .HasMaxLength(500);
+
+            // Cobre a checagem de duplicidade ao enviar (usuário+desafio+time) e a listagem de
+            // desafios disponíveis (usuário+time, todas as submissões pra achar a mais recente).
+            modelBuilder.Entity<ChallengeSubmission>()
+                .HasIndex(s => new { s.UserId, s.ChallengeId, s.TeamId });
+
+            // Cobre a fila de aprovação do dono (time+status=Pendente).
+            modelBuilder.Entity<ChallengeSubmission>()
+                .HasIndex(s => new { s.TeamId, s.Status });
         }
     }
 }

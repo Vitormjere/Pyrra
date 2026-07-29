@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Pyrra.Infrastructure.Data;
 
@@ -11,9 +12,11 @@ using Pyrra.Infrastructure.Data;
 namespace Pyrra.Infrastructure.Migrations
 {
     [DbContext(typeof(PyrraDbContext))]
-    partial class PyrraDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260728221134_AddTeamActiveCategories")]
+    partial class AddTeamActiveCategories
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -239,47 +242,6 @@ namespace Pyrra.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("ChallengeCategories");
-                });
-
-            modelBuilder.Entity("Pyrra.Domain.Desafios.ChallengeSubmission", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("ChallengeId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("PhotoUrl")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<DateTime?>("ReviewedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("ReviewedByUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.Property<Guid>("TeamId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TeamId", "Status");
-
-                    b.HasIndex("UserId", "ChallengeId", "TeamId");
-
-                    b.ToTable("ChallengeSubmissions");
                 });
 
             modelBuilder.Entity("Pyrra.Domain.Desafios.TeamActiveCategory", b =>
