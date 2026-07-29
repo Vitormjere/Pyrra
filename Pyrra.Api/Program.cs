@@ -170,6 +170,7 @@ builder.Services.AddScoped<IChallengeCatalogService, ChallengeCatalogService>();
 // dono/membro, mesmo critério do TeamService.
 builder.Services.AddScoped<ITeamActiveCategoryRepository, TeamActiveCategoryRepository>();
 builder.Services.AddScoped<IChallengeSubmissionRepository, ChallengeSubmissionRepository>();
+builder.Services.AddScoped<ITeamMemberScoreRepository, TeamMemberScoreRepository>();
 builder.Services.AddScoped<IChallengeSubmissionStorageService, AzureBlobChallengeSubmissionStorageService>();
 builder.Services.AddScoped<ITeamChallengeService, TeamChallengeService>();
 

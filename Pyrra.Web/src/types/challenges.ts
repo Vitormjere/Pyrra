@@ -53,3 +53,11 @@ export interface PendingSubmission {
   }
   submitter: UserSummary
 }
+
+// GET /api/times/{id}/desafios/ranking — placar INDIVIDUAL dentro do time (não o TotalPoints
+// coletivo do time). position é 1-based, já na ordem devolvida.
+export interface TeamMemberRanking {
+  position: number
+  user: UserSummary
+  points: number
+}

@@ -159,6 +159,21 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
+        // Ranking de membros do time por placar INDIVIDUAL — qualquer membro (dono ou não)
+        [HttpGet("ranking")]
+        public async Task<ActionResult<IEnumerable<TeamMemberRankingResponse>>> GetRanking(Guid teamId, CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            try {
+                var ranking = await _service.GetTeamRankingAsync(userId, teamId, cancellationToken);
+                return Ok(ranking.Select(TeamMemberRankingResponse.FromRanking));
+            } catch (NotFoundException ex) {
+                return NotFound(new { message = ex.Message });
+            }
+        }
+
         // Bytes da foto de uma submissão — container privado, só sai por aqui. Qualquer membro do
         // time (dono ou não) pode ver.
         [HttpGet("submissoes/{submissionId:guid}/foto")]

@@ -23,7 +23,10 @@ namespace Pyrra.Application.Tests.Desafios {
             FakeChallengeSubmissionRepository submissions, FakeChallengeSubmissionStorageService storage,
             FakeTeamRepository teams, FakeClock clock, FakeTournamentTeamRepository tournamentEntries,
             FakeTournamentRepository tournaments)
-            Build() {
+            // memberScores é opcional — default vazio, sem tocar nos call sites existentes; só os
+            // testes de placar individual/ranking (Fase 5a) passam um fake próprio, quando
+            // precisam inspecionar ou compartilhar o mesmo repositório entre chamadas.
+            Build(FakeTeamMemberScoreRepository? memberScores = null) {
             var members = new FakeTeamMemberRepository();
             var teams = new FakeTeamRepository(members);
             teams.Teams.Add(new Team {
@@ -48,7 +51,7 @@ namespace Pyrra.Application.Tests.Desafios {
 
             var service = new TeamChallengeService(
                 teams, members, categories, challenges, activations, submissions, storage,
-                tournamentEntries, tournaments, users, clock);
+                tournamentEntries, tournaments, memberScores ?? new FakeTeamMemberScoreRepository(), users, clock);
             return (service, categories, challenges, activations, submissions, storage, teams, clock, tournamentEntries, tournaments);
         }
 
@@ -745,6 +748,146 @@ namespace Pyrra.Application.Tests.Desafios {
             var (service, _, _, _, _, _, _, _, _, _) = Build();
 
             await Assert.ThrowsAsync<NotFoundException>(() => service.GetSubmissionPhotoAsync(OwnerId, TeamId, Guid.NewGuid()));
+        }
+
+        // ---- placar individual / ranking do time (Fase 5a) ----
+
+        [Fact]
+        public async Task ApproveSubmission_SomaPlacarIndividualDoMembroEOrdenaAcima() {
+            var (service, categories, challenges, _, _, _, teams, _, _, _) = Build();
+            var category = MakeCategory();
+            categories.Categories.Add(category);
+            var challenge = MakeChallenge(category.Id, points: 25);
+            challenges.Challenges.Add(challenge);
+            await service.ActivateCategoryAsync(OwnerId, TeamId, category.Id);
+            var submission = await service.SubmitChallengeProofAsync(MemberId, TeamId, challenge.Id, MakePhoto(), "image/jpeg", 1024);
+
+            await service.ApproveSubmissionAsync(OwnerId, TeamId, submission.Id);
+
+            var ranking = await service.GetTeamRankingAsync(OwnerId, TeamId);
+
+            // Member ganhou os 25 pontos; Owner (que nunca submeteu) aparece com 0, mesmo sem ter
+            // linha em TeamMember — e Member fica na frente por ter mais pontos.
+            Assert.Equal(2, ranking.Count);
+            Assert.Equal(1, ranking[0].Position);
+            Assert.Equal(MemberId, ranking[0].User.Id);
+            Assert.Equal(25, ranking[0].Points);
+            Assert.Equal(2, ranking[1].Position);
+            Assert.Equal(OwnerId, ranking[1].User.Id);
+            Assert.Equal(0, ranking[1].Points);
+
+            // TotalPoints do time continua funcionando igual (regressão) — os dois convivem.
+            Assert.Equal(25, teams.Teams.Single(t => t.Id == TeamId).TotalPoints);
+        }
+
+        [Fact]
+        public async Task ApproveSubmission_DuasAprovacoesMesmoMembro_AcumulaPlacarIndividual() {
+            var (service, categories, challenges, _, _, _, _, _, _, _) = Build();
+            var category = MakeCategory();
+            categories.Categories.Add(category);
+            var challenge1 = MakeChallenge(category.Id, title: "Desafio 1", points: 10);
+            var challenge2 = MakeChallenge(category.Id, title: "Desafio 2", points: 15);
+            challenges.Challenges.Add(challenge1);
+            challenges.Challenges.Add(challenge2);
+            await service.ActivateCategoryAsync(OwnerId, TeamId, category.Id);
+
+            var sub1 = await service.SubmitChallengeProofAsync(MemberId, TeamId, challenge1.Id, MakePhoto(), "image/jpeg", 1024);
+            await service.ApproveSubmissionAsync(OwnerId, TeamId, sub1.Id);
+            var sub2 = await service.SubmitChallengeProofAsync(MemberId, TeamId, challenge2.Id, MakePhoto(), "image/jpeg", 1024);
+            await service.ApproveSubmissionAsync(OwnerId, TeamId, sub2.Id);
+
+            var ranking = await service.GetTeamRankingAsync(OwnerId, TeamId);
+
+            Assert.Equal(25, ranking.Single(r => r.User.Id == MemberId).Points);
+        }
+
+        [Fact]
+        public async Task ApproveSubmission_MesmoUsuarioTimesDiferentes_PlacaresNaoSeMisturam() {
+            var (service, categories, challenges, _, _, _, teams, _, tournamentEntries, tournaments) = Build();
+            var category = MakeCategory();
+            categories.Categories.Add(category);
+            var challenge1 = MakeChallenge(category.Id, title: "Desafio 1", points: 10);
+            var challenge2 = MakeChallenge(category.Id, title: "Desafio 2", points: 30);
+            challenges.Challenges.Add(challenge1);
+            challenges.Challenges.Add(challenge2);
+
+            // Time 1 (TeamId, já existe): Member ganha 10 pontos lá.
+            await service.ActivateCategoryAsync(OwnerId, TeamId, category.Id);
+            var sub1 = await service.SubmitChallengeProofAsync(MemberId, TeamId, challenge1.Id, MakePhoto(), "image/jpeg", 1024);
+            await service.ApproveSubmissionAsync(OwnerId, TeamId, sub1.Id);
+
+            // Time 2 (novo): MEMBER é o DONO desse outro time — evita precisar de uma segunda linha
+            // de TeamMember (não exposta pelo Build()). A aprovação vem do dono de um torneio em
+            // que o Time 2 está Aprovado, já que o dono do TIME (o próprio Member) não pode aprovar
+            // a própria submissão.
+            var team2Id = Guid.NewGuid();
+            teams.Teams.Add(new Team {
+                Id = team2Id, Name = "Time 2", OwnerId = MemberId, MemberLimit = 10,
+                InviteToken = "token-time-2", TotalPoints = 0
+            });
+            await service.ActivateCategoryAsync(MemberId, team2Id, category.Id);
+            var sub2 = await service.SubmitChallengeProofAsync(MemberId, team2Id, challenge2.Id, MakePhoto(), "image/jpeg", 1024);
+
+            var tournament2 = new Tournament {
+                Id = Guid.NewGuid(), Name = "Torneio 2", OwnerId = OutsiderId,
+                InviteToken = Guid.NewGuid().ToString("N"), CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
+            };
+            tournaments.Tournaments.Add(tournament2);
+            tournamentEntries.Entries.Add(new TournamentTeam {
+                Id = Guid.NewGuid(), TournamentId = tournament2.Id, TeamId = team2Id,
+                Status = TournamentTeamStatus.Aprovado, Score = 0, RequestedAt = DateTime.UtcNow
+            });
+
+            // Antes de aprovar no Time 2: o placar do Member lá já deve ser 0 — a aprovação no
+            // Time 1 não vazou pra cá.
+            var beforeTeam2 = await service.GetTeamRankingAsync(MemberId, team2Id);
+            Assert.Equal(0, beforeTeam2.Single(r => r.User.Id == MemberId).Points);
+
+            await service.ApproveSubmissionAsync(OutsiderId, team2Id, sub2.Id);
+
+            var rankingTeam1 = await service.GetTeamRankingAsync(OwnerId, TeamId);
+            var rankingTeam2 = await service.GetTeamRankingAsync(MemberId, team2Id);
+
+            Assert.Equal(10, rankingTeam1.Single(r => r.User.Id == MemberId).Points); // não mudou
+            Assert.Equal(30, rankingTeam2.Single(r => r.User.Id == MemberId).Points); // só o do Time 2
+        }
+
+        [Fact]
+        public async Task GetTeamRanking_SemAprovacoes_TodosComZeroOrdenadosPorNome() {
+            var (service, _, _, _, _, _, _, _, _, _) = Build();
+
+            var ranking = await service.GetTeamRankingAsync(OwnerId, TeamId);
+
+            // Ninguém submeteu nada ainda: os dois aparecem com 0, empate desfeito por nome
+            // ("Member" antes de "Owner" alfabeticamente).
+            Assert.Equal(2, ranking.Count);
+            Assert.Equal("Member", ranking[0].User.Name);
+            Assert.Equal(0, ranking[0].Points);
+            Assert.Equal("Owner", ranking[1].User.Name);
+            Assert.Equal(0, ranking[1].Points);
+        }
+
+        [Fact]
+        public async Task GetTeamRanking_MembroComum_TambemVe() {
+            var (service, _, _, _, _, _, _, _, _, _) = Build();
+
+            var ranking = await service.GetTeamRankingAsync(MemberId, TeamId);
+
+            Assert.Equal(2, ranking.Count);
+        }
+
+        [Fact]
+        public async Task GetTeamRanking_NaoMembro_Lanca() {
+            var (service, _, _, _, _, _, _, _, _, _) = Build();
+
+            await Assert.ThrowsAsync<NotFoundException>(() => service.GetTeamRankingAsync(OutsiderId, TeamId));
+        }
+
+        [Fact]
+        public async Task GetTeamRanking_TimeInexistente_Lanca() {
+            var (service, _, _, _, _, _, _, _, _, _) = Build();
+
+            await Assert.ThrowsAsync<NotFoundException>(() => service.GetTeamRankingAsync(OwnerId, Guid.NewGuid()));
         }
     }
 }

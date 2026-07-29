@@ -45,6 +45,7 @@ namespace Pyrra.Infrastructure.Data {
         public DbSet<Challenge> Challenges => Set<Challenge>();
         public DbSet<TeamActiveCategory> TeamActiveCategories => Set<TeamActiveCategory>();
         public DbSet<ChallengeSubmission> ChallengeSubmissions => Set<ChallengeSubmission>();
+        public DbSet<TeamMemberScore> TeamMemberScores => Set<TeamMemberScore>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder) {
             modelBuilder.Entity<User>()
@@ -395,6 +396,14 @@ namespace Pyrra.Infrastructure.Data {
             // (torneio+status=Aprovado).
             modelBuilder.Entity<TournamentTeam>()
                 .HasIndex(t => new { t.TournamentId, t.Status });
+
+            // Placar individual (Fase 5a): um placar por (TeamId, UserId) — a mesma pessoa em times
+            // diferentes tem linhas separadas. O índice único garante a semântica de upsert do
+            // TeamMemberScoreRepository (mesmo padrão do índice único de TeamActiveCategory) e o
+            // TeamId à esquerda já cobre a leitura do ranking completo de um time.
+            modelBuilder.Entity<TeamMemberScore>()
+                .HasIndex(s => new { s.TeamId, s.UserId })
+                .IsUnique();
         }
     }
 }

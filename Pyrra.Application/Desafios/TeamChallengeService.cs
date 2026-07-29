@@ -29,6 +29,7 @@ namespace Pyrra.Application.Desafios {
         private readonly IChallengeSubmissionStorageService _submissionStorage;
         private readonly ITournamentTeamRepository         _tournamentTeamRepository;
         private readonly ITournamentRepository             _tournamentRepository;
+        private readonly ITeamMemberScoreRepository        _memberScoreRepository;
         private readonly IUserRepository                   _userRepository;
         private readonly IClockService                     _clock;
 
@@ -42,6 +43,7 @@ namespace Pyrra.Application.Desafios {
             IChallengeSubmissionStorageService submissionStorage,
             ITournamentTeamRepository        tournamentTeamRepository,
             ITournamentRepository            tournamentRepository,
+            ITeamMemberScoreRepository        memberScoreRepository,
             IUserRepository                   userRepository,
             IClockService                     clock) {
             _teamRepository            = teamRepository;
@@ -53,6 +55,7 @@ namespace Pyrra.Application.Desafios {
             _submissionStorage         = submissionStorage;
             _tournamentTeamRepository  = tournamentTeamRepository;
             _tournamentRepository      = tournamentRepository;
+            _memberScoreRepository     = memberScoreRepository;
             _userRepository            = userRepository;
             _clock                     = clock;
         }
@@ -256,6 +259,20 @@ namespace Pyrra.Application.Desafios {
             team.UpdatedAt    = _clock.UtcNow;
             await _teamRepository.UpdateAsync(team, cancellationToken);
 
+            // Placar INDIVIDUAL de quem enviou, dentro DESSE time — sempre soma, independente de
+            // torneio. Criado sob demanda na primeira aprovação dessa pessoa nesse time.
+            var memberScore = await _memberScoreRepository.GetAsync(teamId, submission.UserId, cancellationToken);
+            if (memberScore is null) {
+                await _memberScoreRepository.AddAsync(new TeamMemberScore {
+                    Id = Guid.NewGuid(), TeamId = teamId, UserId = submission.UserId,
+                    Points = challenge.Points, UpdatedAt = _clock.UtcNow
+                }, cancellationToken);
+            } else {
+                memberScore.Points   += challenge.Points;
+                memberScore.UpdatedAt = _clock.UtcNow;
+                await _memberScoreRepository.UpdateAsync(memberScore, cancellationToken);
+            }
+
             // Time Aprovado num torneio no momento da aprovação: os mesmos pontos também somam ao
             // score DENTRO do torneio, separado do TotalPoints acumulado do time.
             var tournamentEntry = await GetApprovedTournamentEntryAsync(teamId, cancellationToken);
@@ -284,6 +301,32 @@ namespace Pyrra.Application.Desafios {
             }
 
             return await _submissionStorage.DownloadAsync(submissionId, cancellationToken);
+        }
+
+        public async Task<IReadOnlyList<TeamMemberRanking>> GetTeamRankingAsync(Guid callerId, Guid teamId, CancellationToken cancellationToken = default) {
+            var team = await GetOwnedOrMemberTeamAsync(callerId, teamId, cancellationToken);
+
+            var members = await _teamMemberRepository.GetByTeamAsync(teamId, cancellationToken);
+            var owner = await _userRepository.GetByIdAsync(team.OwnerId, cancellationToken);
+            var memberUsers = await LoadUsersAsync(members.Select(m => m.UserId), cancellationToken);
+            var scoresByUserId = (await _memberScoreRepository.GetByTeamAsync(teamId, cancellationToken))
+                .ToDictionary(s => s.UserId, s => s.Points);
+
+            var entries = new List<(UserSummary User, int Points)>();
+            if (owner is not null) {
+                entries.Add((ToSummary(owner), scoresByUserId.GetValueOrDefault(owner.Id)));
+            }
+            foreach (var member in members) {
+                if (memberUsers.TryGetValue(member.UserId, out var user)) {
+                    entries.Add((ToSummary(user), scoresByUserId.GetValueOrDefault(member.UserId)));
+                }
+            }
+
+            return entries
+                .OrderByDescending(e => e.Points)
+                .ThenBy(e => e.User.Name)
+                .Select((e, index) => new TeamMemberRanking(index + 1, e.User, e.Points))
+                .ToList();
         }
 
         // Carrega a submissão garantindo que ela pertence ao time e ainda está Pendente — usada

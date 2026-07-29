@@ -8,6 +8,7 @@ import {
   Crown,
   ImagePlus,
   Link2,
+  Medal,
   Trash2,
   Trophy,
   UserMinus,
@@ -19,6 +20,7 @@ import EmptyState from '../../components/EmptyState'
 import Segmented from '../../components/Segmented'
 import Skeleton from '../../components/Skeleton'
 import TeamBanner from '../../components/TeamBanner'
+import { useAuth } from '../../hooks/useAuth'
 import { useConfirm } from '../../hooks/useConfirm'
 import { getFriends } from '../../services/friendService'
 import {
@@ -29,6 +31,7 @@ import {
   getPendingSubmissions,
   getSubmissionPhotoUrl,
   getTeamCategories,
+  getTeamRanking,
   rejectSubmission,
   submitChallengeProof,
 } from '../../services/challengeService'
@@ -49,7 +52,7 @@ import { CHALLENGE_CATEGORY_SWATCH, CHALLENGE_CATEGORY_TEXT } from '../../utils/
 import { getCategoryIcon } from '../../utils/challengeCategoryIcons'
 import { TEAM_BANNER_SWATCH, TEAM_BANNER_THEMES } from '../../utils/teamBanners'
 import type { Friend } from '../../types/community'
-import type { AvailableChallenge, PendingSubmission, TeamCategoryStatus } from '../../types/challenges'
+import type { AvailableChallenge, PendingSubmission, TeamCategoryStatus, TeamMemberRanking } from '../../types/challenges'
 import type { TeamBannerTheme, TeamDetails, TeamMember, TeamVisibility } from '../../types/teams'
 
 const VISIBILITY_OPTIONS: readonly TeamVisibility[] = ['Privado', 'Publico']
@@ -127,6 +130,42 @@ function MemberRow({
           <UserMinus size={16} />
         </button>
       )}
+    </li>
+  )
+}
+
+// Linha do ranking individual do time: posição (coroa no #1), avatar, nome/@username e o placar
+// pessoal dentro DESSE time — mesmo estilo do ranking de Amigos, trocando o streak por pontos.
+function TeamRankingRow({ entry, isSelf }: { entry: TeamMemberRanking; isSelf: boolean }) {
+  const isTop = entry.position === 1
+
+  return (
+    <li
+      className={[
+        'flex items-center gap-3 px-4 py-3',
+        isSelf ? 'bg-brand-green/10 ring-1 ring-inset ring-brand-green/30' : '',
+      ].join(' ')}
+    >
+      <span
+        aria-hidden="true"
+        className={[
+          'flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular-nums',
+          isTop ? 'bg-brand-green/15 text-brand-green' : 'text-slate-500',
+        ].join(' ')}
+      >
+        {isTop ? <Medal size={14} /> : `#${entry.position}`}
+      </span>
+      <Avatar name={entry.user.name} />
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-medium text-ink">
+          {entry.user.name}
+          {isSelf && <span className="ml-1.5 text-xs font-normal text-brand-green">(você)</span>}
+        </p>
+        {entry.user.username && (
+          <p className="truncate text-xs text-slate-500">@{entry.user.username}</p>
+        )}
+      </div>
+      <span className="shrink-0 text-sm font-semibold text-ink tabular-nums">{entry.points} pts</span>
     </li>
   )
 }
@@ -344,6 +383,7 @@ function PendingSubmissionRow({
 
 export function TimeDetalhe() {
   const { id } = useParams<{ id: string }>()
+  const { user } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const { confirm, dialog } = useConfirm()
@@ -381,6 +421,9 @@ export function TimeDetalhe() {
   // Submissões pendentes — só carregado pro dono (única visão que existe pra essa seção)
   const [pendingSubmissions, setPendingSubmissions] = useState<PendingSubmission[] | null>(null)
   const [pendingBusyId, setPendingBusyId] = useState<string | null>(null)
+
+  // Ranking individual do time — carregado pra qualquer membro (dono ou não)
+  const [ranking, setRanking] = useState<TeamMemberRanking[] | null>(null)
 
   const loadDetails = useCallback(async () => {
     if (!id) return
@@ -442,17 +485,27 @@ export function TimeDetalhe() {
     }
   }, [id])
 
+  const loadRanking = useCallback(async () => {
+    if (!id) return
+    try {
+      setRanking(await getTeamRanking(id))
+    } catch (err) {
+      setError(getApiErrorMessage(err, {}, 'Não foi possível carregar o ranking.'))
+    }
+  }, [id])
+
   // Dispara só depois que os detalhes chegam (precisa saber se é dono antes de pedir as
-  // categorias/submissões — membro comum recebe 404 desses endpoints). Desafios disponíveis,
-  // todo membro vê.
+  // categorias/submissões — membro comum recebe 404 desses endpoints). Desafios disponíveis e
+  // ranking, todo membro vê.
   useEffect(() => {
     if (!details) return
     void loadChallenges()
+    void loadRanking()
     if (details.team.isOwner) {
       void loadCategories()
       void loadPendingSubmissions()
     }
-  }, [details, loadChallenges, loadCategories, loadPendingSubmissions])
+  }, [details, loadChallenges, loadRanking, loadCategories, loadPendingSubmissions])
 
   async function handleSubmitProof(challengeId: string, file: File) {
     if (!id) return
@@ -479,7 +532,7 @@ export function TimeDetalhe() {
     setError(null)
     try {
       await approveSubmission(id, submissionId)
-      await Promise.all([loadPendingSubmissions(), loadChallenges()])
+      await Promise.all([loadPendingSubmissions(), loadChallenges(), loadRanking()])
     } catch (err) {
       setError(getApiErrorMessage(err, {}, 'Não foi possível aprovar a submissão.'))
     } finally {
@@ -1053,6 +1106,25 @@ export function TimeDetalhe() {
                 busy={submitBusyId === challenge.id}
                 onSubmitProof={(file) => handleSubmitProof(challenge.id, file)}
               />
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* RANKING DO TIME — placar INDIVIDUAL dentro desse time, visível a todo membro (dono ou
+          não). Não é o TotalPoints coletivo do time (que continua existindo, ver header/listagem
+          de Times) — é quem mais contribuiu ganhando desafios aqui dentro. */}
+      <section className="flex flex-col gap-2">
+        <h2 className="flex items-center gap-1.5 text-sm font-medium text-slate-300">
+          <Medal size={15} className="text-brand-green" aria-hidden="true" />
+          Ranking do time
+        </h2>
+        {ranking === null ? (
+          <Skeleton className="h-16" />
+        ) : (
+          <ul className={listClasses}>
+            {ranking.map((entry) => (
+              <TeamRankingRow key={entry.user.id} entry={entry} isSelf={entry.user.id === user?.id} />
             ))}
           </ul>
         )}

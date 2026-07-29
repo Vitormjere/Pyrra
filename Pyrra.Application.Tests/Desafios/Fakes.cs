@@ -106,6 +106,23 @@ namespace Pyrra.Application.Tests.Desafios {
         public Task UpdateAsync(ChallengeSubmission submission, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
+    internal sealed class FakeTeamMemberScoreRepository : ITeamMemberScoreRepository {
+        public readonly List<TeamMemberScore> Scores = new();
+
+        public Task<TeamMemberScore?> GetAsync(Guid teamId, Guid userId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Scores.FirstOrDefault(s => s.TeamId == teamId && s.UserId == userId));
+
+        public Task<IReadOnlyList<TeamMemberScore>> GetByTeamAsync(Guid teamId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<TeamMemberScore>>(Scores.Where(s => s.TeamId == teamId).ToList());
+
+        public Task AddAsync(TeamMemberScore score, CancellationToken cancellationToken = default) {
+            Scores.Add(score);
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateAsync(TeamMemberScore score, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
     // Guarda os bytes em memória (chaveado por submissionId) pra permitir round-trip nos testes de
     // GetSubmissionPhotoAsync — mesmo espírito de FakeTeamBannerStorageService (Comunidade), mas
     // com download de verdade em vez de só contar chamadas, já que agora há um endpoint que lê de

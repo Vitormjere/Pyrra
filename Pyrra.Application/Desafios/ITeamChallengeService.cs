@@ -39,13 +39,15 @@ namespace Pyrra.Application.Desafios {
         // TORNEIO quem vê (resolvido a cada chamada, não fixado em nenhum momento anterior).
         Task<IReadOnlyList<PendingSubmission>> GetPendingSubmissionsAsync(Guid callerId, Guid teamId, CancellationToken cancellationToken = default);
 
-        // Aprova: soma os pontos do desafio ao TotalPoints do time SEMPRE, e também ao Score da
-        // entrada do time num torneio (TournamentTeam) SE o time estiver Aprovado num no momento
-        // da aprovação. Quem pode aprovar: mesmo critério de GetPendingSubmissionsAsync (dono do
-        // time, ou dono do torneio se o time estiver num). Só se a submissão ainda estiver
-        // Pendente (InvalidChallengeException caso já avaliada). Quem enviou a prova não pode
-        // aprovar a própria submissão (InvalidChallengeException), mesmo sendo o único aprovador
-        // possível — sem exceção automática.
+        // Aprova: soma os pontos do desafio ao TotalPoints do time SEMPRE, ao placar INDIVIDUAL de
+        // quem enviou dentro desse time (TeamMemberScore — criado na primeira aprovação dessa
+        // pessoa nesse time) SEMPRE, e também ao Score da entrada do time num torneio
+        // (TournamentTeam) SE o time estiver Aprovado num no momento da aprovação. Quem pode
+        // aprovar: mesmo critério de GetPendingSubmissionsAsync (dono do time, ou dono do torneio
+        // se o time estiver num). Só se a submissão ainda estiver Pendente (InvalidChallengeException
+        // caso já avaliada). Quem enviou a prova não pode aprovar a própria submissão
+        // (InvalidChallengeException), mesmo sendo o único aprovador possível — sem exceção
+        // automática.
         Task ApproveSubmissionAsync(Guid callerId, Guid teamId, Guid submissionId, CancellationToken cancellationToken = default);
 
         // Recusa: não soma pontos em lugar nenhum. Mesmas guardas de existência/estado/quem-pode
@@ -58,5 +60,12 @@ namespace Pyrra.Application.Desafios {
         // Lança NotFoundException se o time/submissão não existir, a submissão não pertencer a
         // esse time, ou quem chama não for dono nem membro.
         Task<(Stream Content, string ContentType)> GetSubmissionPhotoAsync(Guid userId, Guid teamId, Guid submissionId, CancellationToken cancellationToken = default);
+
+        // Ranking de TODOS os membros do time (dono + membros) por placar INDIVIDUAL — não é o
+        // TotalPoints coletivo do time. Ordenado por pontos desc, nome como desempate; quem nunca
+        // teve submissão aprovada aparece com 0. Qualquer membro do time (dono ou não) pode ver,
+        // mesmo critério de GetAvailableChallengesAsync. Lança NotFoundException se o time não
+        // existir ou quem chama não for dono nem membro.
+        Task<IReadOnlyList<TeamMemberRanking>> GetTeamRankingAsync(Guid callerId, Guid teamId, CancellationToken cancellationToken = default);
     }
 }

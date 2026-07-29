@@ -53,4 +53,11 @@ namespace Pyrra.Api.Dtos.Desafios {
             p.Submission.Id, p.Submission.CreatedAt,
             ChallengeResponse.FromEntity(p.Challenge), UserSummaryResponse.FromSummary(p.Submitter));
     }
+
+    // Uma linha do ranking INDIVIDUAL do time — GET /api/times/{id}/desafios/ranking. Points é o
+    // placar pessoal dentro desse time, não o TotalPoints coletivo do time (TeamResponse).
+    public record TeamMemberRankingResponse(int Position, UserSummaryResponse User, int Points) {
+        public static TeamMemberRankingResponse FromRanking(TeamMemberRanking r) =>
+            new(r.Position, UserSummaryResponse.FromSummary(r.User), r.Points);
+    }
 }

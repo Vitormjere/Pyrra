@@ -1,5 +1,5 @@
 import api from './api'
-import type { AvailableChallenge, PendingSubmission, TeamCategoryStatus } from '../types/challenges'
+import type { AvailableChallenge, PendingSubmission, TeamCategoryStatus, TeamMemberRanking } from '../types/challenges'
 
 // Todas as categorias do catálogo com o flag de ativação — só o dono vê (403/404 pra quem não é).
 export async function getTeamCategories(teamId: string): Promise<TeamCategoryStatus[]> {
@@ -52,4 +52,11 @@ export async function getSubmissionPhotoUrl(teamId: string, submissionId: string
     responseType: 'blob',
   })
   return URL.createObjectURL(data as Blob)
+}
+
+// Ranking de membros do time por placar INDIVIDUAL (não o TotalPoints coletivo do time) —
+// qualquer membro (dono ou não) vê.
+export async function getTeamRanking(teamId: string): Promise<TeamMemberRanking[]> {
+  const { data } = await api.get<TeamMemberRanking[]>(`/api/times/${teamId}/desafios/ranking`)
+  return data
 }
