@@ -22,7 +22,15 @@ namespace Pyrra.Application.Comunidade {
         TeamBannerTheme BannerTheme,
         string? BannerImageUrl);
 
-    public record TeamDetails(TeamSummary Summary, IReadOnlyList<TeamMemberSummary> Members, string InviteToken);
+    // Entrada ativa (Pendente ou Aprovado) do time num torneio, se houver — usada pela tela de
+    // Detalhes do Time pra avisar que a aprovação de desafios pode ter migrado pro dono do torneio.
+    public record ActiveTeamTournament(Guid TournamentId, string TournamentName, TournamentTeamStatus Status);
+
+    public record TeamDetails(
+        TeamSummary Summary,
+        IReadOnlyList<TeamMemberSummary> Members,
+        string InviteToken,
+        ActiveTeamTournament? ActiveTournament);
 
     // Um time público na aba Explorar. Separado de TeamDetails/TeamSummary de propósito: o token
     // só vaza pra quem ainda não é membro quando o time É público — é exatamente isso que

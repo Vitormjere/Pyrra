@@ -38,6 +38,9 @@ namespace Pyrra.Infrastructure.Data {
         public DbSet<Team> Teams => Set<Team>();
         public DbSet<TeamMember> TeamMembers => Set<TeamMember>();
         public DbSet<TeamInvite> TeamInvites => Set<TeamInvite>();
+        public DbSet<Tournament> Tournaments => Set<Tournament>();
+        public DbSet<TournamentRequest> TournamentRequests => Set<TournamentRequest>();
+        public DbSet<TournamentTeam> TournamentTeams => Set<TournamentTeam>();
         public DbSet<ChallengeCategory> ChallengeCategories => Set<ChallengeCategory>();
         public DbSet<Challenge> Challenges => Set<Challenge>();
         public DbSet<TeamActiveCategory> TeamActiveCategories => Set<TeamActiveCategory>();
@@ -346,6 +349,52 @@ namespace Pyrra.Infrastructure.Data {
             // Cobre a fila de aprovação do dono (time+status=Pendente).
             modelBuilder.Entity<ChallengeSubmission>()
                 .HasIndex(s => new { s.TeamId, s.Status });
+
+            // Torneio: sem FK pra Users, mesma convenção de Team.
+            modelBuilder.Entity<Tournament>()
+                .Property(t => t.Name)
+                .HasMaxLength(100);
+
+            modelBuilder.Entity<Tournament>()
+                .Property(t => t.Description)
+                .HasMaxLength(500);
+
+            // Token do link de convite do torneio: mesmo padrão de Team.InviteToken.
+            modelBuilder.Entity<Tournament>()
+                .Property(t => t.InviteToken)
+                .HasMaxLength(32);
+
+            modelBuilder.Entity<Tournament>()
+                .HasIndex(t => t.InviteToken)
+                .IsUnique()
+                .HasFilter("[InviteToken] IS NOT NULL");
+
+            // URL do blob — nunca filtrada, só exibida, mesmo critério do BannerImageUrl de Team.
+            modelBuilder.Entity<Tournament>()
+                .Property(t => t.BannerImageUrl)
+                .HasMaxLength(500);
+
+            modelBuilder.Entity<TournamentRequest>()
+                .Property(r => r.ProposedName)
+                .HasMaxLength(100);
+
+            modelBuilder.Entity<TournamentRequest>()
+                .Property(r => r.ProposedDescription)
+                .HasMaxLength(500);
+
+            // Cobre a listagem de solicitações pendentes (admin) — tabela pequena, mas custa nada.
+            modelBuilder.Entity<TournamentRequest>()
+                .HasIndex(r => r.Status);
+
+            // Cobre GetActiveForTeamAsync — "um torneio por vez", checado a cada pedido de
+            // entrada novo (qualquer torneio, sem filtro por TournamentId aqui).
+            modelBuilder.Entity<TournamentTeam>()
+                .HasIndex(t => t.TeamId);
+
+            // Cobre a fila de aprovação do dono do torneio (torneio+status=Pendente) e o ranking
+            // (torneio+status=Aprovado).
+            modelBuilder.Entity<TournamentTeam>()
+                .HasIndex(t => new { t.TournamentId, t.Status });
         }
     }
 }

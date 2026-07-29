@@ -9,6 +9,7 @@ import {
   ImagePlus,
   Link2,
   Trash2,
+  Trophy,
   UserMinus,
   UserPlus,
   Users,
@@ -761,6 +762,30 @@ export function TimeDetalhe() {
       </header>
 
       {team.description && <p className="text-sm text-slate-400">{team.description}</p>}
+
+      {/* AVISO DE TORNEIO — a aprovação de desafios migra pro dono do torneio enquanto essa
+          entrada estiver Pendente ou Aprovado (ver TeamChallengeService, Fase 4c). */}
+      {details.activeTournament && (
+        <Link
+          to={`/torneios/${details.activeTournament.tournamentId}`}
+          className="flex items-center gap-2 rounded-md bg-brand-green/10 px-4 py-3 text-sm ring-1 ring-brand-green/20 transition hover:bg-brand-green/15"
+        >
+          <Trophy size={16} className="shrink-0 text-brand-green" aria-hidden="true" />
+          <span className="min-w-0 flex-1 text-slate-200">
+            {details.activeTournament.status === 'Aprovado' ? (
+              <>
+                Este time está no torneio <strong className="font-semibold text-ink">{details.activeTournament.tournamentName}</strong> — a
+                aprovação de desafios agora é responsabilidade do dono do torneio.
+              </>
+            ) : (
+              <>
+                Entrada solicitada no torneio{' '}
+                <strong className="font-semibold text-ink">{details.activeTournament.tournamentName}</strong>, aguardando aprovação do dono.
+              </>
+            )}
+          </span>
+        </Link>
+      )}
 
       {error && (
         <p

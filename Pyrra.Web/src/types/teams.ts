@@ -31,6 +31,13 @@ export interface TeamMember {
   joinedAt: string | null
 }
 
+// Torneio em que o time tem uma entrada ativa (Pendente ou Aprovado), se houver.
+export interface ActiveTournament {
+  tournamentId: string
+  tournamentName: string
+  status: 'Pendente' | 'Aprovado'
+}
+
 // GET /api/times/{id}
 export interface TeamDetails {
   team: Team
@@ -38,6 +45,8 @@ export interface TeamDetails {
   inviteToken: string
   /** Caminho relativo (/times/convite/{token}); a URL absoluta é montada com window.location.origin. */
   invitePath: string
+  /** Nulo = o time não está em nenhum torneio no momento. */
+  activeTournament: ActiveTournament | null
 }
 
 // GET /api/times/convites

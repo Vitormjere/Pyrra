@@ -52,6 +52,19 @@ namespace Pyrra.Api.Controllers {
             return Ok(teams.Select(TeamSummaryResponse.FromSummary));
         }
 
+        // Times próprios sem entrada ativa em nenhum torneio — usado pelo botão "Solicitar
+        // entrada" na tela de Detalhes do Torneio (e pelo Convite de Torneio) pra saber quais
+        // times o dono pode oferecer, sem precisar tentar e receber erro depois.
+        [HttpGet("meus/elegiveis-torneio")]
+        public async Task<ActionResult<IEnumerable<TeamSummaryResponse>>> GetMyEligibleForTournament(CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            var teams = await _teamService.GetMyEligibleForTournamentAsync(userId, cancellationToken);
+            return Ok(teams.Select(TeamSummaryResponse.FromSummary));
+        }
+
         // Times marcados como Público — aba Explorar
         [HttpGet("publicos")]
         public async Task<ActionResult<IEnumerable<PublicTeamResponse>>> GetPublicTeams(CancellationToken cancellationToken) {

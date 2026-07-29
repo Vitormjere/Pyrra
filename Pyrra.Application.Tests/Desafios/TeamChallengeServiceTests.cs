@@ -16,11 +16,13 @@ namespace Pyrra.Application.Tests.Desafios {
         private static readonly Guid MemberId = Guid.Parse("22222222-2222-2222-2222-222222222222");
         private static readonly Guid OutsiderId = Guid.Parse("33333333-3333-3333-3333-333333333333");
         private static readonly Guid TeamId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        private static readonly Guid TournamentOwnerId = Guid.Parse("66666666-6666-6666-6666-666666666666");
 
         private static (TeamChallengeService service, FakeChallengeCategoryRepository categories,
             FakeChallengeRepository challenges, FakeTeamActiveCategoryRepository activations,
             FakeChallengeSubmissionRepository submissions, FakeChallengeSubmissionStorageService storage,
-            FakeTeamRepository teams, FakeClock clock)
+            FakeTeamRepository teams, FakeClock clock, FakeTournamentTeamRepository tournamentEntries,
+            FakeTournamentRepository tournaments)
             Build() {
             var members = new FakeTeamMemberRepository();
             var teams = new FakeTeamRepository(members);
@@ -32,17 +34,22 @@ namespace Pyrra.Application.Tests.Desafios {
 
             var users = new FakeUserRepository(
                 new User { Id = OwnerId, Name = "Owner", Email = "owner@x.com" },
-                new User { Id = MemberId, Name = "Member", Email = "member@x.com" });
+                new User { Id = MemberId, Name = "Member", Email = "member@x.com" },
+                new User { Id = TournamentOwnerId, Name = "TournamentOwner", Email = "tournamentowner@x.com" });
 
             var categories = new FakeChallengeCategoryRepository();
             var challenges = new FakeChallengeRepository();
             var activations = new FakeTeamActiveCategoryRepository();
             var submissions = new FakeChallengeSubmissionRepository();
             var storage = new FakeChallengeSubmissionStorageService();
+            var tournamentEntries = new FakeTournamentTeamRepository();
+            var tournaments = new FakeTournamentRepository();
             var clock = new FakeClock();
 
-            var service = new TeamChallengeService(teams, members, categories, challenges, activations, submissions, storage, users, clock);
-            return (service, categories, challenges, activations, submissions, storage, teams, clock);
+            var service = new TeamChallengeService(
+                teams, members, categories, challenges, activations, submissions, storage,
+                tournamentEntries, tournaments, users, clock);
+            return (service, categories, challenges, activations, submissions, storage, teams, clock, tournamentEntries, tournaments);
         }
 
         private static ChallengeCategory MakeCategory(string name = "Corrida") => new() {
@@ -57,11 +64,30 @@ namespace Pyrra.Application.Tests.Desafios {
 
         private static Stream MakePhoto() => new MemoryStream(new byte[] { 1, 2, 3 });
 
+        // Cria um torneio e uma entrada do TeamId nele, com o status pedido (Aprovado por padrão
+        // — só entrada Aprovada muda quem aprova submissões). Devolve o Id do torneio.
+        private static Guid PutTeamInTournament(
+            FakeTournamentRepository tournaments, FakeTournamentTeamRepository entries,
+            TournamentTeamStatus status = TournamentTeamStatus.Aprovado, Guid tournamentOwnerId = default) {
+            var ownerId = tournamentOwnerId == default ? TournamentOwnerId : tournamentOwnerId;
+            var tournament = new Tournament {
+                Id = Guid.NewGuid(), Name = "Torneio Teste", OwnerId = ownerId,
+                InviteToken = Guid.NewGuid().ToString("N"),
+                CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
+            };
+            tournaments.Tournaments.Add(tournament);
+            entries.Entries.Add(new TournamentTeam {
+                Id = Guid.NewGuid(), TournamentId = tournament.Id, TeamId = TeamId,
+                Status = status, Score = 0, RequestedAt = DateTime.UtcNow
+            });
+            return tournament.Id;
+        }
+
         // ---- ativação/desativação ----
 
         [Fact]
         public async Task ActivateCategory_ComoDono_Ativa() {
-            var (service, categories, _, activations, _, _, _, _) = Build();
+            var (service, categories, _, activations, _, _, _, _, _, _) = Build();
             var category = MakeCategory();
             categories.Categories.Add(category);
 
@@ -74,7 +100,7 @@ namespace Pyrra.Application.Tests.Desafios {
 
         [Fact]
         public async Task ActivateCategory_ComoNaoDono_Lanca() {
-            var (service, categories, _, activations, _, _, _, _) = Build();
+            var (service, categories, _, activations, _, _, _, _, _, _) = Build();
             var category = MakeCategory();
             categories.Categories.Add(category);
 
@@ -85,7 +111,7 @@ namespace Pyrra.Application.Tests.Desafios {
 
         [Fact]
         public async Task ActivateCategory_CategoriaInexistente_Lanca() {
-            var (service, _, _, activations, _, _, _, _) = Build();
+            var (service, _, _, activations, _, _, _, _, _, _) = Build();
 
             await Assert.ThrowsAsync<NotFoundException>(() => service.ActivateCategoryAsync(OwnerId, TeamId, Guid.NewGuid()));
             Assert.Empty(activations.Activations);
@@ -93,7 +119,7 @@ namespace Pyrra.Application.Tests.Desafios {
 
         [Fact]
         public async Task ActivateCategory_JaAtiva_NaoDuplica() {
-            var (service, categories, _, activations, _, _, _, _) = Build();
+            var (service, categories, _, activations, _, _, _, _, _, _) = Build();
             var category = MakeCategory();
             categories.Categories.Add(category);
 
@@ -105,7 +131,7 @@ namespace Pyrra.Application.Tests.Desafios {
 
         [Fact]
         public async Task DeactivateCategory_ComoDono_Desativa() {
-            var (service, categories, _, activations, _, _, _, _) = Build();
+            var (service, categories, _, activations, _, _, _, _, _, _) = Build();
             var category = MakeCategory();
             categories.Categories.Add(category);
             await service.ActivateCategoryAsync(OwnerId, TeamId, category.Id);
@@ -117,7 +143,7 @@ namespace Pyrra.Application.Tests.Desafios {
 
         [Fact]
         public async Task DeactivateCategory_ComoNaoDono_Lanca() {
-            var (service, categories, _, activations, _, _, _, _) = Build();
+            var (service, categories, _, activations, _, _, _, _, _, _) = Build();
             var category = MakeCategory();
             categories.Categories.Add(category);
             await service.ActivateCategoryAsync(OwnerId, TeamId, category.Id);
@@ -128,7 +154,7 @@ namespace Pyrra.Application.Tests.Desafios {
 
         [Fact]
         public async Task DeactivateCategory_QueNaoEstavaAtiva_NaoLanca() {
-            var (service, categories, _, activations, _, _, _, _) = Build();
+            var (service, categories, _, activations, _, _, _, _, _, _) = Build();
             var category = MakeCategory();
             categories.Categories.Add(category);
 
@@ -139,14 +165,14 @@ namespace Pyrra.Application.Tests.Desafios {
 
         [Fact]
         public async Task GetCategoriesForTeam_ComoNaoDono_Lanca() {
-            var (service, _, _, _, _, _, _, _) = Build();
+            var (service, _, _, _, _, _, _, _, _, _) = Build();
 
             await Assert.ThrowsAsync<NotFoundException>(() => service.GetCategoriesForTeamAsync(MemberId, TeamId));
         }
 
         [Fact]
         public async Task GetCategoriesForTeam_MarcaAtivasCorretamente() {
-            var (service, categories, _, _, _, _, _, _) = Build();
+            var (service, categories, _, _, _, _, _, _, _, _) = Build();
             var corrida = MakeCategory("Corrida");
             var academia = MakeCategory("Academia");
             categories.Categories.Add(corrida);
@@ -160,11 +186,27 @@ namespace Pyrra.Application.Tests.Desafios {
             Assert.False(statuses.Single(s => s.Category.Id == academia.Id).IsActive);
         }
 
+        // Categoria continua sendo decisão do dono do TIME mesmo com o time num torneio Aprovado —
+        // só a aprovação de submissão muda de mão (ver testes de torneio mais abaixo).
+        [Fact]
+        public async Task ActivateCategory_TimeEmTorneio_AindaEDonoDoTimeQuePodeAtivar() {
+            var (service, categories, _, activations, _, _, _, _, tournamentEntries, tournaments) = Build();
+            PutTeamInTournament(tournaments, tournamentEntries);
+            var category = MakeCategory();
+            categories.Categories.Add(category);
+
+            await service.ActivateCategoryAsync(OwnerId, TeamId, category.Id);
+
+            Assert.Single(activations.Activations);
+
+            await Assert.ThrowsAsync<NotFoundException>(() => service.ActivateCategoryAsync(TournamentOwnerId, TeamId, Guid.NewGuid()));
+        }
+
         // ---- desafios disponíveis ----
 
         [Fact]
         public async Task GetAvailableChallenges_SemCategoriaAtiva_ListaVazia() {
-            var (service, categories, challenges, _, _, _, _, _) = Build();
+            var (service, categories, challenges, _, _, _, _, _, _, _) = Build();
             var category = MakeCategory();
             categories.Categories.Add(category);
             challenges.Challenges.Add(MakeChallenge(category.Id));
@@ -176,7 +218,7 @@ namespace Pyrra.Application.Tests.Desafios {
 
         [Fact]
         public async Task GetAvailableChallenges_ComCategoriaAtiva_RetornaDesafiosDaCategoria() {
-            var (service, categories, challenges, _, _, _, _, _) = Build();
+            var (service, categories, challenges, _, _, _, _, _, _, _) = Build();
             var corrida = MakeCategory("Corrida");
             var academia = MakeCategory("Academia");
             categories.Categories.Add(corrida);
@@ -197,7 +239,7 @@ namespace Pyrra.Application.Tests.Desafios {
 
         [Fact]
         public async Task GetAvailableChallenges_MembroComum_TambemVe() {
-            var (service, categories, challenges, _, _, _, _, _) = Build();
+            var (service, categories, challenges, _, _, _, _, _, _, _) = Build();
             var category = MakeCategory();
             categories.Categories.Add(category);
             challenges.Challenges.Add(MakeChallenge(category.Id));
@@ -210,14 +252,14 @@ namespace Pyrra.Application.Tests.Desafios {
 
         [Fact]
         public async Task GetAvailableChallenges_NaoMembro_Lanca() {
-            var (service, _, _, _, _, _, _, _) = Build();
+            var (service, _, _, _, _, _, _, _, _, _) = Build();
 
             await Assert.ThrowsAsync<NotFoundException>(() => service.GetAvailableChallengesAsync(OutsiderId, TeamId));
         }
 
         [Fact]
         public async Task GetAvailableChallenges_PrazoExpirado_NaoAparece() {
-            var (service, categories, challenges, _, _, _, _, clock) = Build();
+            var (service, categories, challenges, _, _, _, _, clock, _, _) = Build();
             var category = MakeCategory();
             categories.Categories.Add(category);
             challenges.Challenges.Add(MakeChallenge(category.Id, "Expirado", deadline: clock.UtcNow.AddDays(-1)));
@@ -235,7 +277,7 @@ namespace Pyrra.Application.Tests.Desafios {
 
         [Fact]
         public async Task SubmitProof_CategoriaAtiva_Cria() {
-            var (service, categories, challenges, _, submissions, storage, _, clock) = Build();
+            var (service, categories, challenges, _, submissions, storage, _, clock, _, _) = Build();
             var category = MakeCategory();
             categories.Categories.Add(category);
             var challenge = MakeChallenge(category.Id);
@@ -256,7 +298,7 @@ namespace Pyrra.Application.Tests.Desafios {
 
         [Fact]
         public async Task SubmitProof_CategoriaNaoAtiva_Lanca() {
-            var (service, categories, challenges, _, submissions, _, _, _) = Build();
+            var (service, categories, challenges, _, submissions, _, _, _, _, _) = Build();
             var category = MakeCategory();
             categories.Categories.Add(category);
             var challenge = MakeChallenge(category.Id);
@@ -271,7 +313,7 @@ namespace Pyrra.Application.Tests.Desafios {
 
         [Fact]
         public async Task SubmitProof_PrazoExpirado_Lanca() {
-            var (service, categories, challenges, _, submissions, _, _, clock) = Build();
+            var (service, categories, challenges, _, submissions, _, _, clock, _, _) = Build();
             var category = MakeCategory();
             categories.Categories.Add(category);
             var challenge = MakeChallenge(category.Id, deadline: clock.UtcNow.AddDays(-1));
@@ -286,7 +328,7 @@ namespace Pyrra.Application.Tests.Desafios {
 
         [Fact]
         public async Task SubmitProof_ComSubmissaoPendenteExistente_Lanca() {
-            var (service, categories, challenges, _, submissions, _, _, _) = Build();
+            var (service, categories, challenges, _, submissions, _, _, _, _, _) = Build();
             var category = MakeCategory();
             categories.Categories.Add(category);
             var challenge = MakeChallenge(category.Id);
@@ -302,7 +344,7 @@ namespace Pyrra.Application.Tests.Desafios {
 
         [Fact]
         public async Task SubmitProof_ComSubmissaoAprovadaExistente_Lanca() {
-            var (service, categories, challenges, _, submissions, _, _, _) = Build();
+            var (service, categories, challenges, _, submissions, _, _, _, _, _) = Build();
             var category = MakeCategory();
             categories.Categories.Add(category);
             var challenge = MakeChallenge(category.Id);
@@ -317,7 +359,7 @@ namespace Pyrra.Application.Tests.Desafios {
 
         [Fact]
         public async Task SubmitProof_ApósRecusa_PermiteReenviar() {
-            var (service, categories, challenges, _, submissions, _, _, _) = Build();
+            var (service, categories, challenges, _, submissions, _, _, _, _, _) = Build();
             var category = MakeCategory();
             categories.Categories.Add(category);
             var challenge = MakeChallenge(category.Id);
@@ -333,7 +375,7 @@ namespace Pyrra.Application.Tests.Desafios {
 
         [Fact]
         public async Task SubmitProof_FormatoInvalido_Lanca() {
-            var (service, categories, challenges, _, _, _, _, _) = Build();
+            var (service, categories, challenges, _, _, _, _, _, _, _) = Build();
             var category = MakeCategory();
             categories.Categories.Add(category);
             var challenge = MakeChallenge(category.Id);
@@ -346,7 +388,7 @@ namespace Pyrra.Application.Tests.Desafios {
 
         [Fact]
         public async Task SubmitProof_ArquivoMuitoGrande_Lanca() {
-            var (service, categories, challenges, _, _, _, _, _) = Build();
+            var (service, categories, challenges, _, _, _, _, _, _, _) = Build();
             var category = MakeCategory();
             categories.Categories.Add(category);
             var challenge = MakeChallenge(category.Id);
@@ -359,7 +401,7 @@ namespace Pyrra.Application.Tests.Desafios {
 
         [Fact]
         public async Task GetAvailableChallenges_ReflectMySubmissionStatus() {
-            var (service, categories, challenges, _, _, _, _, _) = Build();
+            var (service, categories, challenges, _, _, _, _, _, _, _) = Build();
             var category = MakeCategory();
             categories.Categories.Add(category);
             var challenge = MakeChallenge(category.Id);
@@ -374,11 +416,11 @@ namespace Pyrra.Application.Tests.Desafios {
             Assert.Null(Assert.Single(availableForOwner).MySubmissionStatus);
         }
 
-        // ---- aprovação/recusa ----
+        // ---- aprovação/recusa (SEM torneio — comportamento de antes, regressão) ----
 
         [Fact]
         public async Task ApproveSubmission_SomaPontosAoTime() {
-            var (service, categories, challenges, _, submissions, _, teams, _) = Build();
+            var (service, categories, challenges, _, submissions, _, teams, _, _, _) = Build();
             var category = MakeCategory();
             categories.Categories.Add(category);
             var challenge = MakeChallenge(category.Id, points: 25);
@@ -397,7 +439,7 @@ namespace Pyrra.Application.Tests.Desafios {
 
         [Fact]
         public async Task RejectSubmission_NaoSomaPontos() {
-            var (service, categories, challenges, _, submissions, _, teams, _) = Build();
+            var (service, categories, challenges, _, submissions, _, teams, _, _, _) = Build();
             var category = MakeCategory();
             categories.Categories.Add(category);
             var challenge = MakeChallenge(category.Id, points: 25);
@@ -414,7 +456,7 @@ namespace Pyrra.Application.Tests.Desafios {
 
         [Fact]
         public async Task ApproveSubmission_ComoNaoDono_Lanca() {
-            var (service, categories, challenges, _, submissions, _, _, _) = Build();
+            var (service, categories, challenges, _, submissions, _, _, _, _, _) = Build();
             var category = MakeCategory();
             categories.Categories.Add(category);
             var challenge = MakeChallenge(category.Id);
@@ -429,7 +471,7 @@ namespace Pyrra.Application.Tests.Desafios {
 
         [Fact]
         public async Task ApproveSubmission_JaAvaliada_Lanca() {
-            var (service, categories, challenges, _, submissions, _, _, _) = Build();
+            var (service, categories, challenges, _, submissions, _, _, _, _, _) = Build();
             var category = MakeCategory();
             categories.Categories.Add(category);
             var challenge = MakeChallenge(category.Id);
@@ -444,14 +486,14 @@ namespace Pyrra.Application.Tests.Desafios {
 
         [Fact]
         public async Task ApproveSubmission_Inexistente_Lanca() {
-            var (service, _, _, _, _, _, _, _) = Build();
+            var (service, _, _, _, _, _, _, _, _, _) = Build();
 
             await Assert.ThrowsAsync<NotFoundException>(() => service.ApproveSubmissionAsync(OwnerId, TeamId, Guid.NewGuid()));
         }
 
         [Fact]
         public async Task ApproveSubmission_ProprioEnvioDoDono_Lanca() {
-            var (service, categories, challenges, _, submissions, _, teams, _) = Build();
+            var (service, categories, challenges, _, submissions, _, teams, _, _, _) = Build();
             var category = MakeCategory();
             categories.Categories.Add(category);
             var challenge = MakeChallenge(category.Id, points: 25);
@@ -468,7 +510,7 @@ namespace Pyrra.Application.Tests.Desafios {
 
         [Fact]
         public async Task RejectSubmission_ProprioEnvioDoDono_Permite() {
-            var (service, categories, challenges, _, submissions, _, _, _) = Build();
+            var (service, categories, challenges, _, submissions, _, _, _, _, _) = Build();
             var category = MakeCategory();
             categories.Categories.Add(category);
             var challenge = MakeChallenge(category.Id);
@@ -484,7 +526,7 @@ namespace Pyrra.Application.Tests.Desafios {
 
         [Fact]
         public async Task GetPendingSubmissions_ComoDono_ListaCorretamente() {
-            var (service, categories, challenges, _, _, _, _, _) = Build();
+            var (service, categories, challenges, _, _, _, _, _, _, _) = Build();
             var category = MakeCategory();
             categories.Categories.Add(category);
             var challenge = MakeChallenge(category.Id);
@@ -501,14 +543,14 @@ namespace Pyrra.Application.Tests.Desafios {
 
         [Fact]
         public async Task GetPendingSubmissions_ComoNaoDono_Lanca() {
-            var (service, _, _, _, _, _, _, _) = Build();
+            var (service, _, _, _, _, _, _, _, _, _) = Build();
 
             await Assert.ThrowsAsync<NotFoundException>(() => service.GetPendingSubmissionsAsync(MemberId, TeamId));
         }
 
         [Fact]
         public async Task GetPendingSubmissions_NaoIncluiAprovadasNemRecusadas() {
-            var (service, categories, challenges, _, _, _, _, _) = Build();
+            var (service, categories, challenges, _, _, _, _, _, _, _) = Build();
             var category = MakeCategory();
             categories.Categories.Add(category);
             var approved = MakeChallenge(category.Id, "Aprovado");
@@ -527,11 +569,148 @@ namespace Pyrra.Application.Tests.Desafios {
             Assert.Empty(pending);
         }
 
+        // ---- aprovação/recusa (time EM torneio — roteamento novo da Fase 4c) ----
+
+        [Fact]
+        public async Task ApproveSubmission_TimeEmTorneioAprovado_DonoDoTorneioAprova_SomaPontosNosDoisLugares() {
+            var (service, categories, challenges, _, submissions, _, teams, _, tournamentEntries, tournaments) = Build();
+            var category = MakeCategory();
+            categories.Categories.Add(category);
+            var challenge = MakeChallenge(category.Id, points: 25);
+            challenges.Challenges.Add(challenge);
+            await service.ActivateCategoryAsync(OwnerId, TeamId, category.Id);
+            var submission = await service.SubmitChallengeProofAsync(MemberId, TeamId, challenge.Id, MakePhoto(), "image/jpeg", 1024);
+            var tournamentId = PutTeamInTournament(tournaments, tournamentEntries);
+
+            await service.ApproveSubmissionAsync(TournamentOwnerId, TeamId, submission.Id);
+
+            Assert.Equal(ChallengeSubmissionStatus.Aprovado, submissions.Submissions.Single().Status);
+            Assert.Equal(TournamentOwnerId, submissions.Submissions.Single().ReviewedByUserId);
+            // TotalPoints do time continua somando, igual sempre somou.
+            Assert.Equal(25, teams.Teams.Single(t => t.Id == TeamId).TotalPoints);
+            // E agora TAMBÉM soma ao score da entrada do time no torneio.
+            Assert.Equal(25, tournamentEntries.Entries.Single(e => e.TournamentId == tournamentId).Score);
+        }
+
+        [Fact]
+        public async Task ApproveSubmission_TimeEmTorneioAprovado_DonoDoTimeNaoConsegueMaisAprovar_Lanca() {
+            var (service, categories, challenges, _, submissions, _, _, _, tournamentEntries, tournaments) = Build();
+            var category = MakeCategory();
+            categories.Categories.Add(category);
+            var challenge = MakeChallenge(category.Id);
+            challenges.Challenges.Add(challenge);
+            await service.ActivateCategoryAsync(OwnerId, TeamId, category.Id);
+            var submission = await service.SubmitChallengeProofAsync(MemberId, TeamId, challenge.Id, MakePhoto(), "image/jpeg", 1024);
+            PutTeamInTournament(tournaments, tournamentEntries);
+
+            // O dono do TIME (que antes era o único aprovador) agora não consegue mais.
+            await Assert.ThrowsAsync<NotFoundException>(() => service.ApproveSubmissionAsync(OwnerId, TeamId, submission.Id));
+
+            Assert.Equal(ChallengeSubmissionStatus.Pendente, submissions.Submissions.Single().Status);
+        }
+
+        [Fact]
+        public async Task RejectSubmission_TimeEmTorneioAprovado_DonoDoTorneioRecusa() {
+            var (service, categories, challenges, _, submissions, _, _, _, tournamentEntries, tournaments) = Build();
+            var category = MakeCategory();
+            categories.Categories.Add(category);
+            var challenge = MakeChallenge(category.Id);
+            challenges.Challenges.Add(challenge);
+            await service.ActivateCategoryAsync(OwnerId, TeamId, category.Id);
+            var submission = await service.SubmitChallengeProofAsync(MemberId, TeamId, challenge.Id, MakePhoto(), "image/jpeg", 1024);
+            PutTeamInTournament(tournaments, tournamentEntries);
+
+            await service.RejectSubmissionAsync(TournamentOwnerId, TeamId, submission.Id);
+
+            Assert.Equal(ChallengeSubmissionStatus.Recusado, submissions.Submissions.Single().Status);
+        }
+
+        [Fact]
+        public async Task GetPendingSubmissions_TimeEmTorneioAprovado_DonoDoTorneioVe_DonoDoTimeNaoVeMais() {
+            var (service, categories, challenges, _, _, _, _, _, tournamentEntries, tournaments) = Build();
+            var category = MakeCategory();
+            categories.Categories.Add(category);
+            var challenge = MakeChallenge(category.Id);
+            challenges.Challenges.Add(challenge);
+            await service.ActivateCategoryAsync(OwnerId, TeamId, category.Id);
+            await service.SubmitChallengeProofAsync(MemberId, TeamId, challenge.Id, MakePhoto(), "image/jpeg", 1024);
+            PutTeamInTournament(tournaments, tournamentEntries);
+
+            var pendingForTournamentOwner = await service.GetPendingSubmissionsAsync(TournamentOwnerId, TeamId);
+            Assert.Single(pendingForTournamentOwner);
+
+            await Assert.ThrowsAsync<NotFoundException>(() => service.GetPendingSubmissionsAsync(OwnerId, TeamId));
+        }
+
+        // Pendente (ainda não aprovado pelo dono do torneio) NÃO conta como "no torneio" — o dono
+        // do time continua sendo o aprovador até a entrada ser Aprovada de fato.
+        [Fact]
+        public async Task ApproveSubmission_TimeComEntradaPendenteNoTorneio_DonoDoTimeAindaAprova() {
+            var (service, categories, challenges, _, submissions, _, teams, _, tournamentEntries, tournaments) = Build();
+            var category = MakeCategory();
+            categories.Categories.Add(category);
+            var challenge = MakeChallenge(category.Id, points: 10);
+            challenges.Challenges.Add(challenge);
+            await service.ActivateCategoryAsync(OwnerId, TeamId, category.Id);
+            var submission = await service.SubmitChallengeProofAsync(MemberId, TeamId, challenge.Id, MakePhoto(), "image/jpeg", 1024);
+            var tournamentId = PutTeamInTournament(tournaments, tournamentEntries, TournamentTeamStatus.Pendente);
+
+            await service.ApproveSubmissionAsync(OwnerId, TeamId, submission.Id);
+
+            Assert.Equal(ChallengeSubmissionStatus.Aprovado, submissions.Submissions.Single().Status);
+            Assert.Equal(10, teams.Teams.Single(t => t.Id == TeamId).TotalPoints);
+            // Score do torneio NÃO deve ter sido tocado — entrada ainda é Pendente, não Aprovada.
+            Assert.Equal(0, tournamentEntries.Entries.Single(e => e.TournamentId == tournamentId).Score);
+        }
+
+        [Fact]
+        public async Task ApproveSubmission_ProprioEnvioDoDonoDoTorneio_Lanca() {
+            var (service, categories, challenges, _, submissions, _, _, _, tournamentEntries, tournaments) = Build();
+            var category = MakeCategory();
+            categories.Categories.Add(category);
+            var challenge = MakeChallenge(category.Id);
+            challenges.Challenges.Add(challenge);
+            await service.ActivateCategoryAsync(OwnerId, TeamId, category.Id);
+            // Torneio é do próprio OwnerId — ele passa a ser "dono do torneio" além de dono do
+            // time, e a trava de auto-aprovação precisa valer pra esse papel também.
+            PutTeamInTournament(tournaments, tournamentEntries, tournamentOwnerId: OwnerId);
+            var submission = await service.SubmitChallengeProofAsync(OwnerId, TeamId, challenge.Id, MakePhoto(), "image/jpeg", 1024);
+
+            await Assert.ThrowsAsync<InvalidChallengeException>(() => service.ApproveSubmissionAsync(OwnerId, TeamId, submission.Id));
+
+            Assert.Equal(ChallengeSubmissionStatus.Pendente, submissions.Submissions.Single().Status);
+        }
+
+        // Submissão enviada ANTES do time entrar no torneio: a resolução de quem aprova é
+        // recalculada a cada chamada, não fixada no momento do envio — então o dono do torneio
+        // assume a partir do momento em que a entrada é Aprovada.
+        [Fact]
+        public async Task ApproveSubmission_EnviadaAntesDeEntrarNoTorneio_DonoDoTorneioAssumeDepois() {
+            var (service, categories, challenges, _, submissions, _, _, _, tournamentEntries, tournaments) = Build();
+            var category = MakeCategory();
+            categories.Categories.Add(category);
+            var challenge = MakeChallenge(category.Id, points: 15);
+            challenges.Challenges.Add(challenge);
+            await service.ActivateCategoryAsync(OwnerId, TeamId, category.Id);
+            var submission = await service.SubmitChallengeProofAsync(MemberId, TeamId, challenge.Id, MakePhoto(), "image/jpeg", 1024);
+
+            // Time entra no torneio DEPOIS do envio.
+            var tournamentId = PutTeamInTournament(tournaments, tournamentEntries);
+
+            // Dono do time não consegue mais.
+            await Assert.ThrowsAsync<NotFoundException>(() => service.ApproveSubmissionAsync(OwnerId, TeamId, submission.Id));
+            // Dono do torneio consegue.
+            await service.ApproveSubmissionAsync(TournamentOwnerId, TeamId, submission.Id);
+
+            Assert.Equal(ChallengeSubmissionStatus.Aprovado, submissions.Submissions.Single().Status);
+            Assert.Equal(15, tournamentEntries.Entries.Single(e => e.TournamentId == tournamentId).Score);
+        }
+
         // ---- foto da submissão (container privado) ----
 
         [Fact]
         public async Task GetSubmissionPhoto_ComoMembro_RetornaBytesEContentType() {
-            var (service, categories, challenges, _, _, _, _, _) = Build();
+            var (service, categories, challenges, _, _, _, _, _, _, _) = Build();
             var category = MakeCategory();
             categories.Categories.Add(category);
             var challenge = MakeChallenge(category.Id);
@@ -550,7 +729,7 @@ namespace Pyrra.Application.Tests.Desafios {
 
         [Fact]
         public async Task GetSubmissionPhoto_ComoNaoMembro_Lanca() {
-            var (service, categories, challenges, _, _, _, _, _) = Build();
+            var (service, categories, challenges, _, _, _, _, _, _, _) = Build();
             var category = MakeCategory();
             categories.Categories.Add(category);
             var challenge = MakeChallenge(category.Id);
@@ -563,7 +742,7 @@ namespace Pyrra.Application.Tests.Desafios {
 
         [Fact]
         public async Task GetSubmissionPhoto_SubmissaoInexistente_Lanca() {
-            var (service, _, _, _, _, _, _, _) = Build();
+            var (service, _, _, _, _, _, _, _, _, _) = Build();
 
             await Assert.ThrowsAsync<NotFoundException>(() => service.GetSubmissionPhotoAsync(OwnerId, TeamId, Guid.NewGuid()));
         }

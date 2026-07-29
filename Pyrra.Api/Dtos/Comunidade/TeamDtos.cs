@@ -29,14 +29,28 @@ namespace Pyrra.Api.Dtos.Comunidade {
             new(s.UserId, UserSummaryResponse.FromSummary(s.User), s.IsOwner, s.JoinedAt);
     }
 
+    // Torneio em que o time tem uma entrada ativa (Pendente ou Aprovado), se houver — a tela de
+    // Detalhes do Time usa isso pra avisar que a aprovação de desafios pode ter migrado pro dono
+    // do torneio (ver TeamChallengeService).
+    public record ActiveTournamentResponse(Guid TournamentId, string TournamentName, string Status) {
+        public static ActiveTournamentResponse FromModel(ActiveTeamTournament t) =>
+            new(t.TournamentId, t.TournamentName, t.Status.ToString());
+    }
+
     // Retorna o resumo do time, os membros (incluindo o dono) e o link de convite — visível a
     // qualquer membro, não só ao dono, já que a tela de detalhes é compartilhada.
-    public record TeamDetailsResponse(TeamSummaryResponse Team, IReadOnlyList<TeamMemberResponse> Members, string InviteToken, string InvitePath) {
+    public record TeamDetailsResponse(
+        TeamSummaryResponse Team,
+        IReadOnlyList<TeamMemberResponse> Members,
+        string InviteToken,
+        string InvitePath,
+        ActiveTournamentResponse? ActiveTournament) {
         public static TeamDetailsResponse FromDetails(TeamDetails d) => new(
             TeamSummaryResponse.FromSummary(d.Summary),
             d.Members.Select(TeamMemberResponse.FromSummary).ToList(),
             d.InviteToken,
-            $"/times/convite/{d.InviteToken}");
+            $"/times/convite/{d.InviteToken}",
+            d.ActiveTournament is null ? null : ActiveTournamentResponse.FromModel(d.ActiveTournament));
     }
 
     public record TeamInviteResponse(Guid InviteId, TeamSummaryResponse Team, UserSummaryResponse Inviter, DateTime CreatedAt) {

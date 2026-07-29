@@ -22,6 +22,11 @@ namespace Pyrra.Application.Comunidade {
         // Times onde o usuário é dono ou membro.
         Task<IReadOnlyList<TeamSummary>> GetMyTeamsAsync(Guid userId, CancellationToken cancellationToken = default);
 
+        // Times onde o usuário é DONO e que não têm nenhuma entrada ativa (Pendente ou Aprovado)
+        // em nenhum torneio agora — elegíveis pra solicitar entrada em um torneio, respeitando a
+        // regra "um torneio por vez" (mesmo critério de TournamentService.RequestEntryCoreAsync).
+        Task<IReadOnlyList<TeamSummary>> GetMyEligibleForTournamentAsync(Guid userId, CancellationToken cancellationToken = default);
+
         // Times marcados como Público, para a aba Explorar — visível a qualquer usuário logado,
         // não só a quem já é dono/membro.
         Task<IReadOnlyList<PublicTeamSummary>> GetPublicTeamsAsync(Guid userId, CancellationToken cancellationToken = default);

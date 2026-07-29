@@ -173,6 +173,14 @@ builder.Services.AddScoped<IChallengeSubmissionRepository, ChallengeSubmissionRe
 builder.Services.AddScoped<IChallengeSubmissionStorageService, AzureBlobChallengeSubmissionStorageService>();
 builder.Services.AddScoped<ITeamChallengeService, TeamChallengeService>();
 
+// Depende de IAdminAuthorizationService (registrado acima) para criação oficial direta e para
+// aprovar/recusar solicitações de torneio.
+builder.Services.AddScoped<ITournamentRepository, TournamentRepository>();
+builder.Services.AddScoped<ITournamentRequestRepository, TournamentRequestRepository>();
+builder.Services.AddScoped<ITournamentTeamRepository, TournamentTeamRepository>();
+builder.Services.AddScoped<ITournamentBannerStorageService, AzureBlobTournamentBannerStorageService>();
+builder.Services.AddScoped<ITournamentService, TournamentService>();
+
 // Cliente nomeado para a API da Anthropic. BaseAddress termina em / e os caminhos relativos
 // (v1/messages) não começam com /, para o Uri concatenar em vez de substituir. A x-api-key sai da
 // configuração — vazia no appsettings, preenchida por user-secrets em dev e App Settings em produção;

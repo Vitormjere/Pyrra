@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Pyrra.Infrastructure.Data;
 
@@ -11,9 +12,11 @@ using Pyrra.Infrastructure.Data;
 namespace Pyrra.Infrastructure.Migrations
 {
     [DbContext(typeof(PyrraDbContext))]
-    partial class PyrraDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260729132604_AddTournaments")]
+    partial class AddTournaments
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -52,7 +55,7 @@ namespace Pyrra.Infrastructure.Migrations
 
                     b.HasIndex("RequesterId", "Status");
 
-                    b.ToTable("Friendships", (string)null);
+                    b.ToTable("Friendships");
                 });
 
             modelBuilder.Entity("Pyrra.Domain.Comunidade.Team", b =>
@@ -108,7 +111,7 @@ namespace Pyrra.Infrastructure.Migrations
 
                     b.HasIndex("Visibility");
 
-                    b.ToTable("Teams", (string)null);
+                    b.ToTable("Teams");
                 });
 
             modelBuilder.Entity("Pyrra.Domain.Comunidade.TeamInvite", b =>
@@ -142,7 +145,7 @@ namespace Pyrra.Infrastructure.Migrations
                     b.HasIndex("TeamId", "InviteeId")
                         .IsUnique();
 
-                    b.ToTable("TeamInvites", (string)null);
+                    b.ToTable("TeamInvites");
                 });
 
             modelBuilder.Entity("Pyrra.Domain.Comunidade.TeamMember", b =>
@@ -167,7 +170,7 @@ namespace Pyrra.Infrastructure.Migrations
                     b.HasIndex("TeamId", "UserId")
                         .IsUnique();
 
-                    b.ToTable("TeamMembers", (string)null);
+                    b.ToTable("TeamMembers");
                 });
 
             modelBuilder.Entity("Pyrra.Domain.Comunidade.Tournament", b =>
@@ -212,7 +215,7 @@ namespace Pyrra.Infrastructure.Migrations
                         .IsUnique()
                         .HasFilter("[InviteToken] IS NOT NULL");
 
-                    b.ToTable("Tournaments", (string)null);
+                    b.ToTable("Tournaments");
                 });
 
             modelBuilder.Entity("Pyrra.Domain.Comunidade.TournamentRequest", b =>
@@ -252,43 +255,7 @@ namespace Pyrra.Infrastructure.Migrations
 
                     b.HasIndex("Status");
 
-                    b.ToTable("TournamentRequests", (string)null);
-                });
-
-            modelBuilder.Entity("Pyrra.Domain.Comunidade.TournamentTeam", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("RequestedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("ReviewedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("ReviewedByUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("Score")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.Property<Guid>("TeamId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("TournamentId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TeamId");
-
-                    b.HasIndex("TournamentId", "Status");
-
-                    b.ToTable("TournamentTeams", (string)null);
+                    b.ToTable("TournamentRequests");
                 });
 
             modelBuilder.Entity("Pyrra.Domain.Desafios.Challenge", b =>
@@ -325,7 +292,7 @@ namespace Pyrra.Infrastructure.Migrations
 
                     b.HasIndex("CategoryId");
 
-                    b.ToTable("Challenges", (string)null);
+                    b.ToTable("Challenges");
                 });
 
             modelBuilder.Entity("Pyrra.Domain.Desafios.ChallengeCategory", b =>
@@ -359,7 +326,7 @@ namespace Pyrra.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ChallengeCategories", (string)null);
+                    b.ToTable("ChallengeCategories");
                 });
 
             modelBuilder.Entity("Pyrra.Domain.Desafios.ChallengeSubmission", b =>
@@ -400,7 +367,7 @@ namespace Pyrra.Infrastructure.Migrations
 
                     b.HasIndex("UserId", "ChallengeId", "TeamId");
 
-                    b.ToTable("ChallengeSubmissions", (string)null);
+                    b.ToTable("ChallengeSubmissions");
                 });
 
             modelBuilder.Entity("Pyrra.Domain.Desafios.TeamActiveCategory", b =>
@@ -423,7 +390,7 @@ namespace Pyrra.Infrastructure.Migrations
                     b.HasIndex("TeamId", "CategoryId")
                         .IsUnique();
 
-                    b.ToTable("TeamActiveCategories", (string)null);
+                    b.ToTable("TeamActiveCategories");
                 });
 
             modelBuilder.Entity("Pyrra.Domain.Financas.FinanceCategory", b =>
@@ -447,7 +414,7 @@ namespace Pyrra.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("FinanceCategories", (string)null);
+                    b.ToTable("FinanceCategories");
                 });
 
             modelBuilder.Entity("Pyrra.Domain.Financas.FinanceEntry", b =>
@@ -483,7 +450,7 @@ namespace Pyrra.Infrastructure.Migrations
 
                     b.HasIndex("UserId", "Date");
 
-                    b.ToTable("FinanceEntries", (string)null);
+                    b.ToTable("FinanceEntries");
                 });
 
             modelBuilder.Entity("Pyrra.Domain.Focos.DailyFocus", b =>
@@ -514,7 +481,7 @@ namespace Pyrra.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("DailyFocuses", (string)null);
+                    b.ToTable("DailyFocuses");
                 });
 
             modelBuilder.Entity("Pyrra.Domain.Focos.DailyScore", b =>
@@ -547,7 +514,7 @@ namespace Pyrra.Infrastructure.Migrations
                     b.HasIndex("UserId", "Date")
                         .IsUnique();
 
-                    b.ToTable("DailyScores", (string)null);
+                    b.ToTable("DailyScores");
                 });
 
             modelBuilder.Entity("Pyrra.Domain.Focos.FocusLog", b =>
@@ -573,7 +540,7 @@ namespace Pyrra.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("FocusLogs", (string)null);
+                    b.ToTable("FocusLogs");
                 });
 
             modelBuilder.Entity("Pyrra.Domain.Focos.FreezeBank", b =>
@@ -596,7 +563,7 @@ namespace Pyrra.Infrastructure.Migrations
                     b.HasIndex("UserId")
                         .IsUnique();
 
-                    b.ToTable("FreezeBanks", (string)null);
+                    b.ToTable("FreezeBanks");
                 });
 
             modelBuilder.Entity("Pyrra.Domain.Focos.PendingFreezeUse", b =>
@@ -621,7 +588,7 @@ namespace Pyrra.Infrastructure.Migrations
 
                     b.HasIndex("UserId", "AcknowledgedAt");
 
-                    b.ToTable("PendingFreezeUses", (string)null);
+                    b.ToTable("PendingFreezeUses");
                 });
 
             modelBuilder.Entity("Pyrra.Domain.Focos.PendingMilestone", b =>
@@ -653,7 +620,7 @@ namespace Pyrra.Infrastructure.Migrations
 
                     b.HasIndex("UserId", "AcknowledgedAt");
 
-                    b.ToTable("PendingMilestones", (string)null);
+                    b.ToTable("PendingMilestones");
                 });
 
             modelBuilder.Entity("Pyrra.Domain.Focos.Streak", b =>
@@ -685,7 +652,7 @@ namespace Pyrra.Infrastructure.Migrations
                     b.HasIndex("UserId")
                         .IsUnique();
 
-                    b.ToTable("Streaks", (string)null);
+                    b.ToTable("Streaks");
                 });
 
             modelBuilder.Entity("Pyrra.Domain.Nutricao.NutritionEntry", b =>
@@ -720,7 +687,7 @@ namespace Pyrra.Infrastructure.Migrations
 
                     b.HasIndex("UserId", "Date");
 
-                    b.ToTable("NutritionEntries", (string)null);
+                    b.ToTable("NutritionEntries");
                 });
 
             modelBuilder.Entity("Pyrra.Domain.Nutricao.NutritionPlanItem", b =>
@@ -752,7 +719,7 @@ namespace Pyrra.Infrastructure.Migrations
 
                     b.HasIndex("UserId", "DayOfWeek");
 
-                    b.ToTable("NutritionPlanItems", (string)null);
+                    b.ToTable("NutritionPlanItems");
                 });
 
             modelBuilder.Entity("Pyrra.Domain.Nutricao.NutritionPlanSeedLog", b =>
@@ -775,7 +742,7 @@ namespace Pyrra.Infrastructure.Migrations
                     b.HasIndex("UserId", "Date")
                         .IsUnique();
 
-                    b.ToTable("NutritionPlanSeedLogs", (string)null);
+                    b.ToTable("NutritionPlanSeedLogs");
                 });
 
             modelBuilder.Entity("Pyrra.Domain.Planejamento.DailyPlanNote", b =>
@@ -802,7 +769,7 @@ namespace Pyrra.Infrastructure.Migrations
                     b.HasIndex("UserId", "Date")
                         .IsUnique();
 
-                    b.ToTable("DailyPlanNotes", (string)null);
+                    b.ToTable("DailyPlanNotes");
                 });
 
             modelBuilder.Entity("Pyrra.Domain.Tarefas.PriorityTask", b =>
@@ -835,7 +802,7 @@ namespace Pyrra.Infrastructure.Migrations
 
                     b.HasIndex("UserId", "Date");
 
-                    b.ToTable("PriorityTasks", (string)null);
+                    b.ToTable("PriorityTasks");
                 });
 
             modelBuilder.Entity("Pyrra.Domain.Treinos.WorkoutLog", b =>
@@ -890,7 +857,7 @@ namespace Pyrra.Infrastructure.Migrations
 
                     b.HasIndex("UserId", "Type", "ExerciseName");
 
-                    b.ToTable("WorkoutLogs", (string)null);
+                    b.ToTable("WorkoutLogs");
                 });
 
             modelBuilder.Entity("Pyrra.Domain.Treinos.WorkoutPlanDay", b =>
@@ -914,7 +881,7 @@ namespace Pyrra.Infrastructure.Migrations
                     b.HasIndex("UserId", "DayOfWeek")
                         .IsUnique();
 
-                    b.ToTable("WorkoutPlanDays", (string)null);
+                    b.ToTable("WorkoutPlanDays");
                 });
 
             modelBuilder.Entity("Pyrra.Domain.Treinos.WorkoutPlanExercise", b =>
@@ -950,7 +917,7 @@ namespace Pyrra.Infrastructure.Migrations
 
                     b.HasIndex("UserId", "DayOfWeek");
 
-                    b.ToTable("WorkoutPlanExercises", (string)null);
+                    b.ToTable("WorkoutPlanExercises");
                 });
 
             modelBuilder.Entity("Pyrra.Domain.Users.User", b =>
@@ -1023,7 +990,7 @@ namespace Pyrra.Infrastructure.Migrations
                         .IsUnique()
                         .HasFilter("[Username] IS NOT NULL");
 
-                    b.ToTable("Users", (string)null);
+                    b.ToTable("Users");
                 });
 
             modelBuilder.Entity("Pyrra.Domain.Zelo.ZeloQueryLog", b =>
@@ -1046,7 +1013,7 @@ namespace Pyrra.Infrastructure.Migrations
                     b.HasIndex("UserId", "Date")
                         .IsUnique();
 
-                    b.ToTable("ZeloQueryLogs", (string)null);
+                    b.ToTable("ZeloQueryLogs");
                 });
 #pragma warning restore 612, 618
         }

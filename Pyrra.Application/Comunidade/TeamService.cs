@@ -25,6 +25,8 @@ namespace Pyrra.Application.Comunidade {
         private readonly IUserRepository            _userRepository;
         private readonly ITeamBannerStorageService  _bannerStorage;
         private readonly IClockService              _clock;
+        private readonly ITournamentTeamRepository  _tournamentTeamRepository;
+        private readonly ITournamentRepository      _tournamentRepository;
 
         public TeamService(
             ITeamRepository            teamRepository,
@@ -33,14 +35,18 @@ namespace Pyrra.Application.Comunidade {
             IFriendshipRepository      friendshipRepository,
             IUserRepository            userRepository,
             ITeamBannerStorageService  bannerStorage,
-            IClockService              clock) {
-            _teamRepository       = teamRepository;
-            _teamMemberRepository = teamMemberRepository;
-            _teamInviteRepository = teamInviteRepository;
-            _friendshipRepository = friendshipRepository;
-            _userRepository       = userRepository;
-            _bannerStorage        = bannerStorage;
-            _clock                = clock;
+            IClockService              clock,
+            ITournamentTeamRepository  tournamentTeamRepository,
+            ITournamentRepository      tournamentRepository) {
+            _teamRepository           = teamRepository;
+            _teamMemberRepository     = teamMemberRepository;
+            _teamInviteRepository     = teamInviteRepository;
+            _friendshipRepository     = friendshipRepository;
+            _userRepository           = userRepository;
+            _bannerStorage            = bannerStorage;
+            _clock                    = clock;
+            _tournamentTeamRepository = tournamentTeamRepository;
+            _tournamentRepository     = tournamentRepository;
         }
 
         public async Task<TeamSummary> CreateAsync(
@@ -82,6 +88,24 @@ namespace Pyrra.Application.Comunidade {
             var results = new List<TeamSummary>(teams.Count);
             foreach (var team in teams) {
                 results.Add(await ToSummaryAsync(team, userId, cancellationToken));
+            }
+
+            return results.OrderBy(t => t.Name).ToList();
+        }
+
+        public async Task<IReadOnlyList<TeamSummary>> GetMyEligibleForTournamentAsync(Guid userId, CancellationToken cancellationToken = default) {
+            var teams = await _teamRepository.GetForUserAsync(userId, cancellationToken);
+            var owned = teams.Where(t => t.OwnerId == userId).ToList();
+            if (owned.Count == 0) {
+                return Array.Empty<TeamSummary>();
+            }
+
+            var results = new List<TeamSummary>();
+            foreach (var team in owned) {
+                var activeEntry = await _tournamentTeamRepository.GetActiveForTeamAsync(team.Id, cancellationToken);
+                if (activeEntry is null) {
+                    results.Add(await ToSummaryAsync(team, userId, cancellationToken));
+                }
             }
 
             return results.OrderBy(t => t.Name).ToList();
@@ -178,7 +202,9 @@ namespace Pyrra.Application.Comunidade {
                 }
             }
 
-            return new TeamDetails(summary, list, team.InviteToken);
+            var activeTournament = await GetActiveTournamentAsync(teamId, cancellationToken);
+
+            return new TeamDetails(summary, list, team.InviteToken, activeTournament);
         }
 
         public async Task InviteFriendAsync(Guid ownerId, Guid teamId, Guid inviteeId, CancellationToken cancellationToken = default) {
@@ -464,5 +490,21 @@ namespace Pyrra.Application.Comunidade {
         }
 
         private static UserSummary ToSummary(User user) => new(user.Id, user.Name, user.Username);
+
+        // Entrada ativa (Pendente ou Aprovado) do time num torneio, se houver — mesma consulta que
+        // TeamChallengeService usa pra resolver quem aprova desafios, aqui só pra informar a tela.
+        private async Task<ActiveTeamTournament?> GetActiveTournamentAsync(Guid teamId, CancellationToken cancellationToken) {
+            var entry = await _tournamentTeamRepository.GetActiveForTeamAsync(teamId, cancellationToken);
+            if (entry is null) {
+                return null;
+            }
+
+            var tournament = await _tournamentRepository.GetByIdAsync(entry.TournamentId, cancellationToken);
+            if (tournament is null) {
+                return null;
+            }
+
+            return new ActiveTeamTournament(tournament.Id, tournament.Name, entry.Status);
+        }
     }
 }

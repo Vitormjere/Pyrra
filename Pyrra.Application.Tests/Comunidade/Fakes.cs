@@ -234,4 +234,87 @@ namespace Pyrra.Application.Tests.Comunidade {
             return Task.CompletedTask;
         }
     }
+
+    internal sealed class FakeTournamentRepository : ITournamentRepository {
+        public readonly List<Tournament> Tournaments = new();
+
+        public Task<Tournament?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Tournaments.FirstOrDefault(t => t.Id == id));
+
+        public Task<Tournament?> GetByInviteTokenAsync(string inviteToken, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Tournaments.FirstOrDefault(t => t.InviteToken == inviteToken));
+
+        public Task<IReadOnlyList<Tournament>> GetAllAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<Tournament>>(Tournaments.OrderBy(t => t.Name).ToList());
+
+        public Task<IReadOnlyList<Tournament>> GetOwnedByUserAsync(Guid ownerId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<Tournament>>(Tournaments.Where(t => t.OwnerId == ownerId).ToList());
+
+        public Task AddAsync(Tournament tournament, CancellationToken cancellationToken = default) {
+            Tournaments.Add(tournament);
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateAsync(Tournament tournament, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
+    internal sealed class FakeTournamentRequestRepository : ITournamentRequestRepository {
+        public readonly List<TournamentRequest> Requests = new();
+
+        public Task<TournamentRequest?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Requests.FirstOrDefault(r => r.Id == id));
+
+        public Task<IReadOnlyList<TournamentRequest>> GetPendingAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<TournamentRequest>>(
+                Requests.Where(r => r.Status == TournamentRequestStatus.Pendente).ToList());
+
+        public Task AddAsync(TournamentRequest request, CancellationToken cancellationToken = default) {
+            Requests.Add(request);
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateAsync(TournamentRequest request, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
+    // Só conta chamadas e devolve uma URL fake determinística — mesmo espírito de
+    // FakeTeamBannerStorageService.
+    internal sealed class FakeTournamentBannerStorageService : ITournamentBannerStorageService {
+        public int UploadCallCount { get; private set; }
+        public int DeleteCallCount { get; private set; }
+
+        public Task<string> UploadAsync(Guid tournamentId, Stream content, string contentType, CancellationToken cancellationToken = default) {
+            UploadCallCount++;
+            return Task.FromResult($"https://fake.blob.core.windows.net/tournament-banners/{tournamentId:N}");
+        }
+
+        public Task DeleteAsync(Guid tournamentId, CancellationToken cancellationToken = default) {
+            DeleteCallCount++;
+            return Task.CompletedTask;
+        }
+    }
+
+    internal sealed class FakeTournamentTeamRepository : ITournamentTeamRepository {
+        public readonly List<TournamentTeam> Entries = new();
+
+        public Task<TournamentTeam?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Entries.FirstOrDefault(e => e.Id == id));
+
+        public Task<TournamentTeam?> GetActiveForTeamAsync(Guid teamId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Entries.FirstOrDefault(e => e.TeamId == teamId && e.Status != TournamentTeamStatus.Recusado));
+
+        public Task<IReadOnlyList<TournamentTeam>> GetPendingForTournamentAsync(Guid tournamentId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<TournamentTeam>>(
+                Entries.Where(e => e.TournamentId == tournamentId && e.Status == TournamentTeamStatus.Pendente).ToList());
+
+        public Task<IReadOnlyList<TournamentTeam>> GetApprovedForTournamentAsync(Guid tournamentId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<TournamentTeam>>(
+                Entries.Where(e => e.TournamentId == tournamentId && e.Status == TournamentTeamStatus.Aprovado).ToList());
+
+        public Task AddAsync(TournamentTeam tournamentTeam, CancellationToken cancellationToken = default) {
+            Entries.Add(tournamentTeam);
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateAsync(TournamentTeam tournamentTeam, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
 }

@@ -11,6 +11,7 @@ import {
   Settings,
   Shield,
   Sparkles,
+  Trophy,
   User,
   Users,
   Wallet,
@@ -42,6 +43,7 @@ const ALL_SECTIONS: NavItem[] = [
   // Shield (não UsersRound): a variante arredondada de Users era fácil de confundir com o ícone
   // de Amigos logo acima — Shield tem silhueta bem distinta e combina com o "emblema" de time.
   { to: '/times', label: 'Times', icon: Shield },
+  { to: '/torneios', label: 'Torneios', icon: Trophy },
   { to: '/perfil', label: 'Perfil', icon: User },
   // Destino ocasional (edição de conta), não uso diário — por isso só entra aqui (menu completo),
   // não em QUICK_SECTIONS, que já tem seus 5 slots de telas de consulta diária ocupados.

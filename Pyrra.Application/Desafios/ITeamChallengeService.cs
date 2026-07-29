@@ -34,19 +34,24 @@ namespace Pyrra.Application.Desafios {
             Guid userId, Guid teamId, Guid challengeId, Stream content, string contentType, long contentLength,
             CancellationToken cancellationToken = default);
 
-        // Submissões pendentes do time, mais antiga primeiro — só o dono.
-        Task<IReadOnlyList<PendingSubmission>> GetPendingSubmissionsAsync(Guid ownerId, Guid teamId, CancellationToken cancellationToken = default);
+        // Submissões pendentes do time, mais antiga primeiro. Quem pode ver: o dono do TIME, salvo
+        // se o time estiver Aprovado num torneio no momento da chamada — nesse caso, é o dono do
+        // TORNEIO quem vê (resolvido a cada chamada, não fixado em nenhum momento anterior).
+        Task<IReadOnlyList<PendingSubmission>> GetPendingSubmissionsAsync(Guid callerId, Guid teamId, CancellationToken cancellationToken = default);
 
-        // Aprova: soma os pontos do desafio ao TotalPoints do time. Só o dono, só se a submissão
-        // ainda estiver Pendente (InvalidChallengeException caso já avaliada). Dono não pode
-        // aprovar a própria submissão (InvalidChallengeException) — fica Pendente até outro
-        // membro avaliar, sem exceção mesmo se o dono for o único membro do time.
-        Task ApproveSubmissionAsync(Guid ownerId, Guid teamId, Guid submissionId, CancellationToken cancellationToken = default);
+        // Aprova: soma os pontos do desafio ao TotalPoints do time SEMPRE, e também ao Score da
+        // entrada do time num torneio (TournamentTeam) SE o time estiver Aprovado num no momento
+        // da aprovação. Quem pode aprovar: mesmo critério de GetPendingSubmissionsAsync (dono do
+        // time, ou dono do torneio se o time estiver num). Só se a submissão ainda estiver
+        // Pendente (InvalidChallengeException caso já avaliada). Quem enviou a prova não pode
+        // aprovar a própria submissão (InvalidChallengeException), mesmo sendo o único aprovador
+        // possível — sem exceção automática.
+        Task ApproveSubmissionAsync(Guid callerId, Guid teamId, Guid submissionId, CancellationToken cancellationToken = default);
 
-        // Recusa: não soma pontos. Mesmas guardas de existência/estado de ApproveSubmissionAsync,
-        // mas SEM a trava de auto-avaliação — o dono pode recusar a própria submissão (não há
-        // ganho nenhum em bloquear isso).
-        Task RejectSubmissionAsync(Guid ownerId, Guid teamId, Guid submissionId, CancellationToken cancellationToken = default);
+        // Recusa: não soma pontos em lugar nenhum. Mesmas guardas de existência/estado/quem-pode
+        // de ApproveSubmissionAsync, mas SEM a trava de auto-avaliação — quem aprova pode recusar
+        // a própria submissão (não há ganho nenhum em bloquear isso).
+        Task RejectSubmissionAsync(Guid callerId, Guid teamId, Guid submissionId, CancellationToken cancellationToken = default);
 
         // Bytes e Content-Type da foto de uma submissão — container privado, servido só por aqui.
         // Qualquer membro do time (dono ou não) pode ver, mesmo critério de GetAvailableChallengesAsync.

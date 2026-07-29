@@ -21,7 +21,9 @@ namespace Pyrra.Application.Tests.Comunidade {
         private static (TeamService service, FakeTeamRepository teams, FakeTeamMemberRepository members,
             FakeTeamInviteRepository invites, FakeFriendshipRepository friendships,
             FakeTeamBannerStorageService bannerStorage, FakeClock clock)
-            Build() {
+            // tournamentTeams/tournaments são opcionais — default vazio, sem tocar nos ~40 call
+            // sites existentes; só os testes de ActiveTournament (Fase 4d) passam fakes próprios.
+            Build(FakeTournamentTeamRepository? tournamentTeams = null, FakeTournamentRepository? tournaments = null) {
             var users = new FakeUserRepository(
                 MakeUser(Alice, "Alice", "alice"),
                 MakeUser(Bob, "Bob", "bob"),
@@ -33,7 +35,9 @@ namespace Pyrra.Application.Tests.Comunidade {
             var invites = new FakeTeamInviteRepository();
             var bannerStorage = new FakeTeamBannerStorageService();
             var clock = new FakeClock();
-            var service = new TeamService(teams, members, invites, friendships, users, bannerStorage, clock);
+            var service = new TeamService(
+                teams, members, invites, friendships, users, bannerStorage, clock,
+                tournamentTeams ?? new FakeTournamentTeamRepository(), tournaments ?? new FakeTournamentRepository());
             return (service, teams, members, invites, friendships, bannerStorage, clock);
         }
 
@@ -607,6 +611,183 @@ namespace Pyrra.Application.Tests.Comunidade {
             Assert.Contains(details.Members, m => m.UserId == Alice && m.IsOwner);
             Assert.Contains(details.Members, m => m.UserId == Bob && !m.IsOwner);
             Assert.Equal(teams.Teams.Single().InviteToken, details.InviteToken);
+            Assert.Null(details.ActiveTournament);
+        }
+
+        // ---- ActiveTournament (Fase 4d: aviso na tela de Detalhes do Time) ----
+
+        [Fact]
+        public async Task GetDetails_SemEntradaEmTorneio_ActiveTournamentNulo() {
+            var (service, _, _, _, _, _, _) = Build();
+            var team = await service.CreateAsync(Alice, "Time", null, 5);
+
+            var details = await service.GetDetailsAsync(Alice, team.Id);
+
+            Assert.Null(details.ActiveTournament);
+        }
+
+        [Fact]
+        public async Task GetDetails_ComEntradaPendenteNoTorneio_RetornaActiveTournamentPendente() {
+            var tournamentTeams = new FakeTournamentTeamRepository();
+            var tournaments = new FakeTournamentRepository();
+            var (service, _, _, _, _, _, _) = Build(tournamentTeams, tournaments);
+            var team = await service.CreateAsync(Alice, "Time", null, 5);
+
+            var tournament = new Tournament { Id = Guid.NewGuid(), Name = "Torneio X", OwnerId = Carol, InviteToken = "tok" };
+            tournaments.Tournaments.Add(tournament);
+            tournamentTeams.Entries.Add(new TournamentTeam {
+                Id = Guid.NewGuid(), TournamentId = tournament.Id, TeamId = team.Id, Status = TournamentTeamStatus.Pendente
+            });
+
+            var details = await service.GetDetailsAsync(Alice, team.Id);
+
+            Assert.NotNull(details.ActiveTournament);
+            Assert.Equal(tournament.Id, details.ActiveTournament!.TournamentId);
+            Assert.Equal("Torneio X", details.ActiveTournament.TournamentName);
+            Assert.Equal(TournamentTeamStatus.Pendente, details.ActiveTournament.Status);
+        }
+
+        [Fact]
+        public async Task GetDetails_ComEntradaAprovadaNoTorneio_RetornaActiveTournamentAprovado() {
+            var tournamentTeams = new FakeTournamentTeamRepository();
+            var tournaments = new FakeTournamentRepository();
+            var (service, _, _, _, _, _, _) = Build(tournamentTeams, tournaments);
+            var team = await service.CreateAsync(Alice, "Time", null, 5);
+
+            var tournament = new Tournament { Id = Guid.NewGuid(), Name = "Torneio Y", OwnerId = Carol, InviteToken = "tok2" };
+            tournaments.Tournaments.Add(tournament);
+            tournamentTeams.Entries.Add(new TournamentTeam {
+                Id = Guid.NewGuid(), TournamentId = tournament.Id, TeamId = team.Id, Status = TournamentTeamStatus.Aprovado
+            });
+
+            var details = await service.GetDetailsAsync(Alice, team.Id);
+
+            Assert.NotNull(details.ActiveTournament);
+            Assert.Equal(TournamentTeamStatus.Aprovado, details.ActiveTournament!.Status);
+        }
+
+        [Fact]
+        public async Task GetDetails_ComEntradaRecusadaNoTorneio_ActiveTournamentNulo() {
+            var tournamentTeams = new FakeTournamentTeamRepository();
+            var tournaments = new FakeTournamentRepository();
+            var (service, _, _, _, _, _, _) = Build(tournamentTeams, tournaments);
+            var team = await service.CreateAsync(Alice, "Time", null, 5);
+
+            var tournament = new Tournament { Id = Guid.NewGuid(), Name = "Torneio Z", OwnerId = Carol, InviteToken = "tok3" };
+            tournaments.Tournaments.Add(tournament);
+            tournamentTeams.Entries.Add(new TournamentTeam {
+                Id = Guid.NewGuid(), TournamentId = tournament.Id, TeamId = team.Id, Status = TournamentTeamStatus.Recusado
+            });
+
+            var details = await service.GetDetailsAsync(Alice, team.Id);
+
+            Assert.Null(details.ActiveTournament);
+        }
+
+        // ---- GetMyEligibleForTournamentAsync (botão "Solicitar entrada" na tela de Torneio) ----
+
+        [Fact]
+        public async Task GetMyEligibleForTournament_SemTimes_RetornaVazio() {
+            var (service, _, _, _, _, _, _) = Build();
+
+            var eligible = await service.GetMyEligibleForTournamentAsync(Alice);
+
+            Assert.Empty(eligible);
+        }
+
+        [Fact]
+        public async Task GetMyEligibleForTournament_TimeSemEntradaAtiva_Inclui() {
+            var (service, _, _, _, _, _, _) = Build();
+            var team = await service.CreateAsync(Alice, "Time", null, 5);
+
+            var eligible = await service.GetMyEligibleForTournamentAsync(Alice);
+
+            Assert.Contains(eligible, t => t.Id == team.Id);
+        }
+
+        [Fact]
+        public async Task GetMyEligibleForTournament_TimeComEntradaPendente_Exclui() {
+            var tournamentTeams = new FakeTournamentTeamRepository();
+            var tournaments = new FakeTournamentRepository();
+            var (service, _, _, _, _, _, _) = Build(tournamentTeams, tournaments);
+            var team = await service.CreateAsync(Alice, "Time", null, 5);
+
+            var tournament = new Tournament { Id = Guid.NewGuid(), Name = "Torneio", OwnerId = Carol, InviteToken = "tok" };
+            tournaments.Tournaments.Add(tournament);
+            tournamentTeams.Entries.Add(new TournamentTeam {
+                Id = Guid.NewGuid(), TournamentId = tournament.Id, TeamId = team.Id, Status = TournamentTeamStatus.Pendente
+            });
+
+            var eligible = await service.GetMyEligibleForTournamentAsync(Alice);
+
+            Assert.DoesNotContain(eligible, t => t.Id == team.Id);
+        }
+
+        [Fact]
+        public async Task GetMyEligibleForTournament_TimeComEntradaAprovada_Exclui() {
+            var tournamentTeams = new FakeTournamentTeamRepository();
+            var tournaments = new FakeTournamentRepository();
+            var (service, _, _, _, _, _, _) = Build(tournamentTeams, tournaments);
+            var team = await service.CreateAsync(Alice, "Time", null, 5);
+
+            var tournament = new Tournament { Id = Guid.NewGuid(), Name = "Torneio", OwnerId = Carol, InviteToken = "tok" };
+            tournaments.Tournaments.Add(tournament);
+            tournamentTeams.Entries.Add(new TournamentTeam {
+                Id = Guid.NewGuid(), TournamentId = tournament.Id, TeamId = team.Id, Status = TournamentTeamStatus.Aprovado
+            });
+
+            var eligible = await service.GetMyEligibleForTournamentAsync(Alice);
+
+            Assert.DoesNotContain(eligible, t => t.Id == team.Id);
+        }
+
+        [Fact]
+        public async Task GetMyEligibleForTournament_TimeComEntradaRecusada_Inclui() {
+            var tournamentTeams = new FakeTournamentTeamRepository();
+            var tournaments = new FakeTournamentRepository();
+            var (service, _, _, _, _, _, _) = Build(tournamentTeams, tournaments);
+            var team = await service.CreateAsync(Alice, "Time", null, 5);
+
+            var tournament = new Tournament { Id = Guid.NewGuid(), Name = "Torneio", OwnerId = Carol, InviteToken = "tok" };
+            tournaments.Tournaments.Add(tournament);
+            tournamentTeams.Entries.Add(new TournamentTeam {
+                Id = Guid.NewGuid(), TournamentId = tournament.Id, TeamId = team.Id, Status = TournamentTeamStatus.Recusado
+            });
+
+            var eligible = await service.GetMyEligibleForTournamentAsync(Alice);
+
+            Assert.Contains(eligible, t => t.Id == team.Id);
+        }
+
+        [Fact]
+        public async Task GetMyEligibleForTournament_TimeOndeSoMembro_Exclui() {
+            var (service, teams, _, _, _, _, _) = Build();
+            var team = await service.CreateAsync(Alice, "Time da Alice", null, 5);
+            await service.JoinViaLinkAsync(Bob, teams.Teams.Single().InviteToken);
+
+            var eligible = await service.GetMyEligibleForTournamentAsync(Bob);
+
+            Assert.DoesNotContain(eligible, t => t.Id == team.Id);
+        }
+
+        [Fact]
+        public async Task GetMyEligibleForTournament_VariosTimes_RetornaSoOsLivresOrdenadosPorNome() {
+            var tournamentTeams = new FakeTournamentTeamRepository();
+            var tournaments = new FakeTournamentRepository();
+            var (service, _, _, _, _, _, _) = Build(tournamentTeams, tournaments);
+            var livre1 = await service.CreateAsync(Alice, "Zebra", null, 5);
+            var ocupado = await service.CreateAsync(Alice, "Abelha", null, 5);
+            var livre2 = await service.CreateAsync(Alice, "Meio", null, 5);
+
+            var tournament = new Tournament { Id = Guid.NewGuid(), Name = "Torneio", OwnerId = Carol, InviteToken = "tok" };
+            tournaments.Tournaments.Add(tournament);
+            tournamentTeams.Entries.Add(new TournamentTeam {
+                Id = Guid.NewGuid(), TournamentId = tournament.Id, TeamId = ocupado.Id, Status = TournamentTeamStatus.Aprovado
+            });
+
+            var eligible = await service.GetMyEligibleForTournamentAsync(Alice);
+
+            Assert.Equal(new[] { livre2.Id, livre1.Id }, eligible.Select(t => t.Id));
         }
     }
 }

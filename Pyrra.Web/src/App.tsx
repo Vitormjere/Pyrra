@@ -12,6 +12,7 @@ import Cadastro from './pages/Cadastro'
 import Configuracoes from './pages/Configuracoes'
 import Convite from './pages/Convite'
 import ConviteTime from './pages/ConviteTime'
+import ConviteTorneio from './pages/ConviteTorneio'
 import Diario from './pages/Diario'
 import EscolherUsername from './pages/EscolherUsername'
 import Financas from './pages/Financas'
@@ -26,6 +27,10 @@ import Termos from './pages/Termos'
 import CriarTime from './pages/Times/Criar'
 import TimeDetalhe from './pages/Times/Detalhe'
 import Times from './pages/Times'
+import CriarTorneio from './pages/Torneios/Criar'
+import SolicitarTorneio from './pages/Torneios/Solicitar'
+import TorneioDetalhe from './pages/Torneios/Detalhe'
+import Torneios from './pages/Torneios'
 import Treino from './pages/Treino'
 import Zelo from './pages/Zelo'
 
@@ -47,6 +52,11 @@ function App() {
 
           {/* Mesmo raciocínio do convite de amizade, agora para o link de convite de time. */}
           <Route path="/times/convite/:token" element={<ConviteTime />} />
+
+          {/* Convite de torneio: mesma posição pública (a tela lida com sessão sozinha), mas o
+              desfecho é uma SOLICITAÇÃO de entrada (aprovação do dono do torneio), não entrada
+              direta — por isso escolhe qual time próprio usar, em vez de agir sozinha. */}
+          <Route path="/torneios/convite/:token" element={<ConviteTorneio />} />
 
           {/* Duas rotas de layout aninhadas, e a ordem importa: o guard vem por
               FORA da casca. Assim, para quem não tem sessão, o AppLayout nunca
@@ -85,6 +95,10 @@ function App() {
                     <Route path="/times" element={<Times />} />
                     <Route path="/times/novo" element={<CriarTime />} />
                     <Route path="/times/:id" element={<TimeDetalhe />} />
+                    <Route path="/torneios" element={<Torneios />} />
+                    <Route path="/torneios/solicitar" element={<SolicitarTorneio />} />
+                    <Route path="/torneios/criar" element={<CriarTorneio />} />
+                    <Route path="/torneios/:id" element={<TorneioDetalhe />} />
                     <Route path="/perfil" element={<Perfil />} />
                     {/* Perfil de TERCEIRO, por username — precisa vir depois de /perfil na
                         árvore para não colidir com ela (react-router já resolveria certo mesmo

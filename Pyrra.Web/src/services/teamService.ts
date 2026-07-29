@@ -31,6 +31,14 @@ export async function getMyTeams(): Promise<Team[]> {
   return data
 }
 
+// Times próprios sem entrada ativa em nenhum torneio — usado pelo botão "Solicitar entrada" na
+// tela de Detalhes do Torneio e pelo Convite de Torneio, pra saber quais times oferecer sem
+// precisar tentar e receber erro depois (regra "um torneio por vez").
+export async function getMyEligibleTeamsForTournament(): Promise<Team[]> {
+  const { data } = await api.get<Team[]>('/api/times/meus/elegiveis-torneio')
+  return data
+}
+
 // Times marcados como Público, para a aba Explorar — vem com o token de convite, já que
 // "público" quer dizer exatamente que qualquer um pode ver e usar esse link.
 export async function getPublicTeams(): Promise<PublicTeam[]> {

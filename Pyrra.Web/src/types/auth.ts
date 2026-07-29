@@ -42,6 +42,8 @@ export interface UserResponse {
   /** true depois que o usuário concluiu ou pulou o onboarding de primeiro acesso. */
   onboardingCompleted: boolean
   createdAt: string
+  /** Libera ações administrativas na UI (ex.: criar torneio direto, sem passar por solicitação). */
+  isAdmin: boolean
 }
 
 export interface LoginRequest {

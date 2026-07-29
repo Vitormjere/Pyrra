@@ -27,6 +27,8 @@ namespace Pyrra.Application.Desafios {
         private readonly ITeamActiveCategoryRepository     _activeCategoryRepository;
         private readonly IChallengeSubmissionRepository    _submissionRepository;
         private readonly IChallengeSubmissionStorageService _submissionStorage;
+        private readonly ITournamentTeamRepository         _tournamentTeamRepository;
+        private readonly ITournamentRepository             _tournamentRepository;
         private readonly IUserRepository                   _userRepository;
         private readonly IClockService                     _clock;
 
@@ -38,6 +40,8 @@ namespace Pyrra.Application.Desafios {
             ITeamActiveCategoryRepository     activeCategoryRepository,
             IChallengeSubmissionRepository    submissionRepository,
             IChallengeSubmissionStorageService submissionStorage,
+            ITournamentTeamRepository        tournamentTeamRepository,
+            ITournamentRepository            tournamentRepository,
             IUserRepository                   userRepository,
             IClockService                     clock) {
             _teamRepository            = teamRepository;
@@ -47,6 +51,8 @@ namespace Pyrra.Application.Desafios {
             _activeCategoryRepository  = activeCategoryRepository;
             _submissionRepository      = submissionRepository;
             _submissionStorage         = submissionStorage;
+            _tournamentTeamRepository  = tournamentTeamRepository;
+            _tournamentRepository      = tournamentRepository;
             _userRepository            = userRepository;
             _clock                     = clock;
         }
@@ -199,8 +205,8 @@ namespace Pyrra.Application.Desafios {
             return submission;
         }
 
-        public async Task<IReadOnlyList<PendingSubmission>> GetPendingSubmissionsAsync(Guid ownerId, Guid teamId, CancellationToken cancellationToken = default) {
-            await GetOwnedTeamAsync(ownerId, teamId, cancellationToken);
+        public async Task<IReadOnlyList<PendingSubmission>> GetPendingSubmissionsAsync(Guid callerId, Guid teamId, CancellationToken cancellationToken = default) {
+            await GetApproverTeamAsync(callerId, teamId, cancellationToken);
 
             var pending = await _submissionRepository.GetPendingForTeamAsync(teamId, cancellationToken);
             if (pending.Count == 0) {
@@ -224,16 +230,16 @@ namespace Pyrra.Application.Desafios {
             return result.OrderBy(p => p.Submission.CreatedAt).ToList();
         }
 
-        public async Task ApproveSubmissionAsync(Guid ownerId, Guid teamId, Guid submissionId, CancellationToken cancellationToken = default) {
-            var team = await GetOwnedTeamAsync(ownerId, teamId, cancellationToken);
+        public async Task ApproveSubmissionAsync(Guid callerId, Guid teamId, Guid submissionId, CancellationToken cancellationToken = default) {
+            var team = await GetApproverTeamAsync(callerId, teamId, cancellationToken);
             var submission = await GetPendingSubmissionForTeamAsync(teamId, submissionId, cancellationToken);
 
-            // Auto-aprovação bloqueada: quem enviou a prova não pode ser quem aprova, mesmo sendo
-            // o dono e único aprovador possível hoje. Fica presa em Pendente até outro membro
-            // avaliar — sem workaround automático, é a regra pedida.
-            if (submission.UserId == ownerId) {
+            // Auto-aprovação bloqueada: quem enviou a prova não pode ser quem aprova — vale tanto
+            // pro dono do time quanto pro dono do torneio, se for esse o aprovador atual. Fica
+            // presa em Pendente até outra pessoa avaliar, sem workaround automático.
+            if (submission.UserId == callerId) {
                 throw new InvalidChallengeException(
-                    "O dono do time não pode aprovar a própria submissão. Peça para outro membro revisar.");
+                    "Você não pode aprovar a própria submissão. Peça para outro membro (ou o dono do torneio, se o time estiver em um) revisar.");
             }
 
             var challenge = await _challengeRepository.GetByIdAsync(submission.ChallengeId, cancellationToken);
@@ -243,21 +249,29 @@ namespace Pyrra.Application.Desafios {
 
             submission.Status           = ChallengeSubmissionStatus.Aprovado;
             submission.ReviewedAt       = _clock.UtcNow;
-            submission.ReviewedByUserId = ownerId;
+            submission.ReviewedByUserId = callerId;
             await _submissionRepository.UpdateAsync(submission, cancellationToken);
 
             team.TotalPoints += challenge.Points;
             team.UpdatedAt    = _clock.UtcNow;
             await _teamRepository.UpdateAsync(team, cancellationToken);
+
+            // Time Aprovado num torneio no momento da aprovação: os mesmos pontos também somam ao
+            // score DENTRO do torneio, separado do TotalPoints acumulado do time.
+            var tournamentEntry = await GetApprovedTournamentEntryAsync(teamId, cancellationToken);
+            if (tournamentEntry is not null) {
+                tournamentEntry.Score += challenge.Points;
+                await _tournamentTeamRepository.UpdateAsync(tournamentEntry, cancellationToken);
+            }
         }
 
-        public async Task RejectSubmissionAsync(Guid ownerId, Guid teamId, Guid submissionId, CancellationToken cancellationToken = default) {
-            await GetOwnedTeamAsync(ownerId, teamId, cancellationToken);
+        public async Task RejectSubmissionAsync(Guid callerId, Guid teamId, Guid submissionId, CancellationToken cancellationToken = default) {
+            await GetApproverTeamAsync(callerId, teamId, cancellationToken);
             var submission = await GetPendingSubmissionForTeamAsync(teamId, submissionId, cancellationToken);
 
             submission.Status           = ChallengeSubmissionStatus.Recusado;
             submission.ReviewedAt       = _clock.UtcNow;
-            submission.ReviewedByUserId = ownerId;
+            submission.ReviewedByUserId = callerId;
             await _submissionRepository.UpdateAsync(submission, cancellationToken);
         }
 
@@ -298,12 +312,54 @@ namespace Pyrra.Application.Desafios {
         // Mesma guarda de TeamService.GetOwnedTeamAsync — NotFound genérico pra quem não é dono,
         // não revela gestão de time alheio. Duplicada aqui de propósito: é um helper privado do
         // outro serviço, sem ponto de reaproveitamento sem acoplar os dois bounded contexts.
+        //
+        // Usada só por GetCategoriesForTeamAsync/ActivateCategoryAsync/DeactivateCategoryAsync —
+        // ativação de categoria continua sendo decisão do dono do TIME mesmo com o time num
+        // torneio (só a aprovação de submissão muda de mão, ver GetApproverTeamAsync).
         private async Task<Team> GetOwnedTeamAsync(Guid ownerId, Guid teamId, CancellationToken cancellationToken) {
             var team = await _teamRepository.GetByIdAsync(teamId, cancellationToken);
             if (team is null || team.OwnerId != ownerId) {
                 throw new NotFoundException("Time não encontrado.");
             }
             return team;
+        }
+
+        // Carrega o time garantindo que quem chama é quem TEM PODER DE APROVAR submissões agora —
+        // o dono do torneio, se o time estiver Aprovado em um; senão o dono do time. Resolvido a
+        // cada chamada (não fixado no envio da submissão): um time que entra num torneio depois de
+        // já ter submissões pendentes passa a tê-las assumidas pelo dono do torneio a partir daí.
+        // Mesmo critério de "não revelar" das outras guardas de dono.
+        private async Task<Team> GetApproverTeamAsync(Guid callerId, Guid teamId, CancellationToken cancellationToken) {
+            var team = await _teamRepository.GetByIdAsync(teamId, cancellationToken);
+            if (team is null) {
+                throw new NotFoundException("Time não encontrado.");
+            }
+
+            var approverId = await GetApproverIdAsync(team, cancellationToken);
+            if (approverId != callerId) {
+                throw new NotFoundException("Time não encontrado.");
+            }
+
+            return team;
+        }
+
+        private async Task<Guid> GetApproverIdAsync(Team team, CancellationToken cancellationToken) {
+            var tournamentEntry = await GetApprovedTournamentEntryAsync(team.Id, cancellationToken);
+            if (tournamentEntry is null) {
+                return team.OwnerId;
+            }
+
+            var tournament = await _tournamentRepository.GetByIdAsync(tournamentEntry.TournamentId, cancellationToken);
+            // Torneio removido depois do time entrar (não deveria acontecer, não há exclusão de
+            // torneio implementada ainda): volta pro dono do time em vez de travar tudo.
+            return tournament?.OwnerId ?? team.OwnerId;
+        }
+
+        // A entrada Aprovada do time em algum torneio, se houver. Pendente não conta — o time só
+        // "está no torneio" de fato depois que o dono do torneio aprova a entrada.
+        private async Task<TournamentTeam?> GetApprovedTournamentEntryAsync(Guid teamId, CancellationToken cancellationToken) {
+            var entry = await _tournamentTeamRepository.GetActiveForTeamAsync(teamId, cancellationToken);
+            return entry?.Status == TournamentTeamStatus.Aprovado ? entry : null;
         }
 
         // Mesma guarda de TeamService.GetOwnedOrMemberTeamAsync.
