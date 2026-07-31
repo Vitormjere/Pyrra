@@ -15,8 +15,7 @@ namespace Pyrra.Api.Dtos.Treinos {
         decimal? PaceMinPerKm,
         string?  Notes,
         DateTime CreatedAt) {
-        // Type vai como string, mesmo critério do FocusResponse com Category: o cliente lê
-        // "Academia", não um índice de enum que muda se a ordem do enum mudar.
+        // Retorna o tipo em formato de texto
         public static WorkoutResponse FromEntity(WorkoutLog log) =>
             new(log.Id,
                 log.Type.ToString(),

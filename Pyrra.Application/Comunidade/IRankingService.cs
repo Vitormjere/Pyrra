@@ -5,8 +5,7 @@ using System.Threading.Tasks;
 
 namespace Pyrra.Application.Comunidade {
     public interface IRankingService {
-        // Ranking do usuário + seus amigos confirmados, ordenado por streak atual decrescente.
-        // Sempre inclui o próprio usuário, mesmo sem amigos.
+        // Retorna o ranking do usuário e seus amigos confirmados por streak atual
         Task<IReadOnlyList<RankingEntry>> GetRankingAsync(Guid userId, CancellationToken cancellationToken = default);
     }
 }

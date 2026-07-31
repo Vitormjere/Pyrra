@@ -22,13 +22,13 @@ namespace Pyrra.Api.Controllers {
 
         public UserController(
             IUserPreferencesService preferencesService,
-            IUsernameService usernameService,
-            IUserAccountService accountService,
-            IUserProfileService profileService) {
+            IUsernameService        usernameService,
+            IUserAccountService     accountService,
+            IUserProfileService     profileService) {
             _preferencesService = preferencesService;
-            _usernameService = usernameService;
-            _accountService = accountService;
-            _profileService = profileService;
+            _usernameService    = usernameService;
+            _accountService     = accountService;
+            _profileService     = profileService;
         }
 
         // Métodos de edição da conta, seguindo a ordem da tela de config

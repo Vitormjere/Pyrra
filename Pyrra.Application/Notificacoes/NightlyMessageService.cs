@@ -23,9 +23,7 @@ namespace Pyrra.Application.Notificacoes {
                 throw new NotFoundException("Usuário não encontrado.");
             }
 
-            // Reaproveita o cálculo existente em vez de recontar pontos: date null = hoje no fuso
-            // do usuário, resolvido lá dentro, caindo no cálculo AO VIVO do DailyScoreCalculator.
-            // O texto reflete o estado do usuário no instante do preview.
+            // usa o DailyScore atual para gerar o preview da mensagem
             var result = await _checkInService.GetDailyScoreAsync(userId, null, cancellationToken);
             var score  = result.Score;
 
@@ -36,8 +34,7 @@ namespace Pyrra.Application.Notificacoes {
             return new ClosingMessage(text, user.CommunicationTone.ToString(), situation.ToString(), percent);
         }
 
-        // Ordem dos testes importa: GoalMet primeiro (já embute o >= 70%), depois os pisos.
-        // SemFocos antes de Nada para não chamar de "não fez nada" quem não tem o que fazer.
+        // ordem das condições garante a classificação correta da situação
         private static ClosingSituation Classify(DailyScore score) {
             if (score.PointsPossible == 0) {
                 return ClosingSituation.SemFocos;
@@ -56,7 +53,7 @@ namespace Pyrra.Application.Notificacoes {
                 : ClosingSituation.Perto;
         }
 
-        // Percentage é fração 0..1; a mensagem mostra inteiro. Arredonda para o mais próximo.
+        // converte a fração em percentual inteiro para exibir na mensagem
         private static int ToPercent(decimal percentage) =>
             (int)Math.Round(percentage * 100, MidpointRounding.AwayFromZero);
     }

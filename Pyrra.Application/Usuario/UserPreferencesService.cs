@@ -39,8 +39,7 @@ namespace Pyrra.Application.Usuario {
                 throw new NotFoundException("Usuário não encontrado.");
             }
 
-            // Cada preferência é opcional: aplica só o que veio. Ao pular, chega só o horário (21:00),
-            // e o tom fica no default do registro.
+            // aplica só as preferências informadas
             if (tone.HasValue) {
                 if (!Enum.IsDefined(tone.Value)) {
                     throw new InvalidPreferencesException($"Tom de comunicação '{tone.Value}' não é válido.");
@@ -52,8 +51,7 @@ namespace Pyrra.Application.Usuario {
                 user.EveningNotificationTime = eveningNotificationTime.Value;
             }
 
-            // Só marca na primeira vez: preserva o instante da conclusão original caso o endpoint
-            // seja chamado de novo (ex.: corrida entre duas abas), e mantém a semântica de "uma vez".
+            // marca a conclusão apenas na primeira vez
             user.OnboardingCompletedAt ??= _clock.UtcNow;
             user.UpdatedAt = _clock.UtcNow;
 

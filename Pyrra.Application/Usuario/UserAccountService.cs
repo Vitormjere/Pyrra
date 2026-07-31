@@ -48,7 +48,7 @@ namespace Pyrra.Application.Usuario {
             var user = await GetOwnedUserAsync(userId, cancellationToken);
             VerifyPassword(user, currentPassword);
 
-            // Já é o e-mail atual: no-op idempotente, sem checar unicidade contra si mesmo.
+            // não faz nada se o e-mail já for o atual
             if (string.Equals(user.Email, normalized, StringComparison.Ordinal)) {
                 return user;
             }
@@ -61,8 +61,7 @@ namespace Pyrra.Application.Usuario {
             user.Email     = normalized;
             user.UpdatedAt = _clock.UtcNow;
 
-            // UpdateAsync também traduz a violação do índice único de e-mail, cobrindo a corrida
-            // entre a checagem acima e o gravar.
+            // cobre conflito de e-mail ao salvar
             await _userRepository.UpdateAsync(user, cancellationToken);
             return user;
         }

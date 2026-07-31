@@ -8,11 +8,10 @@ namespace Pyrra.Application.Common.Interfaces {
     public interface IDailyPlanNoteRepository {
         Task<DailyPlanNote?> GetByUserAndDateAsync(Guid userId, DateOnly date, CancellationToken cancellationToken = default);
 
-        // Notas a partir de fromDate (inclusive), da mais recente para a mais antiga.
-        // Inclui hoje e não tem limite superior: uma nota escrita para amanhã aparece.
+        // Retorna as notas do usuário a partir da data informada
         Task<IReadOnlyList<DailyPlanNote>> GetRecentByUserAsync(Guid userId, DateOnly fromDate, CancellationToken cancellationToken = default);
 
-        // Cria a nota se ainda não existir para aquele usuário+data, senão sobrescreve a existente.
+        // Salva ou atualiza a nota do usuário
         Task<DailyPlanNote> UpsertAsync(DailyPlanNote note, CancellationToken cancellationToken = default);
     }
 }

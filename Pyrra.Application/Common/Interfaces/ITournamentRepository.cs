@@ -9,12 +9,10 @@ namespace Pyrra.Application.Common.Interfaces {
         Task<Tournament?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
         Task<Tournament?> GetByInviteTokenAsync(string inviteToken, CancellationToken cancellationToken = default);
 
-        // Todos os torneios existentes — usado pra "escolher entre torneios existentes" ao pedir
-        // entrada de time (etapa seguinte) e pela listagem geral. Sem conceito de
-        // público/privado: torneio é sempre visível a qualquer autenticado.
+        // Retorna todos os torneios existentes
         Task<IReadOnlyList<Tournament>> GetAllAsync(CancellationToken cancellationToken = default);
 
-        // Torneios cujo dono é o usuário — "meus torneios".
+        // Torneios cujo dono é o usuário
         Task<IReadOnlyList<Tournament>> GetOwnedByUserAsync(Guid ownerId, CancellationToken cancellationToken = default);
 
         Task AddAsync(Tournament tournament, CancellationToken cancellationToken = default);

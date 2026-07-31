@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading;
@@ -52,9 +53,7 @@ namespace Pyrra.Api.Controllers {
             return Ok(teams.Select(TeamSummaryResponse.FromSummary));
         }
 
-        // Times próprios sem entrada ativa em nenhum torneio — usado pelo botão "Solicitar
-        // entrada" na tela de Detalhes do Torneio (e pelo Convite de Torneio) pra saber quais
-        // times o dono pode oferecer, sem precisar tentar e receber erro depois.
+        // Retorna os times do usuário que podem participar de um torneio
         [HttpGet("meus/elegiveis-torneio")]
         public async Task<ActionResult<IEnumerable<TeamSummaryResponse>>> GetMyEligibleForTournament(CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -65,7 +64,7 @@ namespace Pyrra.Api.Controllers {
             return Ok(teams.Select(TeamSummaryResponse.FromSummary));
         }
 
-        // Times marcados como Público — aba Explorar
+        // Times marcados como Público - aba Explorar
         [HttpGet("publicos")]
         public async Task<ActionResult<IEnumerable<PublicTeamResponse>>> GetPublicTeams(CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -76,7 +75,7 @@ namespace Pyrra.Api.Controllers {
             return Ok(teams.Select(PublicTeamResponse.FromSummary));
         }
 
-        // Altera a visibilidade do time — só o dono pode
+        // Altera a visibilidade do time
         [HttpPost("{id:guid}/visibilidade")]
         public async Task<IActionResult> SetVisibility(Guid id, SetTeamVisibilityRequest request, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -95,8 +94,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Altera a cor do banner — só o dono pode. Continua funcionando mesmo com uma imagem
-        // customizada definida (só não aparece até a imagem ser removida).
+        // Altera a cor do banner
         [HttpPost("{id:guid}/tema")]
         public async Task<ActionResult<TeamSummaryResponse>> SetBannerTheme(Guid id, SetTeamBannerThemeRequest request, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -115,9 +113,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Upload de imagem de capa — só o dono pode. O limite de verdade (3MB) é validado no
-        // TeamService; o RequestSizeLimit aqui é só um cinto-de-segurança do ASP.NET Core pra não
-        // deixar o corpo da requisição crescer sem necessidade.
+        // Upload de imagem de capa 
         [HttpPost("{id:guid}/banner")]
         [RequestSizeLimit(3 * 1024 * 1024 + 1024)]
         public async Task<ActionResult<TeamSummaryResponse>> UploadBannerImage(Guid id, IFormFile file, CancellationToken cancellationToken) {
@@ -140,7 +136,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Remove a imagem customizada e volta a exibir a cor do tema — só o dono pode
+        // Remove a imagem customizada e volta a exibir a cor do tema
         [HttpDelete("{id:guid}/banner")]
         public async Task<ActionResult<TeamSummaryResponse>> RemoveBannerImage(Guid id, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -169,7 +165,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Convite direto — só o dono do time pode convidar, e só amigo confirmado
+        // Convite direto (só o dono pode, e se ser amigo dele)
         [HttpPost("{id:guid}/convidar")]
         public async Task<IActionResult> InviteFriend(Guid id, InviteFriendToTeamRequest request, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -239,8 +235,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Processa a entrada via link; time cheio ou já ser membro não são tratados como erro, o
-        // desfecho vem no corpo da resposta.
+        // Processa a entrada por link e retorna o resultado da operaçao
         [HttpPost("convite/{token}/entrar")]
         public async Task<ActionResult<JoinResultResponse>> JoinViaLink(string token, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -271,7 +266,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Remove um membro do time — só o dono pode
+        // Remove um membro do time
         [HttpDelete("{id:guid}/membros/{memberUserId:guid}")]
         public async Task<IActionResult> RemoveMember(Guid id, Guid memberUserId, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -288,7 +283,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Exclui o time e todos os vínculos — só o dono pode
+        // Exclui o time e todos os vínculos
         [HttpDelete("{id:guid}")]
         public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -303,7 +298,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Transfere a titularidade para um membro já existente do time — só o dono atual pode
+        // Transfere a titularidade para um membro já existente do time
         [HttpPost("{id:guid}/transferir")]
         public async Task<IActionResult> TransferOwnership(Guid id, TransferOwnershipRequest request, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -325,8 +320,7 @@ namespace Pyrra.Api.Controllers {
             return Guid.TryParse(claim, out userId);
         }
 
-        // Nulo ou inválido cai no default (Privado) — o front sempre manda um valor de uma lista
-        // fixa, então não há necessidade de recusar a criação por um valor mal formado aqui.
+        // Quando não informado ou inválido, usa a privacidade padrão
         private static TeamVisibility ParseVisibility(string? value) =>
             Enum.TryParse<TeamVisibility>(value, out var visibility) ? visibility : TeamVisibility.Privado;
 

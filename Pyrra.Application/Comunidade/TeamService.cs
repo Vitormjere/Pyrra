@@ -11,8 +11,7 @@ using Pyrra.Domain.Users;
 
 namespace Pyrra.Application.Comunidade {
     public class TeamService : ITeamService {
-        // Formatos aceitos e tamanho máximo do upload de banner — checados aqui (não no
-        // controller) pra ficar testável sem precisar de um Blob Storage real.
+        // Valida os formatos e tamanho máximo permitidos para upload
         private static readonly HashSet<string> AllowedBannerContentTypes =
             new(StringComparer.OrdinalIgnoreCase) { "image/jpeg", "image/png", "image/webp" };
 
@@ -214,7 +213,7 @@ namespace Pyrra.Application.Comunidade {
                 throw new InvalidTeamException("Você não pode convidar a si mesmo.");
             }
 
-            // Só amigo CONFIRMADO pode ser convidado — pedido pendente ou recusado não conta.
+            // Só amigo CONFIRMADO pode ser convidado
             var friendship = await _friendshipRepository.GetBetweenAsync(ownerId, inviteeId, cancellationToken);
             if (friendship is null || friendship.Status != FriendshipStatus.Aceito) {
                 throw new InvalidTeamException("Só é possível convidar amigos confirmados.");
@@ -232,8 +231,7 @@ namespace Pyrra.Application.Comunidade {
                     case TeamInviteStatus.Aceito:
                         throw new InvalidTeamException("Esse usuário já é membro do time.");
                     case TeamInviteStatus.Recusado:
-                        // Recusado no passado não tranca para sempre: reaproveita a linha como um
-                        // novo convite pendente, mesmo padrão de Friendship.
+                        // Convites recusados podem ser enviados novamente
                         existing.InviterId  = ownerId;
                         existing.Status     = TeamInviteStatus.Pendente;
                         existing.CreatedAt  = _clock.UtcNow;
@@ -345,8 +343,7 @@ namespace Pyrra.Application.Comunidade {
                 throw new NotFoundException("Time não encontrado.");
             }
 
-            // O dono nunca sai por aqui: precisa transferir a titularidade ou excluir o time antes,
-            // para o time nunca ficar órfão.
+            // O dono não pode sair enquanto o time não tiver outro responsável
             if (team.OwnerId == userId) {
                 throw new InvalidTeamException("Transfira a titularidade ou exclua o time antes de sair.");
             }
@@ -389,8 +386,7 @@ namespace Pyrra.Application.Comunidade {
                 throw new InvalidTeamException("Você já é o dono desse time.");
             }
 
-            // Só pode virar dono quem já está no time — evita transferir para alguém que nunca
-            // entrou, o que deixaria "quem está no time" ambíguo.
+            // Transfere a titularidade apenas para membros existentes do time
             var newOwnerMember = await _teamMemberRepository.GetAsync(teamId, newOwnerId, cancellationToken);
             if (newOwnerMember is null) {
                 throw new InvalidTeamException("O novo dono precisa já ser membro do time.");
@@ -402,9 +398,7 @@ namespace Pyrra.Application.Comunidade {
             team.UpdatedAt = _clock.UtcNow;
             await _teamRepository.UpdateAsync(team, cancellationToken);
 
-            // O ex-dono vira membro comum — a forma menos surpreendente de transferir (não te
-            // expulsa do time). Quem quiser sair de vez chama LeaveAsync depois, agora liberado
-            // porque ele não é mais o dono.
+            // Ao transferir a titularidade, o ex-dono permanece no time como membro comum
             await _teamMemberRepository.AddAsync(new TeamMember {
                 Id       = Guid.NewGuid(),
                 TeamId   = teamId,
@@ -440,8 +434,7 @@ namespace Pyrra.Application.Comunidade {
                 team.BannerImageUrl);
         }
 
-        // Carrega o time garantindo que o usuário é dono OU membro — NotFound genérico (não revela
-        // times alheios), mesmo padrão de FriendshipService.RemoveAsync.
+        // Carrega o time garantindo acesso do usuário
         private async Task<Team> GetOwnedOrMemberTeamAsync(Guid userId, Guid teamId, CancellationToken cancellationToken) {
             var team = await _teamRepository.GetByIdAsync(teamId, cancellationToken);
             if (team is null) {
@@ -456,8 +449,7 @@ namespace Pyrra.Application.Comunidade {
             return team;
         }
 
-        // Carrega o time garantindo que o usuário é o DONO — NotFound genérico para quem não é dono,
-        // mesmo critério de não revelar detalhes de gestão de times alheios.
+        // Carrega o time garantindo que o usuário é o dono
         private async Task<Team> GetOwnedTeamAsync(Guid ownerId, Guid teamId, CancellationToken cancellationToken) {
             var team = await _teamRepository.GetByIdAsync(teamId, cancellationToken);
             if (team is null || team.OwnerId != ownerId) {
@@ -467,8 +459,7 @@ namespace Pyrra.Application.Comunidade {
             return team;
         }
 
-        // Carrega um convite garantindo que ele é PENDENTE e endereçado ao usuário — mesma guarda de
-        // FriendshipService.GetPendingAddressedToAsync.
+        // Valida que o convite está pendente e pertence ao usuário
         private async Task<TeamInvite> GetPendingAddressedToAsync(Guid userId, Guid inviteId, CancellationToken cancellationToken) {
             var invite = await _teamInviteRepository.GetByIdAsync(inviteId, cancellationToken);
 
@@ -491,8 +482,7 @@ namespace Pyrra.Application.Comunidade {
 
         private static UserSummary ToSummary(User user) => new(user.Id, user.Name, user.Username);
 
-        // Entrada ativa (Pendente ou Aprovado) do time num torneio, se houver — mesma consulta que
-        // TeamChallengeService usa pra resolver quem aprova desafios, aqui só pra informar a tela.
+        // Retorna o torneio ativo associado ao time
         private async Task<ActiveTeamTournament?> GetActiveTournamentAsync(Guid teamId, CancellationToken cancellationToken) {
             var entry = await _tournamentTeamRepository.GetActiveForTeamAsync(teamId, cancellationToken);
             if (entry is null) {

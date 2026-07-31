@@ -8,8 +8,7 @@ using Pyrra.Domain.Users;
 
 namespace Pyrra.Application.Usuario {
     public class UsernameService : IUsernameService {
-        // Letras minúsculas, números e underscore; 3 a 20. Sem espaço, sem acento, sem "@" (o "@" é
-        // só exibição). O mesmo formato vale no frontend, mas o servidor é a autoridade.
+        // valida o formato do username
         private static readonly Regex Format = new("^[a-z0-9_]{3,20}$", RegexOptions.Compiled);
 
         private readonly IUserRepository _userRepository;
@@ -32,7 +31,7 @@ namespace Pyrra.Application.Usuario {
                 throw new NotFoundException("Usuário não encontrado.");
             }
 
-            // Já é o username atual: no-op idempotente, evita a ida ao banco só para regravar o mesmo.
+            // não faz nada se o username já for o atual
             if (string.Equals(user.Username, normalized, StringComparison.Ordinal)) {
                 return user;
             }
@@ -45,8 +44,7 @@ namespace Pyrra.Application.Usuario {
             user.Username  = normalized;
             user.UpdatedAt = _clock.UtcNow;
 
-            // UpdateAsync ainda traduz a violação do índice único, cobrindo a corrida entre a checagem
-            // acima e o gravar (dois usuários pegando o mesmo username ao mesmo tempo).
+            // cobre conflito de username ao salvar
             await _userRepository.UpdateAsync(user, cancellationToken);
             return user;
         }
@@ -59,7 +57,7 @@ namespace Pyrra.Application.Usuario {
 
             var owner = await _userRepository.GetByUsernameAsync(normalized, cancellationToken);
 
-            // Livre se ninguém tem, ou se quem tem é o próprio usuário (mantê-lo é permitido).
+            // permite manter o próprio username
             if (owner is null || owner.Id == userId) {
                 return new UsernameAvailability(true, null);
             }
@@ -67,7 +65,7 @@ namespace Pyrra.Application.Usuario {
             return new UsernameAvailability(false, "Esse username já está em uso.");
         }
 
-        // Tira espaços e um "@" inicial, e baixa para minúsculas — o username é case-insensitive.
+        // normaliza o username antes de validar
         private static string Normalize(string raw) {
             var trimmed = (raw ?? string.Empty).Trim();
             if (trimmed.StartsWith('@')) {

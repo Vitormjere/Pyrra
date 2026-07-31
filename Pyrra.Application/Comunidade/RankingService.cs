@@ -46,17 +46,13 @@ namespace Pyrra.Application.Comunidade {
 
             var entries = new List<(User User, int Streak, DateOnly? StreakStartDate)>(participants.Count);
             foreach (var user in participants) {
-                // GetStatusAsync acerta (settle) o streak e reaproveita todo o cálculo — aqui não se
-                // repete nenhuma lógica de streak. StreakStartDate só fica atualizado no repositório
-                // DEPOIS do settle, por isso a leitura vem em seguida, nunca antes.
+                // Atualiza o streak antes da leitura para garantir que os dados retornados estejam sincronizados
                 var status = await _streakService.GetStatusAsync(user.Id, cancellationToken);
                 var streak = await _streakRepository.GetByUserIdAsync(user.Id, cancellationToken);
                 entries.Add((user, status.DisplayCount, streak?.StreakStartDate));
             }
 
-            // Desempate: 1) StreakStartDate mais antigo (streak "resistiu" há mais tempo, mesmo
-            // contando freezes usados no meio do caminho); 2) nome, para ordem determinística quando
-            // os dois primeiros critérios empatam (ex.: dois streaks zerados).
+            // Desempata pelo início do streak mais antigo e usa o nome para garantir ordem determinística
             return entries
                 .OrderByDescending(e => e.Streak)
                 .ThenBy(e => e.StreakStartDate ?? DateOnly.MaxValue)

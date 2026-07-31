@@ -51,7 +51,7 @@ namespace Pyrra.Api.Controllers {
             return Ok(logs.Select(WorkoutResponse.FromEntity));
         }
 
-        //  os 7 dias do plano semanal, mesmo sem refeições cadastradas
+        // os 7 dias do plano semanal, mesmo sem refeições cadastradas
         [HttpGet("plano")]
         public async Task<ActionResult<IEnumerable<WorkoutPlanDayResponse>>> GetPlan(CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -62,7 +62,7 @@ namespace Pyrra.Api.Controllers {
             return Ok(plan.Select(WorkoutPlanDayResponse.FromEntity));
         }
 
-        // Adiciona um exercício ao dia, definindo a ordem automaticamente.
+        // Adiciona um exercício ao dia, definindo a ordem automaticamente
         [HttpPost("plano/{diaDaSemana}/exercicios")]
         public async Task<ActionResult<WorkoutPlanExerciseResponse>> AddPlanExercise(
             WeekDay diaDaSemana,

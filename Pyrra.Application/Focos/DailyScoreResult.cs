@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using Pyrra.Domain.Focos;
 
 namespace Pyrra.Application.Focos {
-    // Status de um foco ativo no dia consultado. Foco sem FocusLog naquela data conta como não concluído.
+    // status do foco ativo no dia consultado
     public record FocusStatus(Guid FocusId, string Name, int Weight, bool Completed);
 
-    // Agregados do dia + o detalhamento foco a foco que os originou.
+    // retorna os totais do dia junto com o detalhamento dos focos
     public record DailyScoreResult(DailyScore Score, IReadOnlyList<FocusStatus> Focuses);
 }

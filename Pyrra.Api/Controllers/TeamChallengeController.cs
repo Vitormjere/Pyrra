@@ -12,9 +12,7 @@ using Pyrra.Application.Common.Exceptions;
 using Pyrra.Application.Desafios;
 
 namespace Pyrra.Api.Controllers {
-    // Ponte entre Times e o catálogo de Desafios: ativação de categoria (dono) e desafios
-    // disponíveis (qualquer membro). Separado do TeamController pelo mesmo motivo do
-    // ChallengeCatalogController ser separado do TeamController — bounded context próprio.
+    // Gerencia as categorias ativas e os desafios disponíveis de cada time
     [ApiController]
     [Authorize]
     [Route("api/times/{teamId:guid}/desafios")]
@@ -25,7 +23,7 @@ namespace Pyrra.Api.Controllers {
             _service = service;
         }
 
-        // Todas as categorias do catálogo com o flag de ativação — só o dono
+        // todas as categorias do catálogo com o status de ativação do time
         [HttpGet("categorias")]
         public async Task<ActionResult<IEnumerable<TeamCategoryStatusResponse>>> GetCategories(Guid teamId, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -40,7 +38,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Ativa uma categoria para o time — só o dono, idempotente
+        // Ativa uma categoria para o time
         [HttpPost("categorias/{categoryId:guid}")]
         public async Task<IActionResult> ActivateCategory(Guid teamId, Guid categoryId, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -55,7 +53,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Desativa uma categoria do time — só o dono, idempotente
+        // Desativa uma categoria do time
         [HttpDelete("categorias/{categoryId:guid}")]
         public async Task<IActionResult> DeactivateCategory(Guid teamId, Guid categoryId, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -70,7 +68,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Desafios das categorias ativas do time — qualquer membro (dono ou não)
+        // Desafios das categorias ativas do time
         [HttpGet]
         public async Task<ActionResult<IEnumerable<AvailableChallengeResponse>>> GetAvailableChallenges(Guid teamId, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -85,7 +83,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Envia a prova por foto de um desafio — qualquer membro (dono ou não)
+        // Envia a prova por foto de um desafio
         [HttpPost("{challengeId:guid}/submissoes")]
         public async Task<ActionResult<ChallengeSubmissionResponse>> SubmitProof(Guid teamId, Guid challengeId, IFormFile file, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -110,7 +108,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Fila de submissões pendentes do time — só o dono
+        // Fila de submissões pendentes do time
         [HttpGet("submissoes")]
         public async Task<ActionResult<IEnumerable<PendingSubmissionResponse>>> GetPendingSubmissions(Guid teamId, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -125,7 +123,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Aprova a submissão e soma os pontos do desafio ao time — só o dono
+        // Aprova a submissão e soma os pontos do desafio ao time
         [HttpPost("submissoes/{submissionId:guid}/aprovar")]
         public async Task<IActionResult> ApproveSubmission(Guid teamId, Guid submissionId, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -142,7 +140,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Recusa a submissão, sem somar pontos — só o dono
+        // Recusa a submissão, sem somar pontos
         [HttpPost("submissoes/{submissionId:guid}/recusar")]
         public async Task<IActionResult> RejectSubmission(Guid teamId, Guid submissionId, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -159,7 +157,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Ranking de membros do time por placar INDIVIDUAL — qualquer membro (dono ou não)
+        // Ranking de membros do time por placar individual
         [HttpGet("ranking")]
         public async Task<ActionResult<IEnumerable<TeamMemberRankingResponse>>> GetRanking(Guid teamId, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -174,8 +172,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Bytes da foto de uma submissão — container privado, só sai por aqui. Qualquer membro do
-        // time (dono ou não) pode ver.
+        // Retorna a foto da submissão apenas para membros do time  
         [HttpGet("submissoes/{submissionId:guid}/foto")]
         public async Task<IActionResult> GetSubmissionPhoto(Guid teamId, Guid submissionId, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {

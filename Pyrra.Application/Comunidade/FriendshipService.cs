@@ -11,8 +11,8 @@ using Pyrra.Domain.Users;
 namespace Pyrra.Application.Comunidade {
     public class FriendshipService : IFriendshipService {
         private readonly IFriendshipRepository _friendshipRepository;
-        private readonly IUserRepository       _userRepository;
-        private readonly IClockService         _clock;
+        private readonly IUserRepository _userRepository;
+        private readonly IClockService _clock;
 
         public FriendshipService(
             IFriendshipRepository friendshipRepository,
@@ -20,7 +20,7 @@ namespace Pyrra.Application.Comunidade {
             IClockService         clock) {
             _friendshipRepository = friendshipRepository;
             _userRepository       = userRepository;
-            _clock                = clock;
+            _clock = clock;
         }
 
         public async Task<IReadOnlyList<UserSearchResult>> SearchUsersAsync(Guid userId, string term, CancellationToken cancellationToken = default) {
@@ -40,8 +40,7 @@ namespace Pyrra.Application.Comunidade {
         }
 
         public async Task SendRequestAsync(Guid requesterId, Guid addresseeId, CancellationToken cancellationToken = default) {
-            // Destinatário precisa existir. Vem de um resultado de busca, mas o cliente poderia mandar
-            // qualquer id — a checagem fecha essa brecha.
+            // O destinatário precisa existir antes da criação do pedido
             var addressee = await _userRepository.GetByIdAsync(addresseeId, cancellationToken);
             if (addressee is null) {
                 throw new NotFoundException("Usuário não encontrado.");
@@ -101,9 +100,9 @@ namespace Pyrra.Application.Comunidade {
                 return Array.Empty<FriendSummary>();
             }
 
-            // O amigo é o OUTRO lado do vínculo — requester ou addressee conforme quem enviou.
+            // O amigo é sempre o outro usuário do vínculo.
             var otherIds = accepted.Select(f => f.RequesterId == userId ? f.AddresseeId : f.RequesterId);
-            var users = await LoadUsersAsync(otherIds, cancellationToken);
+            var users    = await LoadUsersAsync(otherIds, cancellationToken);
 
             return accepted
                 .Select(f => {
@@ -120,12 +119,10 @@ namespace Pyrra.Application.Comunidade {
 
         public Task<int> GetFriendsCountAsync(Guid userId, CancellationToken cancellationToken = default) =>
             _friendshipRepository.CountAcceptedForUserAsync(userId, cancellationToken);
-
         public async Task RemoveAsync(Guid userId, Guid friendshipId, CancellationToken cancellationToken = default) {
             var friendship = await _friendshipRepository.GetByIdAsync(friendshipId, cancellationToken);
 
-            // Inexistente ou de terceiros são indistinguíveis para quem chama, mesmo NotFound genérico
-            // dos outros módulos — não revela vínculos que não são do usuário.
+            // O vínculo inexistente ou de outro usuário não é revelado
             if (friendship is null || (friendship.RequesterId != userId && friendship.AddresseeId != userId)) {
                 throw new NotFoundException("Amizade não encontrada.");
             }
@@ -140,10 +137,9 @@ namespace Pyrra.Application.Comunidade {
             }
 
             if (string.IsNullOrEmpty(user.InviteToken)) {
-                // 32 hex (122 bits de entropia): não dá para adivinhar e não expõe o UserId. Estável
-                // depois de criado, para o link compartilhado nunca deixar de valer.
+                // Cria um token estável para o convite do usuário
                 user.InviteToken = Guid.NewGuid().ToString("N");
-                user.UpdatedAt   = _clock.UtcNow;
+                user.UpdatedAt = _clock.UtcNow;
                 await _userRepository.UpdateAsync(user, cancellationToken);
             }
 
@@ -156,18 +152,16 @@ namespace Pyrra.Application.Comunidade {
                 throw new NotFoundException("Convite inválido ou expirado.");
             }
 
-            // O pedido vai do dono do link (owner) para... não: quem abre o link ENVIA o pedido para o
-            // dono. Assim o dono, que compartilhou o link, recebe o pedido para aceitar — combina com
-            // "o link já envia o pedido para quem gerou o link".
+            // O usuário que abre o convite envia o pedido para o dono do link
             var outcome = await TrySendRequestAsync(userId, owner.Id, cancellationToken);
 
             var mapped = outcome switch {
-                SendOutcome.Created                 => InviteOutcome.RequestSent,
-                SendOutcome.AlreadyFriends          => InviteOutcome.AlreadyFriends,
-                SendOutcome.AlreadyPendingOutgoing  => InviteOutcome.AlreadyPending,
-                SendOutcome.AlreadyPendingIncoming  => InviteOutcome.AlreadyPending,
-                SendOutcome.Self                    => InviteOutcome.OwnLink,
-                _                                   => InviteOutcome.AlreadyPending
+                SendOutcome.Created                => InviteOutcome.RequestSent,
+                SendOutcome.AlreadyFriends         => InviteOutcome.AlreadyFriends,
+                SendOutcome.AlreadyPendingOutgoing => InviteOutcome.AlreadyPending,
+                SendOutcome.AlreadyPendingIncoming => InviteOutcome.AlreadyPending,
+                SendOutcome.Self => InviteOutcome.OwnLink,
+                _ => InviteOutcome.AlreadyPending
             };
 
             return new InviteResult(ToSummary(owner), mapped);
@@ -183,8 +177,7 @@ namespace Pyrra.Application.Comunidade {
             AlreadyPendingIncoming
         }
 
-        // Núcleo compartilhado por SendRequest e AcceptInvite. Devolve o desfecho em vez de lançar:
-        // quem chama decide se um duplicado é erro (busca) ou informação (link idempotente).
+        // Fluxo compartilhado para criação de pedidos de amizade
         private async Task<SendOutcome> TrySendRequestAsync(Guid requesterId, Guid addresseeId, CancellationToken cancellationToken) {
             if (requesterId == addresseeId) {
                 return SendOutcome.Self;
@@ -201,8 +194,7 @@ namespace Pyrra.Application.Comunidade {
                             ? SendOutcome.AlreadyPendingOutgoing
                             : SendOutcome.AlreadyPendingIncoming;
                     case FriendshipStatus.Recusado:
-                        // Recusado no passado não tranca para sempre: reaproveita a linha como um novo
-                        // pedido, agora na direção de quem está pedindo.
+                        // Um pedido recusado pode ser enviado novamente
                         existing.RequesterId = requesterId;
                         existing.AddresseeId = addresseeId;
                         existing.Status      = FriendshipStatus.Pendente;
@@ -224,12 +216,11 @@ namespace Pyrra.Application.Comunidade {
             return SendOutcome.Created;
         }
 
-        // Carrega um pedido garantindo que ele é PENDENTE e endereçado ao usuário — a guarda que só
-        // deixa o destinatário responder e barra aceitar/recusar duas vezes.
+        // Busca um pedido pendente recebido pelo usuário
         private async Task<Friendship> GetPendingAddressedToAsync(Guid userId, Guid friendshipId, CancellationToken cancellationToken) {
             var friendship = await _friendshipRepository.GetByIdAsync(friendshipId, cancellationToken);
 
-            // Inexistente ou não endereçado ao usuário → NotFound genérico (não revela pedidos alheios).
+            // Pedidos inexistentes ou de outros usuários não são expostos
             if (friendship is null || friendship.AddresseeId != userId) {
                 throw new NotFoundException("Pedido de amizade não encontrado.");
             }
@@ -251,7 +242,7 @@ namespace Pyrra.Application.Comunidade {
                 FriendshipStatus.Pendente => existing.RequesterId == userId
                     ? FriendRelationState.RequestSent
                     : FriendRelationState.RequestReceived,
-                // Recusado se comporta como "sem vínculo": pode pedir de novo.
+                // Pedidos recusados permitem uma nova solicitação
                 _ => FriendRelationState.None
             };
         }

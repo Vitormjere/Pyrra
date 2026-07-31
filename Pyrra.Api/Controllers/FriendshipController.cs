@@ -44,7 +44,7 @@ namespace Pyrra.Api.Controllers {
             return Ok(friends.Select(FriendResponse.FromSummary));
         }
 
-        // Retorna apenas a quantidade de amigos para o Perfil, sem carregar a lista completa
+        // Retorna apenas a quantidade de amigos para o perfil, sem carregar a lista completa
         [HttpGet("contagem")]
         public async Task<ActionResult<FriendCountResponse>> GetFriendsCount(CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -55,8 +55,7 @@ namespace Pyrra.Api.Controllers {
             return Ok(new FriendCountResponse(count));
         }
 
-        // Ranking do usuário + amigos confirmados por streak atual, sempre incluindo o próprio
-        // usuário mesmo sem nenhum amigo.
+        // Retorna o ranking do usuário e de seus amigos com base na sequência atual
         [HttpGet("ranking")]
         public async Task<ActionResult<IEnumerable<RankingEntryResponse>>> GetRanking(CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {

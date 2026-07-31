@@ -6,17 +6,17 @@ namespace Pyrra.Api.Dtos.Auth {
         Guid Id,
         string Email,
         string Name,
-        // username é nulo até ser definido e é retornado sem o "@"
+        // O username é retornado sem o "@" e pode não estar definido
         string? Username,
         string Timezone,
         string CommunicationTone,
         string EveningNotificationTime,
         string Plan,
         string ProfileVisibility,
-        // informa apenas se o onboarding já foi concluído
+        // informa só se o onboarding já foi concluído
         bool OnboardingCompleted,
         DateTime CreatedAt,
-        // libera ações administrativas na UI (ex.: criar torneio direto, sem passar por solicitação)
+        // Indica se o usuário pode acessar funcionalidades de admin
         bool IsAdmin) {
         // mapeia apenas os campos permitidos, evitando a exposição da senha
         public static UserResponse FromEntity(User user) =>

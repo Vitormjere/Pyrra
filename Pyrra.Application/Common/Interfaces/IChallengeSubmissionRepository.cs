@@ -8,12 +8,10 @@ namespace Pyrra.Application.Common.Interfaces {
     public interface IChallengeSubmissionRepository {
         Task<ChallengeSubmission?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
-        // Todas as submissões do usuário nesse time — usada só pra saber o status mais recente por
-        // desafio (lista de desafios disponíveis), não pra validação de duplicidade.
+        // Verifica se o usuário já possui uma submissão ativa para esse desafio
         Task<IReadOnlyList<ChallengeSubmission>> GetForUserAndTeamAsync(Guid userId, Guid teamId, CancellationToken cancellationToken = default);
 
-        // A submissão ATIVA (Pendente ou Aprovado) do usuário pra esse desafio nesse time, se
-        // houver — usada pra bloquear novo envio. Recusado não conta como ativa: permite reenviar.
+        // Retorna o histórico de submissões do usuário nesse time
         Task<ChallengeSubmission?> GetActiveForUserChallengeAsync(Guid userId, Guid challengeId, Guid teamId, CancellationToken cancellationToken = default);
 
         Task<IReadOnlyList<ChallengeSubmission>> GetPendingForTeamAsync(Guid teamId, CancellationToken cancellationToken = default);

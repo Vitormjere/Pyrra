@@ -30,7 +30,7 @@ namespace Pyrra.Application.Financas {
             _categoryRepository.GetCategoriesForUserAsync(userId, cancellationToken);
 
         public async Task<FinanceCategory> CreateCategoryAsync(Guid userId, string name, CancellationToken cancellationToken = default) {
-            // Normaliza antes de comparar E de gravar, mesmo critério do DailyFocusService.
+            // normaliza antes de comparar e salvar
             var normalizedName = name?.Trim();
             if (string.IsNullOrEmpty(normalizedName)) {
                 throw new InvalidFinanceEntryException("O nome da categoria é obrigatório.");
@@ -52,16 +52,12 @@ namespace Pyrra.Application.Financas {
         public async Task DeleteCategoryAsync(Guid userId, Guid categoryId, CancellationToken cancellationToken = default) {
             var category = await _categoryRepository.GetByIdAsync(categoryId, cancellationToken);
 
-            // Inexistente ou de outro usuário: NotFound genérico. As padrão do sistema têm
-            // UserId null, então também caem aqui — para elas é uma tentativa inválida, mas
-            // não vale revelar que existem escondendo por trás do mesmo 404.
+            // retorna notfound para metas inválidas sem revelar existência
             if (category is null || category.UserId != userId) {
                 throw new NotFoundException($"Categoria '{categoryId}' não encontrada.");
             }
 
-            // Bloqueia se houver lançamentos: apagar deixaria referências órfãs, e o histórico
-            // financeiro perderia a categoria de lançamentos passados. O usuário reatribui ou
-            // apaga os lançamentos primeiro.
+            // impede apagar categorias usadas em lançamentos financeiros
             if (await _entryRepository.AnyByCategoryAsync(userId, categoryId, cancellationToken)) {
                 throw new CategoryInUseException();
             }
@@ -70,8 +66,7 @@ namespace Pyrra.Application.Financas {
         }
 
         public async Task<FinanceEntry> CreateEntryAsync(Guid userId, Guid categoryId, decimal amount, FinanceEntryType type, DateOnly? date = null, string? description = null, CancellationToken cancellationToken = default) {
-            // Valor é sempre positivo: o sinal vem do Type. Zero também não passa — lançamento
-            // de zero não move saldo e só polui o extrato.
+            // exige valor positivo, evitando lançamentos sem efeito
             if (amount <= 0) {
                 throw new InvalidFinanceEntryException("O valor do lançamento deve ser maior que zero.");
             }
@@ -82,8 +77,7 @@ namespace Pyrra.Application.Financas {
 
             await EnsureCategoryIsVisibleAsync(userId, categoryId, cancellationToken);
 
-            // Sem trava de data futura: lançamento agendado/previsto é uso legítimo de controle
-            // financeiro. Data passada idem, que é o caso comum de registrar depois.
+            // permite datas futuras e passadas para controle financeiro
             var targetDate = date ?? await TodayAsync(userId, cancellationToken);
 
             var entry = new FinanceEntry {
@@ -117,8 +111,7 @@ namespace Pyrra.Application.Financas {
 
             await EnsureCategoryIsVisibleAsync(userId, categoryId, cancellationToken);
 
-            // date nulo mantém a data atual, em vez de resetar para hoje: editar o valor de um
-            // lançamento antigo não deve movê-lo para o dia de hoje sem o usuário pedir.
+            // mantém a data original quando não informada na edição
             entry.CategoryId  = categoryId;
             entry.Amount      = amount;
             entry.Type        = type;
@@ -138,10 +131,7 @@ namespace Pyrra.Application.Financas {
             await _entryRepository.DeleteEntryAsync(entry, cancellationToken);
         }
 
-        // Saldo ATUAL: tudo que já aconteceu, até hoje inclusive. Lançamentos com data futura
-        // (conta agendada, salário previsto) ficam de fora — já estão registrados, mas ainda não
-        // entraram na conta, e somá-los mostraria um saldo que o usuário não tem.
-        // Sem limite inferior: o acumulado começa no primeiro lançamento da história.
+        // calcula saldo atual sem incluir lançamentos futuros
         public async Task<FinanceTotals> GetBalanceAsync(Guid userId, CancellationToken cancellationToken = default) {
             var today = await TodayAsync(userId, cancellationToken);
             return await _entryRepository.GetTotalsAsync(userId, null, today, cancellationToken);
@@ -153,15 +143,14 @@ namespace Pyrra.Application.Financas {
 
             var entries = await _entryRepository.GetEntriesByUserAndDateRangeAsync(userId, start, end, cancellationToken);
 
-            // Totais vêm do banco em vez de somar `entries` em memória: o mesmo recorte, calculado
-            // de um jeito só, evita que a lista e os totais discordem se a query mudar.
+            // calcula totais no banco para manter consistência com a consulta
             var totals = await _entryRepository.GetTotalsAsync(userId, start, end, cancellationToken);
 
             return new WeeklyFinanceSummary(start, end, entries, totals);
         }
 
         public async Task<IReadOnlyList<FinanceEntry>> GetEntriesForRangeAsync(Guid userId, DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken = default) {
-            // Intervalo invertido devolve vazio, mesmo critério das tarefas.
+            // retorna vazio quando o intervalo é inválido
             if (startDate > endDate) {
                 return Array.Empty<FinanceEntry>();
             }
@@ -170,31 +159,20 @@ namespace Pyrra.Application.Financas {
         }
 
         /// <summary>
-        /// Série do saldo dia a dia, em DUAS consultas — não uma por dia.
-        ///
-        /// A ideia é que o saldo de um dia é o saldo do dia anterior mais o
-        /// movimento daquele dia. Então basta:
-        ///   1. um agregado no banco com tudo que aconteceu ANTES da janela
-        ///      (o saldo de abertura), e
-        ///   2. os lançamentos da janela, acumulados em memória.
-        ///
-        /// Trinta consultas "soma tudo até o dia X" repetiriam o mesmo histórico
-        /// trinta vezes; carregar todos os lançamentos de sempre para somar aqui
-        /// cresceria sem limite com o uso.
+        /// calcula a série diária com uma consulta de abertura e outra de lançamentos
         /// </summary>
         public async Task<IReadOnlyList<DailyBalance>> GetBalanceHistoryAsync(Guid userId, int days = 30, CancellationToken cancellationToken = default) {
-            // Piso de 1: days zero ou negativo produziria uma janela invertida.
+            // garante uma janela válida de dias
             var window = Math.Max(1, days);
 
             var today = await TodayAsync(userId, cancellationToken);
-            // -(window - 1) porque hoje é um dos pontos: 30 dias = hoje + 29 anteriores.
+            // considera hoje como parte da janela de dias
             var start = today.AddDays(-(window - 1));
 
             var opening = await _entryRepository.GetTotalsAsync(userId, null, start.AddDays(-1), cancellationToken);
             var entries = await _entryRepository.GetEntriesByUserAndDateRangeAsync(userId, start, today, cancellationToken);
 
-            // Movimento líquido por dia: entrada soma, saída subtrai. O sinal vem do
-            // Type porque Amount é sempre positivo.
+            // calcula movimento diário conforme o tipo de lançamento
             var deltaByDate = entries
                 .GroupBy(e => e.Date)
                 .ToDictionary(
@@ -212,15 +190,11 @@ namespace Pyrra.Application.Financas {
                 history.Add(new DailyBalance(date, running));
             }
 
-            // A janela termina HOJE, então lançamentos futuros ficam de fora — mesmo
-            // critério do GetBalanceAsync, para o último ponto do gráfico bater com o
-            // saldo exibido no card.
+            // mantém o gráfico alinhado ao saldo atual sem incluir lançamentos futuros
             return history;
         }
 
-        // Duplicidade considera TUDO que o usuário enxerga — as padrão do sistema e as dele.
-        // Comparação em memória com OrdinalIgnoreCase para não depender do collation do banco,
-        // mesmo critério do DailyFocusService.
+        // verifica duplicidade entre categorias visíveis do usuário
         private async Task EnsureCategoryNameIsNotTakenAsync(Guid userId, string normalizedName, CancellationToken cancellationToken) {
             var categories = await _categoryRepository.GetCategoriesForUserAsync(userId, cancellationToken);
 
@@ -232,8 +206,7 @@ namespace Pyrra.Application.Financas {
             }
         }
 
-        // Categoria de OUTRO usuário é tratada como inexistente: mesmo NotFoundException genérico
-        // dos outros módulos, para não revelar que o id existe mas pertence a outra pessoa.
+        // trata categorias de outros usuários como inexistentes
         private async Task EnsureCategoryIsVisibleAsync(Guid userId, Guid categoryId, CancellationToken cancellationToken) {
             var category = await _categoryRepository.GetByIdAsync(categoryId, cancellationToken);
 

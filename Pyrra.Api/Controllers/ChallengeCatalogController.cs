@@ -12,9 +12,7 @@ using Pyrra.Application.Desafios;
 using Pyrra.Domain.Desafios;
 
 namespace Pyrra.Api.Controllers {
-    // Endpoints administrativos do catálogo de desafios — sem painel visual ainda, a curadoria
-    // acontece só por aqui. Toda ação exige IsAdmin=true (403 caso contrário), verificado dentro
-    // do ChallengeCatalogService.
+    // Endpoints de administração do catálogo de desafios, acessíveis apenas por admins
     [ApiController]
     [Authorize]
     [Route("api/admin/desafios")]

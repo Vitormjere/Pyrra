@@ -2,11 +2,7 @@ using System;
 using Pyrra.Domain.Users;
 
 namespace Pyrra.Application.Notificacoes {
-    // Catálogo puro de mensagens: (tom x situação) -> texto. Sem I/O, o que o torna trivial de
-    // testar e o único lugar a mexer para ajustar copy. {0} é o percentual inteiro do dia.
-    //
-    // 5 situações x 3 tons = 15 mensagens, cobrindo com folga o mínimo pedido (9). Direto é
-    // objetivo; Acolhedor é gentil; Desafiador provoca no bom sentido.
+    // centraliza mensagens por tom e situação, sem lógica ou I/O
     public static class ClosingMessageCatalog {
         public static string Compose(CommunicationTone tone, ClosingSituation situation, int percent) =>
             string.Format(Template(tone, situation), percent);

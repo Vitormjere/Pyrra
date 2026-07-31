@@ -1,32 +1,31 @@
 using System;
 
 namespace Pyrra.Application.Comunidade {
-    // Projeção pública de um usuário — só o que pode aparecer para outra pessoa. NUNCA carrega
-    // email nem nada sensível: é o contrato que impede a busca de virar um vazamento de dados.
+    // Dados públicos de um usuário, sem informações sensíveis
     public record UserSummary(Guid Id, string Name, string? Username);
 
-    // Um amigo confirmado, com o id do vínculo (para remover) e desde quando são amigos.
+    // Dados de uma amizade confirmada
     public record FriendSummary(Guid FriendshipId, UserSummary User, DateTime Since);
 
-    // Um pedido pendente recebido: o id do vínculo (para aceitar/recusar) e quem enviou.
+    // Dados de um pedido de amizade pendente
     public record FriendRequestSummary(Guid FriendshipId, UserSummary Requester, DateTime CreatedAt);
 
-    // Estado do vínculo entre o usuário e um resultado de busca, para a UI saber qual botão mostrar.
+    // Estado do relacionamento entre o usuário e outro resultado de busca
     public enum FriendRelationState {
-        None,            // sem vínculo — pode adicionar
-        RequestSent,     // já enviei um pedido pendente
-        RequestReceived, // essa pessoa me enviou um pedido (aceite na aba Pedidos)
-        Friends          // já somos amigos
+        None,            // sem vínculo
+        RequestSent,     // pedido enviado
+        RequestReceived, // pedido recebido
+        Friends          // amizade confirmada
     }
 
     public record UserSearchResult(UserSummary User, FriendRelationState State);
 
-    // Desfecho de abrir um link de convite — o front mostra a mensagem certa sem tratar exceção.
+    // Resultado da tentativa de uso de um convite
     public enum InviteOutcome {
         RequestSent,
         AlreadyFriends,
-        AlreadyPending,  // já havia pedido pendente (em qualquer direção)
-        OwnLink          // o usuário abriu o próprio link
+        AlreadyPending,
+        OwnLink
     }
 
     public record InviteResult(UserSummary Owner, InviteOutcome Outcome);

@@ -1,8 +1,7 @@
 using Pyrra.Application.Notificacoes;
 
 namespace Pyrra.Api.Dtos.Notificacoes {
-    // Message é o texto que iria no push. Tone/Situation/Percent vêm junto só para inspeção
-    // durante os testes — deixam claro qual ramo da lógica gerou aquele texto, sem push real.
+    // Retorna a mensagem e os dados que indicam como ela foi gerada    
     public record NightlyMessagePreviewResponse(
         string Message,
         string Tone,

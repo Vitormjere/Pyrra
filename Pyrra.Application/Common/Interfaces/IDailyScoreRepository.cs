@@ -8,11 +8,10 @@ namespace Pyrra.Application.Common.Interfaces {
     public interface IDailyScoreRepository {
         Task<DailyScore?> GetByUserAndDateAsync(Guid userId, DateOnly date, CancellationToken cancellationToken = default);
 
-        // Intervalo inclusivo nas duas pontas. Usado pelo acerto do streak, que percorre vários
-        // dias de uma vez — buscar dia a dia seria uma query por dia.
+        // Retorna os scores do usuário no intervalo informado
         Task<IReadOnlyList<DailyScore>> GetByUserAndDateRangeAsync(Guid userId, DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken = default);
 
-        // Cria o score se ainda não existir para aquele usuário+data, senão atualiza o existente.
+        // Salva ou atualiza o score do usuário
         Task<DailyScore> UpsertAsync(DailyScore score, CancellationToken cancellationToken = default);
     }
 }

@@ -4,11 +4,11 @@ using Pyrra.Application.Comunidade;
 
 namespace Pyrra.Api.Dtos.Comunidade {
     public record TournamentSummaryResponse(
-        Guid Id,
-        string Name,
+        Guid    Id,
+        string  Name,
         string? Description,
         UserSummaryResponse Owner,
-        bool IsOwner,
+        bool   IsOwner,
         string BannerTheme,
         string? BannerImageUrl) {
         public static TournamentSummaryResponse FromSummary(TournamentSummary s) => new(
@@ -16,7 +16,7 @@ namespace Pyrra.Api.Dtos.Comunidade {
             s.BannerTheme.ToString(), s.BannerImageUrl);
     }
 
-    // Detalhes com o link de convite — próxima etapa acrescenta times participantes/ranking aqui.
+    // Retorna os detalhes do torneio
     public record TournamentDetailsResponse(TournamentSummaryResponse Tournament, string InviteToken, string InvitePath) {
         public static TournamentDetailsResponse FromDetails(TournamentDetails d) => new(
             TournamentSummaryResponse.FromSummary(d.Summary),
@@ -34,29 +34,29 @@ namespace Pyrra.Api.Dtos.Comunidade {
             s.Id, s.ProposedName, s.ProposedDescription, UserSummaryResponse.FromSummary(s.Requester), s.CreatedAt);
     }
 
-    // Criação direta por admin — banner opcional, cai no default do service (Verde) se nulo/inválido.
+    // Dados para criar um torneio
     public record CreateTournamentRequest(
         [Required] string Name,
         string? Description,
         string? BannerTheme);
 
-    // Solicitação de criação por qualquer usuário.
+    // Dados para solicitar a criação de um torneio
     public record RequestTournamentRequest(
         [Required] string Name,
         string? Description);
 
+    // Dados para alterar a cor do banner do torneio
     public record SetTournamentBannerThemeRequest([Required] string BannerTheme);
 
-    // Um time participando (ou solicitando participar) de um torneio — usado tanto na fila de
-    // entradas pendentes (dono do torneio) quanto no ranking (times Aprovados, por Score).
+    // Representa um time participante ou com solicitação de entrada no torneio
     public record TournamentTeamResponse(
         Guid Id,
         Guid TournamentId,
         Guid TeamId,
-        string TeamName,
-        string TeamBannerTheme,
+        string  TeamName,
+        string  TeamBannerTheme,
         string? TeamBannerImageUrl,
-        string Status,
+        string  Status,
         int Score,
         DateTime RequestedAt) {
         public static TournamentTeamResponse FromSummary(TournamentTeamSummary s) => new(

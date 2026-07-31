@@ -23,8 +23,7 @@ namespace Pyrra.Application.Usuario {
         }
 
         public async Task<PublicProfileResult> GetPublicProfileAsync(Guid viewerId, string username, CancellationToken cancellationToken = default) {
-            // Mesma normalização do UsernameService/UserRepository: minúsculas, sem "@" — para
-            // "/perfil/@Vitorj" e "/perfil/vitorj" resolverem o mesmo usuário.
+            // normaliza o username antes de buscar
             var normalized = (username ?? string.Empty).Trim().TrimStart('@').ToLowerInvariant();
 
             var target = await _userRepository.GetByUsernameAsync(normalized, cancellationToken);
@@ -42,9 +41,7 @@ namespace Pyrra.Application.Usuario {
 
             var friendCount = await _friendshipRepository.CountAcceptedForUserAsync(target.Id, cancellationToken);
 
-            // Reaproveita o streak do próprio usuário-alvo: GetStatusAsync não distingue quem
-            // pergunta, então olhar o perfil de um amigo acerta o streak DELE — o mesmo cálculo que
-            // rodaria de qualquer forma na próxima vez que ele abrisse o próprio app.
+            // atualiza o streak do usuário antes de montar o perfil
             var streak = await _streakService.GetStatusAsync(target.Id, cancellationToken);
 
             return new PublicProfileResult(

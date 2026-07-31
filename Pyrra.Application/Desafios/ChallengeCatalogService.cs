@@ -81,7 +81,7 @@ namespace Pyrra.Application.Desafios {
                 throw new NotFoundException($"Categoria '{categoryId}' não encontrada.");
             }
 
-            // Bloqueia se houver desafios vinculados: apagar deixaria referências órfãs.
+            // impede apagar com desafios vinculados para evitar referências quebradas
             if (await _challengeRepository.AnyByCategoryAsync(categoryId, cancellationToken)) {
                 throw new ChallengeCategoryInUseException();
             }

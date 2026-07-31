@@ -11,7 +11,7 @@ namespace Pyrra.Application.Tests.Common {
         [Fact]
         public async Task EnsureAdminAsync_UsuarioAdmin_NaoLanca() {
             var adminId = Guid.NewGuid();
-            var users = new FakeUserRepository(new User { Id = adminId, Name = "Admin", Email = "admin@x.com", IsAdmin = true });
+            var users   = new FakeUserRepository(new User { Id = adminId, Name = "Admin", Email = "admin@x.com", IsAdmin = true });
             var service = new AdminAuthorizationService(users);
 
             await service.EnsureAdminAsync(adminId);
@@ -19,8 +19,8 @@ namespace Pyrra.Application.Tests.Common {
 
         [Fact]
         public async Task EnsureAdminAsync_UsuarioNaoAdmin_Lanca() {
-            var userId = Guid.NewGuid();
-            var users = new FakeUserRepository(new User { Id = userId, Name = "Regular", Email = "regular@x.com", IsAdmin = false });
+            var userId  = Guid.NewGuid();
+            var users   = new FakeUserRepository(new User { Id = userId, Name = "Regular", Email = "regular@x.com", IsAdmin = false });
             var service = new AdminAuthorizationService(users);
 
             await Assert.ThrowsAsync<ForbiddenException>(() => service.EnsureAdminAsync(userId));
@@ -28,7 +28,7 @@ namespace Pyrra.Application.Tests.Common {
 
         [Fact]
         public async Task EnsureAdminAsync_UsuarioInexistente_Lanca() {
-            var users = new FakeUserRepository();
+            var users   = new FakeUserRepository();
             var service = new AdminAuthorizationService(users);
 
             await Assert.ThrowsAsync<ForbiddenException>(() => service.EnsureAdminAsync(Guid.NewGuid()));

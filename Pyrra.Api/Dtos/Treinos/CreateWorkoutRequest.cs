@@ -4,9 +4,7 @@ using Pyrra.Application.Treinos;
 using Pyrra.Domain.Treinos;
 
 namespace Pyrra.Api.Dtos.Treinos {
-    // As anotações aqui cobrem só o que é sempre inválido (tipo ausente, texto longo demais).
-    // A regra de quais campos combinam com qual Type é do WorkoutService — depende do Type e não
-    // cabe em DataAnnotations.
+    // Valida apenas regras comuns. As específicas de cada tipo ficam no service
     public record CreateWorkoutRequest(
         [Required] WorkoutType? Type,
         DateOnly? Date = null,

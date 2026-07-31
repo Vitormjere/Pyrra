@@ -3,25 +3,24 @@ using Pyrra.Api.Dtos.Comunidade;
 using Pyrra.Application.Desafios;
 
 namespace Pyrra.Api.Dtos.Desafios {
-    // Uma categoria do catálogo com o flag de ativação do time — GET /api/times/{id}/desafios/categorias
+    // Retorna as categorias do time e o status de ativação de cada uma
     public record TeamCategoryStatusResponse(
-        Guid Id,
-        string Name,
+        Guid    Id,
+        string  Name,
         string? Description,
-        string Icon,
-        string Color,
-        bool IsActive) {
+        string  Icon,
+        string  Color,
+        bool    IsActive) {
         public static TeamCategoryStatusResponse FromStatus(TeamCategoryStatus s) => new(
             s.Category.Id, s.Category.Name, s.Category.Description, s.Category.Icon, s.Category.Color.ToString(), s.IsActive);
     }
 
-    // Um desafio disponível pro time, com a categoria embutida — GET /api/times/{id}/desafios.
-    // MySubmissionStatus nulo = quem pediu a lista nunca enviou prova pra esse desafio nesse time.
+    // Representa um desafio disponivel para o time
     public record AvailableChallengeResponse(
-        Guid Id,
-        string Title,
-        string? Description,
-        int Points,
+        Guid      Id,
+        string    Title,
+        string?   Description,
+        int       Points,
         DateTime? Deadline,
         ChallengeCategoryResponse Category,
         string? MySubmissionStatus) {
@@ -30,32 +29,28 @@ namespace Pyrra.Api.Dtos.Desafios {
             ChallengeCategoryResponse.FromEntity(a.Category), a.MySubmissionStatus?.ToString());
     }
 
-    // Retornada logo após o envio da foto — GET /api/times/{id}/desafios continua sendo a fonte
-    // pro front decidir o que mostrar depois (via MySubmissionStatus). Sem PhotoUrl: o container é
-    // privado, a foto só é servida pelo endpoint autenticado (.../submissoes/{id}/foto).
+    // Retorna os dados da submissão enviada
     public record ChallengeSubmissionResponse(
-        Guid Id,
-        Guid ChallengeId,
-        string Status,
+        Guid     Id,
+        Guid     ChallengeId,
+        string   Status,
         DateTime CreatedAt) {
         public static ChallengeSubmissionResponse FromEntity(Pyrra.Domain.Desafios.ChallengeSubmission s) => new(
             s.Id, s.ChallengeId, s.Status.ToString(), s.CreatedAt);
     }
 
-    // Uma submissão na fila de aprovação do dono — GET /api/times/{id}/desafios/submissoes. Sem
-    // PhotoUrl: o front busca a imagem em GET .../submissoes/{Id}/foto (autenticado).
+    // Representa uma submissão pendente de aprovação
     public record PendingSubmissionResponse(
-        Guid Id,
-        DateTime CreatedAt,
-        ChallengeResponse Challenge,
+        Guid                Id,
+        DateTime            CreatedAt,
+        ChallengeResponse   Challenge,
         UserSummaryResponse Submitter) {
         public static PendingSubmissionResponse FromPending(PendingSubmission p) => new(
             p.Submission.Id, p.Submission.CreatedAt,
             ChallengeResponse.FromEntity(p.Challenge), UserSummaryResponse.FromSummary(p.Submitter));
     }
 
-    // Uma linha do ranking INDIVIDUAL do time — GET /api/times/{id}/desafios/ranking. Points é o
-    // placar pessoal dentro desse time, não o TotalPoints coletivo do time (TeamResponse).
+    // Representa uma posição no ranking de membros do time
     public record TeamMemberRankingResponse(int Position, UserSummaryResponse User, int Points) {
         public static TeamMemberRankingResponse FromRanking(TeamMemberRanking r) =>
             new(r.Position, UserSummaryResponse.FromSummary(r.User), r.Points);

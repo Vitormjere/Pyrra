@@ -12,8 +12,6 @@ namespace Pyrra.Api.Dtos.Streaks {
             new(item.Id, item.Milestone, item.AveragePercentage, item.ReachedDate);
     }
 
-    // Ids nulo ou vazio confirma todos os pendentes — o caso comum do frontend, que exibe a
-    // celebração e confirma o lote inteiro.
     public record AcknowledgeMilestonesRequest(IReadOnlyList<Guid>? Ids);
 
     public record AcknowledgeMilestonesResponse(int Acknowledged);

@@ -4,11 +4,11 @@ using Pyrra.Domain.Desafios;
 
 namespace Pyrra.Api.Dtos.Desafios {
     public record ChallengeCategoryResponse(
-        Guid Id,
-        string Name,
-        string? Description,
-        string Icon,
-        string Color,
+        Guid     Id,
+        string   Name,
+        string?  Description,
+        string   Icon,
+        string   Color,
         DateTime CreatedAt,
         DateTime UpdatedAt) {
         public static ChallengeCategoryResponse FromEntity(ChallengeCategory c) => new(

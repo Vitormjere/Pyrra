@@ -8,13 +8,13 @@ namespace Pyrra.Application.Common.Interfaces {
     public interface ITeamRepository {
         Task<Team?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
-        // Resolve o time dono do link de convite para quem abre o convite.
+        // Busca o time pelo token de convite
         Task<Team?> GetByInviteTokenAsync(string inviteToken, CancellationToken cancellationToken = default);
 
-        // Times onde o usuário é dono OU membro (via TeamMember) — a lista de "meus times".
+        // Retorna os times do usuário
         Task<IReadOnlyList<Team>> GetForUserAsync(Guid userId, CancellationToken cancellationToken = default);
 
-        // Times marcados como Público — a listagem da aba Explorar, sem filtro de dono/membro.
+        // Retorna os times públicos
         Task<IReadOnlyList<Team>> GetPublicAsync(CancellationToken cancellationToken = default);
 
         Task AddAsync(Team team, CancellationToken cancellationToken = default);

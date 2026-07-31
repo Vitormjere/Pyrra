@@ -7,16 +7,16 @@ using Pyrra.Application.Comunidade;
 namespace Pyrra.Api.Dtos.Comunidade {
     public record TeamSummaryResponse(
         Guid Id,
-        string Name,
+        string  Name,
         string? Description,
         UserSummaryResponse Owner,
-        int MemberCount,
-        int MemberLimit,
-        int TotalPoints,
-        bool IsOwner,
-        bool IsMember,
-        string Visibility,
-        string BannerTheme,
+        int     MemberCount,
+        int     MemberLimit,
+        int     TotalPoints,
+        bool    IsOwner,
+        bool    IsMember,
+        string  Visibility,
+        string  BannerTheme,
         string? BannerImageUrl) {
         public static TeamSummaryResponse FromSummary(TeamSummary s) => new(
             s.Id, s.Name, s.Description, UserSummaryResponse.FromSummary(s.Owner),
@@ -29,16 +29,13 @@ namespace Pyrra.Api.Dtos.Comunidade {
             new(s.UserId, UserSummaryResponse.FromSummary(s.User), s.IsOwner, s.JoinedAt);
     }
 
-    // Torneio em que o time tem uma entrada ativa (Pendente ou Aprovado), se houver — a tela de
-    // Detalhes do Time usa isso pra avisar que a aprovação de desafios pode ter migrado pro dono
-    // do torneio (ver TeamChallengeService).
+    // Retorna o torneio ativo do time, quando ele existir
     public record ActiveTournamentResponse(Guid TournamentId, string TournamentName, string Status) {
         public static ActiveTournamentResponse FromModel(ActiveTeamTournament t) =>
             new(t.TournamentId, t.TournamentName, t.Status.ToString());
     }
 
-    // Retorna o resumo do time, os membros (incluindo o dono) e o link de convite — visível a
-    // qualquer membro, não só ao dono, já que a tela de detalhes é compartilhada.
+    // Retorna os detalhes completos do time
     public record TeamDetailsResponse(
         TeamSummaryResponse Team,
         IReadOnlyList<TeamMemberResponse> Members,
@@ -58,39 +55,36 @@ namespace Pyrra.Api.Dtos.Comunidade {
             new(s.InviteId, TeamSummaryResponse.FromSummary(s.Team), UserSummaryResponse.FromSummary(s.Inviter), s.CreatedAt);
     }
 
-    // Dados necessários para criar um time. Visibility/BannerTheme são opcionais — nulo ou
-    // inválido cai no default do service (Privado/Verde), já que o front sempre manda um valor de
-    // uma lista fixa e não há necessidade de validação mais rígida aqui.
+    // Dados q precisa para criar um time
     public record CreateTeamRequest(
         [Required] string Name,
-        string? Description,
+        string?    Description,
         [Required] int MemberLimit,
-        string? Visibility,
-        string? BannerTheme);
+        string?    Visibility,
+        string?    BannerTheme);
 
-    // Retorna um time público (aba Explorar) junto com o token de convite — visível a qualquer
-    // usuário logado, já que "público" significa exatamente isso.
+    // Retorna um time publico disponivel para exploração
     public record PublicTeamResponse(TeamSummaryResponse Team, string InviteToken) {
         public static PublicTeamResponse FromSummary(PublicTeamSummary s) =>
             new(TeamSummaryResponse.FromSummary(s.Summary), s.InviteToken);
     }
 
-    // Dados necessários para alterar a visibilidade do time
+    // Dados para alterar a visibilidade do time
     public record SetTeamVisibilityRequest([Required] string Visibility);
 
-    // Dados necessários para alterar a cor do banner
+    // Dados para alterar a cor do banner
     public record SetTeamBannerThemeRequest([Required] string BannerTheme);
 
-    // Dados necessários para convidar um amigo confirmado para o time
+    // Dados para convidar um amigo para o time
     public record InviteFriendToTeamRequest([Required] Guid? FriendUserId);
 
-    // Dados necessários para transferir a titularidade do time
+    // Dados para transferir a propriedade do time
     public record TransferOwnershipRequest([Required] Guid? NewOwnerUserId);
 
-    // Retorna a quantidade de convites de time pendentes, para o badge do menu
+    // Retorna a quantidade de convites pendentes
     public record TeamInviteCountResponse(int Count);
 
-    // Retorna o time e o desfecho de entrar via link, para o front mostrar a mensagem certa
+    // Retorna o resultado da entrada no time por convite
     public record JoinResultResponse(TeamSummaryResponse Team, string Outcome) {
         public static JoinResultResponse FromResult(JoinResult r) =>
             new(TeamSummaryResponse.FromSummary(r.Team), r.Outcome.ToString());

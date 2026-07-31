@@ -5,9 +5,7 @@ using System.Threading.Tasks;
 using Pyrra.Domain.Desafios;
 
 namespace Pyrra.Application.Desafios {
-    // CRUD do catálogo curado por admin (categorias + desafios). Toda operação recebe o id de
-    // quem chama e valida IsAdmin internamente (ForbiddenException caso não seja) — sem painel
-    // visual ainda, a administração acontece só por estes endpoints.
+    // gerencia categorias e desafios, validando acesso de admin nos endpoints
     public interface IChallengeCatalogService {
         Task<IReadOnlyList<ChallengeCategory>> GetCategoriesAsync(Guid adminUserId, CancellationToken cancellationToken = default);
 
@@ -19,10 +17,10 @@ namespace Pyrra.Application.Desafios {
             Guid adminUserId, Guid categoryId, string name, string? description, string icon, ChallengeCategoryColor color,
             CancellationToken cancellationToken = default);
 
-        // Lança ChallengeCategoryInUseException se houver desafios vinculados.
+        // impede remover categorias com desafios vinculados
         Task DeleteCategoryAsync(Guid adminUserId, Guid categoryId, CancellationToken cancellationToken = default);
 
-        // categoryId nulo lista todos os desafios; preenchido filtra por categoria.
+        // lista todos ou filtra desafios por categoria
         Task<IReadOnlyList<Challenge>> GetChallengesAsync(Guid adminUserId, Guid? categoryId = null, CancellationToken cancellationToken = default);
 
         Task<Challenge> CreateChallengeAsync(

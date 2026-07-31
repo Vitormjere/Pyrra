@@ -10,8 +10,7 @@ namespace Pyrra.Application.Common.Interfaces {
         Task<IReadOnlyList<Challenge>> GetByCategoryAsync(Guid categoryId, CancellationToken cancellationToken = default);
         Task<Challenge?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
-        // Guarda de remoção de categoria: se existir ao menos um desafio vinculado, a categoria
-        // não pode ser removida (ChallengeCategoryInUseException).
+        // Verifica se a categoria pode ser removida
         Task<bool> AnyByCategoryAsync(Guid categoryId, CancellationToken cancellationToken = default);
 
         Task AddAsync(Challenge challenge, CancellationToken cancellationToken = default);

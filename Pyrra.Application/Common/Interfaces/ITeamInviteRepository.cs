@@ -8,18 +8,19 @@ namespace Pyrra.Application.Common.Interfaces {
     public interface ITeamInviteRepository {
         Task<TeamInvite?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
-        // Qualquer convite entre o time e o convidado, em qualquer status — a checagem que decide
-        // se um novo convite é permitido ou se reaproveita uma linha Recusada.
+        // Busca o convite entre o time e o usuário
         Task<TeamInvite?> GetByTeamAndInviteeAsync(Guid teamId, Guid inviteeId, CancellationToken cancellationToken = default);
 
-        // Convites PENDENTES recebidos pelo usuário (ele é o invitee).
+        // Retorna os convites pendentes recebidos pelo usuário
         Task<IReadOnlyList<TeamInvite>> GetPendingReceivedAsync(Guid userId, CancellationToken cancellationToken = default);
+
+        // Retorna a quantidade de convites pendentes recebidos pelo usuário
         Task<int> CountPendingReceivedAsync(Guid userId, CancellationToken cancellationToken = default);
 
         Task AddAsync(TeamInvite invite, CancellationToken cancellationToken = default);
         Task UpdateAsync(TeamInvite invite, CancellationToken cancellationToken = default);
 
-        // Cascade usado ao excluir um time.
+        // Remove os convites relacionados ao time
         Task RemoveAllForTeamAsync(Guid teamId, CancellationToken cancellationToken = default);
     }
 }

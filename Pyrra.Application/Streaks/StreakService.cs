@@ -13,9 +13,7 @@ namespace Pyrra.Application.Streaks {
     public class StreakService : IStreakService {
         private const int MaxFreezes = 5;
 
-        // Teto de dias avaliados por chamada. Um usuário que some por dois anos não deve gerar uma
-        // varredura de 700 dias — como o streak zera no primeiro dia não perdoado, o resultado é o
-        // mesmo. Dias anteriores ao corte são dados por acertados sem avaliação.
+        // limita a busca de dias para evitar varreduras muito grandes
         private const int MaxDaysPerSettlement = 400;
 
         private readonly IStreakRepository            _streakRepository;
@@ -62,9 +60,7 @@ namespace Pyrra.Application.Streaks {
             await _streakRepository.UpsertAsync(streak, cancellationToken);
             await _freezeBankRepository.UpsertAsync(bank, cancellationToken);
 
-            // Persiste ANTES de devolver: o acerto pode ter vindo de um check-in, cujo chamador
-            // descarta este resultado. Sem gravar, o marco (ou o freeze gasto) seria detectado e
-            // perdido para sempre.
+            // salva antes de retornar para não perder o marco ou freeze detectado
             await PersistPendingMilestonesAsync(userId, milestones, cancellationToken);
             await PersistPendingFreezeUsesAsync(userId, freezeUses, cancellationToken);
 
@@ -77,8 +73,7 @@ namespace Pyrra.Application.Streaks {
             var user  = await GetUserAsync(userId, cancellationToken);
             var today = _clock.TodayIn(user.Timezone);
 
-            // O dia corrente conta só visualmente: ele ainda pode ser desfeito por um toggle antes
-            // da virada, então só entra de verdade quando virar passado e for acertado.
+            // dia atual conta só visualmente até ser confirmado como passado
             var todayScore   = await _calculator.CalculateLiveAsync(userId, today, cancellationToken);
             var todayGoalMet = todayScore.Score.GoalMet;
 
@@ -91,12 +86,7 @@ namespace Pyrra.Application.Streaks {
                 settlement.MilestonesReached);
         }
 
-        // Avalia dia a dia, em ordem cronológica: o freeze consumido num dia altera o saldo
-        // disponível para os dias seguintes do mesmo lote, então a ordem importa. Devolve os
-        // marcos cruzados e os dias perdoados por freeze — ambos viram avisos pendentes.
-        //
-        // Cada dia é acertado no máximo uma vez na vida (LastSettledDate só avança e é
-        // persistido), então registrar o freeze gasto aqui não corre risco de duplicar.
+        // avalia os dias em ordem para controlar freezes e marcos sem duplicar registros
         private async Task<(IReadOnlyList<MilestoneReached> Milestones, IReadOnlyList<DateOnly> FreezeUses)> SettleDaysAsync(
             Guid userId, Streak streak, FreezeBank bank, DateOnly today, CancellationToken cancellationToken) {
             var yesterday = today.AddDays(-1);
@@ -120,7 +110,7 @@ namespace Pyrra.Application.Streaks {
             for (var date = start; date <= yesterday; date = date.AddDays(1)) {
                 scoreByDate.TryGetValue(date, out var score);
 
-                // Dia sem DailyScore nenhum = usuário não apareceu = meta não batida.
+                // sem score no dia significa que a meta não foi batida
                 if (score?.GoalMet == true) {
                     streak.CurrentCount++;
                     streak.StreakStartDate ??= date;
@@ -137,8 +127,7 @@ namespace Pyrra.Application.Streaks {
                         streak.LastMilestoneDate = date;
                     }
                 } else if (streak.CurrentCount > 0 && bank.FreezesAvailable > 0) {
-                    // Dia perdoado: consome freeze e preserva a sequência. Só faz sentido gastar
-                    // freeze quando há streak a proteger — com o contador zerado não há o que perder.
+                    // consome freeze para manter a sequência quando há streak ativo
                     bank.FreezesAvailable--;
                     freezeUses.Add(date);
                 } else {
@@ -154,7 +143,7 @@ namespace Pyrra.Application.Streaks {
         }
 
         public async Task<IReadOnlyList<PendingMilestoneItem>> GetPendingMilestonesAsync(Guid userId, CancellationToken cancellationToken = default) {
-            // Acerta antes de ler: um marco cruzado agora deve aparecer já nesta consulta.
+            // acerta antes de ler para incluir marcos recém-cruzados
             await SettleStreakAsync(userId, cancellationToken);
 
             var pending = await _pendingMilestoneRepository.GetPendingByUserIdAsync(userId, cancellationToken);
@@ -167,7 +156,7 @@ namespace Pyrra.Application.Streaks {
             _pendingMilestoneRepository.AcknowledgeAsync(userId, ids, _clock.UtcNow, cancellationToken);
 
         public async Task<IReadOnlyList<PendingFreezeUseItem>> GetPendingFreezeUsesAsync(Guid userId, CancellationToken cancellationToken = default) {
-            // Acerta antes de ler: um freeze gasto agora deve aparecer já nesta consulta.
+            // acerta antes de ler para incluir freezes gastos recentemente
             await SettleStreakAsync(userId, cancellationToken);
 
             var pending = await _pendingFreezeUseRepository.GetPendingByUserIdAsync(userId, cancellationToken);
@@ -215,8 +204,7 @@ namespace Pyrra.Application.Streaks {
             await _pendingFreezeUseRepository.AddRangeAsync(pending, cancellationToken);
         }
 
-        // Média do aproveitamento no trecho que levou ao marco. Considera os DailyScore existentes
-        // na janela; dias sem score nenhum ficam de fora em vez de entrar como 0%.
+        // calcula a média dos scores existentes no período do marco
         private async Task<decimal> AveragePercentageAsync(Guid userId, DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken) {
             var scores = await _scoreRepository.GetByUserAndDateRangeAsync(userId, startDate, endDate, cancellationToken);
             if (scores.Count == 0) {
@@ -226,7 +214,7 @@ namespace Pyrra.Application.Streaks {
             return decimal.Round(scores.Average(s => s.Percentage), 4);
         }
 
-        // 1 freeze por semana completa passada desde a última concessão, respeitando o teto.
+        // concede 1 freeze por semana completa respeitando o limite
         private static void GrantWeeklyFreezes(FreezeBank bank, DateOnly today) {
             var currentWeekStart = StartOfWeek(today);
             var weeksElapsed = (currentWeekStart.DayNumber - bank.LastGrantedWeekStart.DayNumber) / 7;
@@ -239,12 +227,11 @@ namespace Pyrra.Application.Streaks {
             bank.LastGrantedWeekStart = currentWeekStart;
         }
 
-        // Semana começa na segunda-feira.
+        // Semana começa na segunda
         private static DateOnly StartOfWeek(DateOnly date) =>
             date.AddDays(-(((int)date.DayOfWeek + 6) % 7));
 
-        // Streak novo começa a valer no dia do cadastro: assim um usuário recém-registrado não
-        // recebe um passivo de dias perdidos anteriores à própria existência da conta.
+        // inicia o streak no cadastro para ignorar dias anteriores à conta
         private Streak NewStreak(Guid userId, User user, DateOnly today) {
             var registrationDate = _clock.ToLocalDate(user.CreatedAt, user.Timezone);
             var firstDayToSettle = registrationDate > today ? today : registrationDate;
@@ -258,8 +245,7 @@ namespace Pyrra.Application.Streaks {
             };
         }
 
-        // Nasce com 1 freeze: é a concessão da semana corrente, que de outra forma só viria na
-        // virada da próxima semana.
+        // inicia com 1 freeze referente à semana atual
         private static FreezeBank NewFreezeBank(Guid userId, DateOnly today) =>
             new() {
                 Id                   = Guid.NewGuid(),

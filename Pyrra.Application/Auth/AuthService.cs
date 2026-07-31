@@ -46,8 +46,7 @@ namespace Pyrra.Application.Auth {
             };
             user.PasswordHash = _passwordHasher.HashPassword(user, password);
 
-            // O repositório persiste o User e, em caso de corrida no índice único de Email,
-            // lança EmailAlreadyRegisteredException, o detalhe de EF Core fica na Infrastructure.
+            // Salva o usuário e garante que o email seja unico
             await _userRepository.AddAsync(user, cancellationToken);
 
             return BuildAuthResult(user);

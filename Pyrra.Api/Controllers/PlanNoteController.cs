@@ -52,7 +52,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Histórico de reflexões: só os dias em que o usuário escreveu algo
+        // Histórico de reflexões (só os dias em que o usuário escreveu algo)
         [HttpGet("historico")]
         public async Task<ActionResult<IEnumerable<PlanNoteResponse>>> GetHistory([FromQuery(Name = "dias")] int dias = 30, CancellationToken cancellationToken = default) {
             if (!TryGetUserId(out var userId)) {

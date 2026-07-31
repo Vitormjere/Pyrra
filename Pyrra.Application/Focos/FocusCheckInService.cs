@@ -38,9 +38,7 @@ namespace Pyrra.Application.Focos {
         public async Task<DailyScoreResult> ToggleCheckInAsync(Guid userId, Guid focusId, DateOnly? date, CancellationToken cancellationToken = default) {
             var (targetDate, today) = await ResolveDateAsync(userId, date, cancellationToken);
 
-            // Só o dia corrente aceita check-in. Consulta a dias passados continua liberada — o que
-            // se bloqueia aqui é ESCREVER no passado, que reescreveria o DailyScore já consolidado
-            // usando os focos e pesos de hoje.
+            // permite consulta histórica, mas bloqueia check-in em dias passados
             if (targetDate < today) {
                 throw new PastCheckInDateException(targetDate);
             }
@@ -50,8 +48,7 @@ namespace Pyrra.Application.Focos {
             var log = await _logRepository.GetByFocusAndDateAsync(focusId, targetDate, cancellationToken);
 
             if (log is null) {
-                // Primeiro check-in desse foco no dia: nasce já marcado como concluído, com o
-                // peso do foco congelado no momento do check-in.
+                // cria o check-in com peso congelado no momento da conclusão
                 log = new FocusLog {
                     Id                = Guid.NewGuid(),
                     DailyFocusId      = focusId,
@@ -69,9 +66,7 @@ namespace Pyrra.Application.Focos {
 
             var result = await RecalculateScoreAsync(userId, targetDate, cancellationToken);
 
-            // Acerta dias pendentes após qualquer interação, para o streak não depender de o
-            // usuário abrir a tela de streak. Só mexe em dias passados — o check-in de hoje ainda
-            // não entra na contagem.
+            // atualiza dias pendentes do streak sem contar o dia atual
             await _streakService.SettleStreakAsync(userId, cancellationToken);
 
             return result;
@@ -80,20 +75,17 @@ namespace Pyrra.Application.Focos {
         public async Task<DailyScoreResult> GetDailyScoreAsync(Guid userId, DateOnly? date, CancellationToken cancellationToken = default) {
             var (targetDate, today) = await ResolveDateAsync(userId, date, cancellationToken);
 
-            // Dia passado é história: devolve o que foi gravado na época, sem reprocessar com
-            // os focos/pesos de agora. Só o dia corrente reflete o estado atual ao vivo.
+            // dias passados usam dados salvos; apenas hoje reflete o estado atual
             return targetDate < today
                 ? await GetHistoricalScoreAsync(userId, targetDate, cancellationToken)
                 : await _calculator.CalculateLiveAsync(userId, targetDate, cancellationToken);
         }
 
-        // Histórico: agregado vem do DailyScore salvo e a lista é remontada a partir dos FocusLog
-        // daquele dia — inclusive de focos hoje desativados, que existiam quando o dia aconteceu.
+        // histórico usa dados salvos do dia, incluindo focos removidos depois
         private async Task<DailyScoreResult> GetHistoricalScoreAsync(Guid userId, DateOnly date, CancellationToken cancellationToken) {
             var stored = await _scoreRepository.GetByUserAndDateAsync(userId, date, cancellationToken);
 
-            // Nunca houve check-in nesse dia: não há histórico a mostrar, e não é o caso de
-            // inventar um a partir dos focos de hoje.
+            // sem check-in no dia, não existe histórico para retornar
             if (stored is null) {
                 return new DailyScoreResult(EmptyScore(userId, date), Array.Empty<FocusStatus>());
             }
@@ -108,7 +100,7 @@ namespace Pyrra.Application.Focos {
                 .Where(l => focusById.ContainsKey(l.DailyFocusId))
                 .Select(l => {
                     var focus = focusById[l.DailyFocusId];
-                    // Peso congelado no log: editar o peso do foco hoje não reescreve o passado.
+                    // mantém o peso histórico mesmo após alterações no foco
                     return new FocusStatus(focus.Id, focus.Name, l.WeightAtTimeOfLog, l.Completed);
                 })
                 .OrderBy(s => s.Name)
@@ -117,17 +109,14 @@ namespace Pyrra.Application.Focos {
             return new DailyScoreResult(stored, statuses);
         }
 
-        // Recalcula o dia inteiro a partir dos logs, em vez de somar/subtrair o foco alternado:
-        // o score converge para o estado real mesmo se um log for alterado por fora. Único caminho
-        // que persiste DailyScore.
+        // recalcula o score pelos logs para manter o estado real do dia
         private async Task<DailyScoreResult> RecalculateScoreAsync(Guid userId, DateOnly date, CancellationToken cancellationToken) {
             var live  = await _calculator.CalculateLiveAsync(userId, date, cancellationToken);
             var saved = await _scoreRepository.UpsertAsync(live.Score, cancellationToken);
             return new DailyScoreResult(saved, live.Focuses);
         }
 
-        // Resolve a data alvo no fuso do usuário e barra datas futuras. Devolve também o "hoje"
-        // para quem precisa comparar passado/presente sem consultar o usuário de novo.
+        // resolve a data do usuário e bloqueia datas futuras
         private async Task<(DateOnly TargetDate, DateOnly Today)> ResolveDateAsync(Guid userId, DateOnly? date, CancellationToken cancellationToken) {
             var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
             if (user is null) {
@@ -155,8 +144,7 @@ namespace Pyrra.Application.Focos {
                 GoalMet        = false
             };
 
-        // Mesmo NotFoundException genérico usado no DailyFocusService: foco inexistente,
-        // de outro usuário ou desativado são indistinguíveis para quem chama.
+        // trata foco inexistente, de outro usuário ou desativado como não encontrado
         private async Task<DailyFocus> GetOwnedFocusAsync(Guid userId, Guid focusId, CancellationToken cancellationToken) {
             var focus = await _focusRepository.GetByIdAsync(focusId, cancellationToken);
             if (focus is null || focus.UserId != userId || !focus.Active) {

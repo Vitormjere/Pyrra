@@ -2,15 +2,13 @@ using System;
 using System.Collections.Generic;
 
 namespace Pyrra.Application.Streaks {
-    // Marco cruzado durante um acerto, com a média de aproveitamento do trecho que levou até ele.
+    // marco alcançado com a média de aproveitamento do trecho
     public record MilestoneReached(int Milestone, decimal AveragePercentage, DateOnly ReachedDate);
 
-    // Marco persistido aguardando confirmação de exibição. Carrega o Id porque a confirmação
-    // pode ser seletiva.
+    // marco salvo aguardando confirmação de exibição
     public record PendingMilestoneItem(Guid Id, int Milestone, decimal AveragePercentage, DateOnly ReachedDate);
 
-    // Dia perdoado por um freeze, aguardando confirmação de exibição. Carrega o Id porque a
-    // confirmação pode ser seletiva, como a de marcos.
+    // dia perdoado por freeze aguardando confirmação de exibição
     public record PendingFreezeUseItem(Guid Id, DateOnly Date);
 
     public record StreakSettlementResult(

@@ -2,7 +2,7 @@ using System;
 using Pyrra.Domain.Comunidade;
 
 namespace Pyrra.Application.Comunidade {
-    // Resumo de um torneio. IsOwner é relativo a quem pediu.
+    // Resumo de um torneio com informações relativas ao usuário atual
     public record TournamentSummary(
         Guid Id,
         string Name,
@@ -12,21 +12,18 @@ namespace Pyrra.Application.Comunidade {
         TeamBannerTheme BannerTheme,
         string? BannerImageUrl);
 
-    // Detalhes com o token de convite — próxima etapa acrescenta times participantes/ranking aqui.
+    // Detalhes do torneio com informações adicionais
     public record TournamentDetails(TournamentSummary Summary, string InviteToken);
 
-    // Uma solicitação de criação de torneio, pendente ou avaliada.
+    // Solicitação de criação de torneio
     public record TournamentRequestSummary(
-        Guid Id,
-        string ProposedName,
-        string? ProposedDescription,
+        Guid        Id,
+        string      ProposedName,
+        string?     ProposedDescription,
         UserSummary Requester,
-        DateTime CreatedAt);
+        DateTime    CreatedAt);
 
-    // Um time participando (ou solicitando participar) de um torneio — pedido pendente, entrada
-    // aprovada (com Score) ou recusada. Achata os dados do time em vez de embutir um TeamSummary
-    // inteiro (que depende de TeamService pra calcular IsOwner/IsMember relativos a quem pediu,
-    // não faz sentido aqui).
+    // Time associado a um torneio com seu status de participação
     public record TournamentTeamSummary(
         Guid Id,
         Guid TournamentId,
