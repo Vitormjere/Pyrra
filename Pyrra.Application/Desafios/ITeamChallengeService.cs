@@ -38,5 +38,32 @@ namespace Pyrra.Application.Desafios {
 
         // mostra ranking individual dos membros do time
         Task<IReadOnlyList<TeamMemberRanking>> GetTeamRankingAsync(Guid callerId, Guid teamId, CancellationToken cancellationToken = default);
+
+        // ---- Desafios de torneio (Fase 5b) — separados dos desafios normais do time acima ----
+
+        // lista desafios disponíveis de um torneio específico em que o time está Aprovado
+        // (catálogo vinculado + próprios), pro membro submeter prova
+        Task<IReadOnlyList<AvailableTournamentChallenge>> GetAvailableTournamentChallengesAsync(
+            Guid userId, Guid teamId, Guid tournamentId, CancellationToken cancellationToken = default);
+
+        // envia prova de um desafio do catálogo geral vinculado ao torneio
+        Task<ChallengeSubmission> SubmitTournamentCatalogChallengeProofAsync(
+            Guid userId, Guid teamId, Guid tournamentId, Guid challengeId, Stream content, string contentType, long contentLength,
+            CancellationToken cancellationToken = default);
+
+        // envia prova de um desafio próprio do torneio
+        Task<ChallengeSubmission> SubmitTournamentOwnChallengeProofAsync(
+            Guid userId, Guid teamId, Guid tournamentId, Guid ownChallengeId, Stream content, string contentType, long contentLength,
+            CancellationToken cancellationToken = default);
+
+        // lista submissões pendentes de um torneio específico, só pro dono dele
+        Task<IReadOnlyList<PendingTournamentSubmission>> GetPendingTournamentSubmissionsAsync(
+            Guid callerId, Guid teamId, Guid tournamentId, CancellationToken cancellationToken = default);
+
+        // aprova submissão de torneio: pontos vão só pro placar desse torneio específico
+        Task ApproveTournamentSubmissionAsync(Guid callerId, Guid teamId, Guid tournamentId, Guid submissionId, CancellationToken cancellationToken = default);
+
+        // recusa submissão de torneio, sem somar pontos
+        Task RejectTournamentSubmissionAsync(Guid callerId, Guid teamId, Guid tournamentId, Guid submissionId, CancellationToken cancellationToken = default);
     }
 }

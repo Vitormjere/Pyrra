@@ -35,6 +35,11 @@ namespace Pyrra.Infrastructure.Repositories {
                 .Where(s => s.TeamId == teamId && s.Status == ChallengeSubmissionStatus.Pendente)
                 .ToListAsync(cancellationToken);
 
+        public async Task<IReadOnlyList<ChallengeSubmission>> GetPendingForTournamentAsync(Guid tournamentId, CancellationToken cancellationToken = default) =>
+            await _context.ChallengeSubmissions
+                .Where(s => s.TournamentId == tournamentId && s.Status == ChallengeSubmissionStatus.Pendente)
+                .ToListAsync(cancellationToken);
+
         public async Task AddAsync(ChallengeSubmission submission, CancellationToken cancellationToken = default) {
             await _context.ChallengeSubmissions.AddAsync(submission, cancellationToken);
             await _context.SaveChangesAsync(cancellationToken);

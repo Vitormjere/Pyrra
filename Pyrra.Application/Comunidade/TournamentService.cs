@@ -332,10 +332,15 @@ namespace Pyrra.Application.Comunidade {
                 throw new NotFoundException("Time não encontrado.");
             }
 
-            // Um time só pode ter uma entrada ativa por vez. Recusados podem tentar novamente
-            var active = await _tournamentTeamRepository.GetActiveForTeamAsync(teamId, cancellationToken);
-            if (active is not null) {
-                throw new InvalidTournamentException("Esse time já está em um torneio ou tem uma solicitação pendente em outro.");
+            // Recusados não contam nem aqui nem no limite abaixo — podem tentar de novo livremente
+            var activeEntries = await _tournamentTeamRepository.GetActiveEntriesForTeamAsync(teamId, cancellationToken);
+
+            if (activeEntries.Any(e => e.TournamentId == tournament.Id)) {
+                throw new InvalidTournamentException("Esse time já está nesse torneio ou tem uma solicitação pendente nele.");
+            }
+
+            if (activeEntries.Count >= TournamentTeam.MaxTournamentsPerTeam) {
+                throw new InvalidTournamentException($"Esse time já atingiu o limite de {TournamentTeam.MaxTournamentsPerTeam} torneios simultâneos.");
             }
 
             var entry = new TournamentTeam {

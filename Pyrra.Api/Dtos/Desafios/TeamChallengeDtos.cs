@@ -55,4 +55,20 @@ namespace Pyrra.Api.Dtos.Desafios {
         public static TeamMemberRankingResponse FromRanking(TeamMemberRanking r) =>
             new(r.Position, UserSummaryResponse.FromSummary(r.User), r.Points);
     }
+
+    // Representa um desafio disponível de um torneio específico — de catálogo vinculado ou
+    // próprio (Fase 5b), separado dos desafios normais do time acima
+    public record AvailableTournamentChallengeResponse(
+        Guid Id, string Title, string? Description, int Points, string Source, string? MySubmissionStatus) {
+        public static AvailableTournamentChallengeResponse FromAvailable(AvailableTournamentChallenge a) => new(
+            a.ChallengeId, a.Title, a.Description, a.Points, a.Source.ToString(), a.MySubmissionStatus?.ToString());
+    }
+
+    // Representa uma submissão pendente de um desafio de torneio, pro dono do torneio avaliar
+    public record PendingTournamentSubmissionResponse(
+        Guid Id, DateTime CreatedAt, string ChallengeTitle, int ChallengePoints, string Source, UserSummaryResponse Submitter) {
+        public static PendingTournamentSubmissionResponse FromPending(PendingTournamentSubmission p) => new(
+            p.Submission.Id, p.Submission.CreatedAt, p.ChallengeTitle, p.ChallengePoints, p.Source.ToString(),
+            UserSummaryResponse.FromSummary(p.Submitter));
+    }
 }

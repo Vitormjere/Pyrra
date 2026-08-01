@@ -28,7 +28,7 @@ namespace Pyrra.Application.Comunidade {
         TeamSummary Summary,
         IReadOnlyList<TeamMemberSummary> Members,
         string InviteToken,
-        ActiveTeamTournament? ActiveTournament);
+        IReadOnlyList<ActiveTeamTournament> ActiveTournaments);
 
     // Resumo de um time público para exploração
     public record PublicTeamSummary(TeamSummary Summary, string InviteToken);

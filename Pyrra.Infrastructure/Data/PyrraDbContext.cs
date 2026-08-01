@@ -46,6 +46,8 @@ namespace Pyrra.Infrastructure.Data {
         public DbSet<TeamActiveCategory> TeamActiveCategories => Set<TeamActiveCategory>();
         public DbSet<ChallengeSubmission> ChallengeSubmissions => Set<ChallengeSubmission>();
         public DbSet<TeamMemberScore> TeamMemberScores => Set<TeamMemberScore>();
+        public DbSet<TournamentChallenge> TournamentChallenges => Set<TournamentChallenge>();
+        public DbSet<TournamentOwnChallenge> TournamentOwnChallenges => Set<TournamentOwnChallenge>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder) {
             modelBuilder.Entity<User>()
@@ -351,6 +353,11 @@ namespace Pyrra.Infrastructure.Data {
             modelBuilder.Entity<ChallengeSubmission>()
                 .HasIndex(s => new { s.TeamId, s.Status });
 
+            // Cobre a fila de aprovação do dono do torneio (Fase 5b: torneio+status=Pendente),
+            // separada da fila do dono do time acima.
+            modelBuilder.Entity<ChallengeSubmission>()
+                .HasIndex(s => new { s.TournamentId, s.Status });
+
             // Torneio: sem FK pra Users, mesma convenção de Team.
             modelBuilder.Entity<Tournament>()
                 .Property(t => t.Name)
@@ -387,8 +394,9 @@ namespace Pyrra.Infrastructure.Data {
             modelBuilder.Entity<TournamentRequest>()
                 .HasIndex(r => r.Status);
 
-            // Cobre GetActiveForTeamAsync — "um torneio por vez", checado a cada pedido de
-            // entrada novo (qualquer torneio, sem filtro por TournamentId aqui).
+            // Cobre GetActiveEntriesForTeamAsync — limite de MaxTournamentsPerTeam entradas
+            // simultâneas (Fase 5b), checado a cada pedido de entrada novo (qualquer torneio,
+            // sem filtro por TournamentId aqui).
             modelBuilder.Entity<TournamentTeam>()
                 .HasIndex(t => t.TeamId);
 
@@ -404,6 +412,25 @@ namespace Pyrra.Infrastructure.Data {
             modelBuilder.Entity<TeamMemberScore>()
                 .HasIndex(s => new { s.TeamId, s.UserId })
                 .IsUnique();
+
+            // Vínculo de um desafio do catálogo geral a um torneio (Fase 5b): não pode repetir o
+            // mesmo desafio no mesmo torneio — mesmo padrão do índice único de TeamActiveCategory.
+            modelBuilder.Entity<TournamentChallenge>()
+                .HasIndex(l => new { l.TournamentId, l.ChallengeId })
+                .IsUnique();
+
+            // Desafio próprio de um torneio (Fase 5b): sem categoria, lista flat por torneio.
+            modelBuilder.Entity<TournamentOwnChallenge>()
+                .Property(c => c.Title)
+                .HasMaxLength(200);
+
+            modelBuilder.Entity<TournamentOwnChallenge>()
+                .Property(c => c.Description)
+                .HasMaxLength(1000);
+
+            // Cobre a listagem de desafios próprios de um torneio.
+            modelBuilder.Entity<TournamentOwnChallenge>()
+                .HasIndex(c => c.TournamentId);
         }
     }
 }

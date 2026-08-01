@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Pyrra.Infrastructure.Data;
 
@@ -11,9 +12,11 @@ using Pyrra.Infrastructure.Data;
 namespace Pyrra.Infrastructure.Migrations
 {
     [DbContext(typeof(PyrraDbContext))]
-    partial class PyrraDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260801013444_AddTournamentChallenges")]
+    partial class AddTournamentChallenges
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -385,16 +388,10 @@ namespace Pyrra.Infrastructure.Migrations
                     b.Property<Guid?>("ReviewedByUserId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<int>("Source")
-                        .HasColumnType("int");
-
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
                     b.Property<Guid>("TeamId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("TournamentId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("UserId")
@@ -403,8 +400,6 @@ namespace Pyrra.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("TeamId", "Status");
-
-                    b.HasIndex("TournamentId", "Status");
 
                     b.HasIndex("UserId", "ChallengeId", "TeamId");
 

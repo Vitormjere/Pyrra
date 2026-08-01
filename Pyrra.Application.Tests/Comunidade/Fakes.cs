@@ -165,6 +165,11 @@ namespace Pyrra.Application.Tests.Comunidade {
             return Task.CompletedTask;
         }
 
+        // Passthrough pra registrar um membro sem precisar expor a lista interna do
+        // FakeTeamMemberRepository — usado por testes que criam um segundo time dentro do mesmo
+        // Build() (ex.: isolamento de placar entre times).
+        public void AddMember(TeamMember member) => _members.Members.Add(member);
+
         public Task UpdateAsync(Team team, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public Task DeleteAsync(Team team, CancellationToken cancellationToken = default) {
@@ -299,8 +304,9 @@ namespace Pyrra.Application.Tests.Comunidade {
         public Task<TournamentTeam?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
             Task.FromResult(Entries.FirstOrDefault(e => e.Id == id));
 
-        public Task<TournamentTeam?> GetActiveForTeamAsync(Guid teamId, CancellationToken cancellationToken = default) =>
-            Task.FromResult(Entries.FirstOrDefault(e => e.TeamId == teamId && e.Status != TournamentTeamStatus.Recusado));
+        public Task<IReadOnlyList<TournamentTeam>> GetActiveEntriesForTeamAsync(Guid teamId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<TournamentTeam>>(
+                Entries.Where(e => e.TeamId == teamId && e.Status != TournamentTeamStatus.Recusado).ToList());
 
         public Task<IReadOnlyList<TournamentTeam>> GetPendingForTournamentAsync(Guid tournamentId, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<TournamentTeam>>(

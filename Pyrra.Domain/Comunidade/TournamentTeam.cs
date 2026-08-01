@@ -9,10 +9,15 @@ namespace Pyrra.Domain.Comunidade {
     ///
     /// Score é a pontuação DENTRO deste torneio, separada de Team.TotalPoints — começa em 0 e só
     /// passa a ser somada quando uma submissão de desafio é aprovada com o time Aprovado aqui
-    /// (próxima etapa). Um time só pode ter UMA linha ativa (Pendente ou Aprovado) por vez, em
-    /// qualquer torneio — "um torneio por vez".
+    /// (próxima etapa). Um time pode ter até MaxTournamentsPerTeam linhas ativas (Pendente ou
+    /// Aprovado) simultâneas, em torneios diferentes (Fase 5b) — mas nunca duas ativas no MESMO
+    /// torneio, ver checagem em TournamentService.RequestEntryCoreAsync.
     /// </summary>
     public class TournamentTeam {
+        // Fácil de ajustar depois — checado em TournamentService.RequestEntryCoreAsync e
+        // TeamService.GetMyEligibleForTournamentAsync.
+        public const int MaxTournamentsPerTeam = 5;
+
         public Guid Id { get; set; }
         public Guid TournamentId { get; set; }
         public Guid TeamId { get; set; }

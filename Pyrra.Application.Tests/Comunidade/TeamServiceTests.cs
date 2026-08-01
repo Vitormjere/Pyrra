@@ -611,19 +611,19 @@ namespace Pyrra.Application.Tests.Comunidade {
             Assert.Contains(details.Members, m => m.UserId == Alice && m.IsOwner);
             Assert.Contains(details.Members, m => m.UserId == Bob && !m.IsOwner);
             Assert.Equal(teams.Teams.Single().InviteToken, details.InviteToken);
-            Assert.Null(details.ActiveTournament);
+            Assert.Empty(details.ActiveTournaments);
         }
 
-        // ---- ActiveTournament (Fase 4d: aviso na tela de Detalhes do Time) ----
+        // ---- ActiveTournaments (Fase 4d, listado a partir da Fase 5b) ----
 
         [Fact]
-        public async Task GetDetails_SemEntradaEmTorneio_ActiveTournamentNulo() {
+        public async Task GetDetails_SemEntradaEmTorneio_ActiveTournamentsVazio() {
             var (service, _, _, _, _, _, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
 
             var details = await service.GetDetailsAsync(Alice, team.Id);
 
-            Assert.Null(details.ActiveTournament);
+            Assert.Empty(details.ActiveTournaments);
         }
 
         [Fact]
@@ -641,10 +641,10 @@ namespace Pyrra.Application.Tests.Comunidade {
 
             var details = await service.GetDetailsAsync(Alice, team.Id);
 
-            Assert.NotNull(details.ActiveTournament);
-            Assert.Equal(tournament.Id, details.ActiveTournament!.TournamentId);
-            Assert.Equal("Torneio X", details.ActiveTournament.TournamentName);
-            Assert.Equal(TournamentTeamStatus.Pendente, details.ActiveTournament.Status);
+            var activeTournament = Assert.Single(details.ActiveTournaments);
+            Assert.Equal(tournament.Id, activeTournament.TournamentId);
+            Assert.Equal("Torneio X", activeTournament.TournamentName);
+            Assert.Equal(TournamentTeamStatus.Pendente, activeTournament.Status);
         }
 
         [Fact]
@@ -662,12 +662,12 @@ namespace Pyrra.Application.Tests.Comunidade {
 
             var details = await service.GetDetailsAsync(Alice, team.Id);
 
-            Assert.NotNull(details.ActiveTournament);
-            Assert.Equal(TournamentTeamStatus.Aprovado, details.ActiveTournament!.Status);
+            var activeTournament = Assert.Single(details.ActiveTournaments);
+            Assert.Equal(TournamentTeamStatus.Aprovado, activeTournament.Status);
         }
 
         [Fact]
-        public async Task GetDetails_ComEntradaRecusadaNoTorneio_ActiveTournamentNulo() {
+        public async Task GetDetails_ComEntradaRecusadaNoTorneio_ActiveTournamentsVazio() {
             var tournamentTeams = new FakeTournamentTeamRepository();
             var tournaments = new FakeTournamentRepository();
             var (service, _, _, _, _, _, _) = Build(tournamentTeams, tournaments);
@@ -681,7 +681,32 @@ namespace Pyrra.Application.Tests.Comunidade {
 
             var details = await service.GetDetailsAsync(Alice, team.Id);
 
-            Assert.Null(details.ActiveTournament);
+            Assert.Empty(details.ActiveTournaments);
+        }
+
+        [Fact]
+        public async Task GetDetails_ComVariasEntradasAtivas_RetornaTodasAsActiveTournaments() {
+            var tournamentTeams = new FakeTournamentTeamRepository();
+            var tournaments = new FakeTournamentRepository();
+            var (service, _, _, _, _, _, _) = Build(tournamentTeams, tournaments);
+            var team = await service.CreateAsync(Alice, "Time", null, 5);
+
+            var tournamentA = new Tournament { Id = Guid.NewGuid(), Name = "Torneio A", OwnerId = Carol, InviteToken = "tokA" };
+            var tournamentB = new Tournament { Id = Guid.NewGuid(), Name = "Torneio B", OwnerId = Carol, InviteToken = "tokB" };
+            tournaments.Tournaments.Add(tournamentA);
+            tournaments.Tournaments.Add(tournamentB);
+            tournamentTeams.Entries.Add(new TournamentTeam {
+                Id = Guid.NewGuid(), TournamentId = tournamentA.Id, TeamId = team.Id, Status = TournamentTeamStatus.Aprovado
+            });
+            tournamentTeams.Entries.Add(new TournamentTeam {
+                Id = Guid.NewGuid(), TournamentId = tournamentB.Id, TeamId = team.Id, Status = TournamentTeamStatus.Pendente
+            });
+
+            var details = await service.GetDetailsAsync(Alice, team.Id);
+
+            Assert.Equal(2, details.ActiveTournaments.Count);
+            Assert.Contains(details.ActiveTournaments, t => t.TournamentId == tournamentA.Id && t.Status == TournamentTeamStatus.Aprovado);
+            Assert.Contains(details.ActiveTournaments, t => t.TournamentId == tournamentB.Id && t.Status == TournamentTeamStatus.Pendente);
         }
 
         // ---- GetMyEligibleForTournamentAsync (botão "Solicitar entrada" na tela de Torneio) ----
@@ -705,8 +730,10 @@ namespace Pyrra.Application.Tests.Comunidade {
             Assert.Contains(eligible, t => t.Id == team.Id);
         }
 
+        // Fase 5b: uma entrada ativa isolada não esgota mais o limite — o time continua elegível
+        // enquanto tiver menos de MaxTournamentsPerTeam entradas ativas.
         [Fact]
-        public async Task GetMyEligibleForTournament_TimeComEntradaPendente_Exclui() {
+        public async Task GetMyEligibleForTournament_TimeComUmaEntradaPendente_AindaInclui() {
             var tournamentTeams = new FakeTournamentTeamRepository();
             var tournaments = new FakeTournamentRepository();
             var (service, _, _, _, _, _, _) = Build(tournamentTeams, tournaments);
@@ -720,11 +747,11 @@ namespace Pyrra.Application.Tests.Comunidade {
 
             var eligible = await service.GetMyEligibleForTournamentAsync(Alice);
 
-            Assert.DoesNotContain(eligible, t => t.Id == team.Id);
+            Assert.Contains(eligible, t => t.Id == team.Id);
         }
 
         [Fact]
-        public async Task GetMyEligibleForTournament_TimeComEntradaAprovada_Exclui() {
+        public async Task GetMyEligibleForTournament_TimeComUmaEntradaAprovada_AindaInclui() {
             var tournamentTeams = new FakeTournamentTeamRepository();
             var tournaments = new FakeTournamentRepository();
             var (service, _, _, _, _, _, _) = Build(tournamentTeams, tournaments);
@@ -735,6 +762,26 @@ namespace Pyrra.Application.Tests.Comunidade {
             tournamentTeams.Entries.Add(new TournamentTeam {
                 Id = Guid.NewGuid(), TournamentId = tournament.Id, TeamId = team.Id, Status = TournamentTeamStatus.Aprovado
             });
+
+            var eligible = await service.GetMyEligibleForTournamentAsync(Alice);
+
+            Assert.Contains(eligible, t => t.Id == team.Id);
+        }
+
+        [Fact]
+        public async Task GetMyEligibleForTournament_TimeNoLimiteDeCincoEntradasAtivas_Exclui() {
+            var tournamentTeams = new FakeTournamentTeamRepository();
+            var tournaments = new FakeTournamentRepository();
+            var (service, _, _, _, _, _, _) = Build(tournamentTeams, tournaments);
+            var team = await service.CreateAsync(Alice, "Time", null, 5);
+
+            for (var i = 0; i < TournamentTeam.MaxTournamentsPerTeam; i++) {
+                var tournament = new Tournament { Id = Guid.NewGuid(), Name = $"Torneio {i}", OwnerId = Carol, InviteToken = $"tok{i}" };
+                tournaments.Tournaments.Add(tournament);
+                tournamentTeams.Entries.Add(new TournamentTeam {
+                    Id = Guid.NewGuid(), TournamentId = tournament.Id, TeamId = team.Id, Status = TournamentTeamStatus.Aprovado
+                });
+            }
 
             var eligible = await service.GetMyEligibleForTournamentAsync(Alice);
 
@@ -779,11 +826,13 @@ namespace Pyrra.Application.Tests.Comunidade {
             var ocupado = await service.CreateAsync(Alice, "Abelha", null, 5);
             var livre2 = await service.CreateAsync(Alice, "Meio", null, 5);
 
-            var tournament = new Tournament { Id = Guid.NewGuid(), Name = "Torneio", OwnerId = Carol, InviteToken = "tok" };
-            tournaments.Tournaments.Add(tournament);
-            tournamentTeams.Entries.Add(new TournamentTeam {
-                Id = Guid.NewGuid(), TournamentId = tournament.Id, TeamId = ocupado.Id, Status = TournamentTeamStatus.Aprovado
-            });
+            for (var i = 0; i < TournamentTeam.MaxTournamentsPerTeam; i++) {
+                var tournament = new Tournament { Id = Guid.NewGuid(), Name = $"Torneio {i}", OwnerId = Carol, InviteToken = $"tok{i}" };
+                tournaments.Tournaments.Add(tournament);
+                tournamentTeams.Entries.Add(new TournamentTeam {
+                    Id = Guid.NewGuid(), TournamentId = tournament.Id, TeamId = ocupado.Id, Status = TournamentTeamStatus.Aprovado
+                });
+            }
 
             var eligible = await service.GetMyEligibleForTournamentAsync(Alice);
 

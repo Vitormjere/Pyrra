@@ -19,10 +19,10 @@ namespace Pyrra.Infrastructure.Repositories {
         public Task<TournamentTeam?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
             _context.TournamentTeams.FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
 
-        public Task<TournamentTeam?> GetActiveForTeamAsync(Guid teamId, CancellationToken cancellationToken = default) =>
-            _context.TournamentTeams.FirstOrDefaultAsync(t =>
-                t.TeamId == teamId && t.Status != TournamentTeamStatus.Recusado,
-                cancellationToken);
+        public async Task<IReadOnlyList<TournamentTeam>> GetActiveEntriesForTeamAsync(Guid teamId, CancellationToken cancellationToken = default) =>
+            await _context.TournamentTeams
+                .Where(t => t.TeamId == teamId && t.Status != TournamentTeamStatus.Recusado)
+                .ToListAsync(cancellationToken);
 
         public async Task<IReadOnlyList<TournamentTeam>> GetPendingForTournamentAsync(Guid tournamentId, CancellationToken cancellationToken = default) =>
             await _context.TournamentTeams

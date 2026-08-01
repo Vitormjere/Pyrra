@@ -1,11 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { ChangeEvent } from 'react'
+import type { ChangeEvent, FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Check, Copy, Crown, ImagePlus, Link2, Medal, Trophy, UserPlus, X } from 'lucide-react'
+import {
+  Check,
+  Copy,
+  Crown,
+  ImagePlus,
+  Link2,
+  ListChecks,
+  Medal,
+  Plus,
+  Trash2,
+  Trophy,
+  UserPlus,
+  X,
+} from 'lucide-react'
 import EmptyState from '../../components/EmptyState'
 import Skeleton from '../../components/Skeleton'
 import TeamBanner from '../../components/TeamBanner'
 import TeamEntryPicker from '../../components/TeamEntryPicker'
+import { getSubmissionPhotoUrl } from '../../services/challengeService'
 import { getMyEligibleTeamsForTournament } from '../../services/teamService'
 import {
   approveEntry,
@@ -18,16 +32,39 @@ import {
   setTournamentBannerTheme,
   uploadTournamentBannerImage,
 } from '../../services/tournamentService'
+import {
+  approveTournamentSubmission,
+  createTournamentOwnChallenge,
+  deleteTournamentOwnChallenge,
+  getTournamentCatalog,
+  getTournamentOwnChallenges,
+  getTournamentPendingSubmissions,
+  linkTournamentCatalogChallenge,
+  rejectTournamentSubmission,
+  unlinkTournamentCatalogChallenge,
+} from '../../services/tournamentChallengeService'
 import { getApiErrorMessage } from '../../services/apiError'
+import { CHALLENGE_CATEGORY_SWATCH, CHALLENGE_CATEGORY_TEXT } from '../../utils/challengeCategoryColors'
+import { getCategoryIcon } from '../../utils/challengeCategoryIcons'
 import { TEAM_BANNER_SWATCH, TEAM_BANNER_THEMES } from '../../utils/teamBanners'
 import type { Team, TeamBannerTheme } from '../../types/teams'
 import type { TournamentDetails, TournamentTeamEntry } from '../../types/tournaments'
+import type {
+  PendingTournamentSubmissionWithTeam,
+  TournamentCatalogChallenge,
+  TournamentOwnChallenge,
+} from '../../types/tournamentChallenges'
 
 const MAX_BANNER_BYTES = 3 * 1024 * 1024
 const ACCEPTED_BANNER_TYPES = 'image/jpeg,image/png,image/webp'
 
 const listClasses =
   'divide-y divide-line overflow-hidden rounded-md bg-surface ring-1 ring-line'
+
+const inputClasses =
+  'w-full rounded-md bg-surface-hi px-3 py-2 text-sm text-ink ring-1 ring-line transition outline-none placeholder:text-slate-500 focus:ring-2 focus:ring-brand-green'
+
+const labelClasses = 'text-xs font-medium text-slate-400'
 
 function RankingRow({ entry, position }: { entry: TournamentTeamEntry; position: number }) {
   return (
@@ -91,6 +128,169 @@ function PendingEntryRow({
   )
 }
 
+// Checkbox de vínculo com o catálogo geral — a categoria/ícone/cor vêm do desafio real, mesmo
+// estilo de CategoryRow em Times/Detalhe.tsx.
+function CatalogChallengeRow({
+  challenge,
+  busy,
+  onToggle,
+}: {
+  challenge: TournamentCatalogChallenge
+  busy: boolean
+  onToggle: () => void
+}) {
+  const Icon = getCategoryIcon(challenge.category.icon)
+  return (
+    <li className="flex items-center gap-3 px-4 py-3">
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={challenge.isLinked}
+        aria-label={`Vincular ${challenge.title} ao torneio`}
+        disabled={busy}
+        onClick={onToggle}
+        className={[
+          'flex size-5 shrink-0 items-center justify-center rounded transition disabled:opacity-50',
+          challenge.isLinked ? 'bg-brand-green' : 'ring-1 ring-line hover:ring-slate-500',
+        ].join(' ')}
+      >
+        {challenge.isLinked && <Check size={13} className="text-brand-dark" aria-hidden="true" />}
+      </button>
+      <span
+        aria-hidden="true"
+        className={[
+          'flex size-9 shrink-0 items-center justify-center rounded-full text-brand-dark',
+          CHALLENGE_CATEGORY_SWATCH[challenge.category.color],
+        ].join(' ')}
+      >
+        <Icon size={16} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-medium text-ink">{challenge.title}</p>
+        <p className={['truncate text-xs font-medium', CHALLENGE_CATEGORY_TEXT[challenge.category.color]].join(' ')}>
+          {challenge.category.name}
+        </p>
+      </div>
+      <span className="shrink-0 rounded-full bg-brand-green/10 px-2.5 py-1 text-xs font-semibold text-brand-green ring-1 ring-brand-green/20">
+        +{challenge.points} pts
+      </span>
+    </li>
+  )
+}
+
+// Desafio próprio do torneio — sem categoria (lista flat), só o dono remove.
+function OwnChallengeRow({
+  challenge,
+  busy,
+  onDelete,
+}: {
+  challenge: TournamentOwnChallenge
+  busy: boolean
+  onDelete: () => void
+}) {
+  return (
+    <li className="flex items-center gap-3 px-4 py-3">
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-medium text-ink">{challenge.title}</p>
+        {challenge.description && <p className="truncate text-xs text-slate-400">{challenge.description}</p>}
+      </div>
+      <span className="shrink-0 rounded-full bg-brand-green/10 px-2.5 py-1 text-xs font-semibold text-brand-green ring-1 ring-brand-green/20">
+        +{challenge.points} pts
+      </span>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={onDelete}
+        aria-label={`Remover ${challenge.title}`}
+        className="shrink-0 rounded-xl p-2 text-slate-400 transition hover:bg-surface-hi hover:text-red-400 disabled:opacity-50"
+      >
+        <Trash2 size={15} />
+      </button>
+    </li>
+  )
+}
+
+// Submissão pendente de um desafio DE TORNEIO, de qualquer time participante — mostra de qual
+// time veio (pode ser mais de um), diferente da fila de um time só em Times/Detalhe.tsx.
+function PendingTournamentSubmissionRow({
+  submission,
+  busy,
+  onApprove,
+  onReject,
+}: {
+  submission: PendingTournamentSubmissionWithTeam
+  busy: boolean
+  onApprove: () => void
+  onReject: () => void
+}) {
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+    let objectUrl: string | null = null
+
+    void getSubmissionPhotoUrl(submission.teamId, submission.id).then((url) => {
+      if (!active) {
+        URL.revokeObjectURL(url)
+        return
+      }
+      objectUrl = url
+      setPhotoUrl(url)
+    })
+
+    return () => {
+      active = false
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [submission.teamId, submission.id])
+
+  return (
+    <li className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center">
+      {photoUrl ? (
+        <img
+          src={photoUrl}
+          alt={`Prova enviada por ${submission.submitter.name} para ${submission.challengeTitle}`}
+          className="h-32 w-full shrink-0 rounded-lg object-cover ring-1 ring-line sm:h-14 sm:w-14"
+        />
+      ) : (
+        <div
+          aria-hidden="true"
+          className="h-32 w-full shrink-0 animate-pulse rounded-lg bg-surface-hi ring-1 ring-line sm:h-14 sm:w-14"
+        />
+      )}
+      <div className="min-w-0 flex-1">
+        <p className="font-medium text-ink">{submission.challengeTitle}</p>
+        <p className="truncate text-xs text-slate-400">
+          Enviado por {submission.submitter.name}
+          {submission.submitter.username && ` (@${submission.submitter.username})`} — time{' '}
+          <span className="font-medium text-slate-300">{submission.teamName}</span>
+        </p>
+        <p className="mt-1 text-xs font-semibold text-brand-green">+{submission.challengePoints} pts</p>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={onApprove}
+          className="inline-flex items-center gap-1 rounded-xl bg-brand-green px-3 py-1.5 text-sm font-semibold text-brand-dark transition hover:brightness-95 disabled:opacity-60"
+        >
+          <Check size={15} aria-hidden="true" />
+          Aprovar
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={onReject}
+          aria-label={`Recusar submissão de ${submission.submitter.name}`}
+          className="rounded-xl p-2 text-slate-400 ring-1 ring-line transition hover:bg-surface-hi hover:text-red-400 disabled:opacity-50"
+        >
+          <X size={15} />
+        </button>
+      </div>
+    </li>
+  )
+}
+
 export function TorneioDetalhe() {
   const { id } = useParams<{ id: string }>()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -107,6 +307,24 @@ export function TorneioDetalhe() {
   const [ranking, setRanking] = useState<TournamentTeamEntry[] | null>(null)
   const [pendingEntries, setPendingEntries] = useState<TournamentTeamEntry[] | null>(null)
   const [entryBusyId, setEntryBusyId] = useState<string | null>(null)
+
+  // Desafios do torneio — catálogo geral com status de vínculo + desafios próprios (só o dono vê)
+  const [catalog, setCatalog] = useState<TournamentCatalogChallenge[] | null>(null)
+  const [catalogBusyId, setCatalogBusyId] = useState<string | null>(null)
+  const [ownChallenges, setOwnChallenges] = useState<TournamentOwnChallenge[] | null>(null)
+  const [ownChallengeBusyId, setOwnChallengeBusyId] = useState<string | null>(null)
+
+  // Formulário "Criar desafio"
+  const [newTitle, setNewTitle] = useState('')
+  const [newDescription, setNewDescription] = useState('')
+  const [newPoints, setNewPoints] = useState('')
+  const [createBusy, setCreateBusy] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+
+  // Submissões pendentes de desafios DE TORNEIO, cruzando todos os times participantes (só o
+  // dono vê) — separado das entradas pendentes acima, que são sobre times entrando no torneio.
+  const [tournamentPending, setTournamentPending] = useState<PendingTournamentSubmissionWithTeam[] | null>(null)
+  const [tournamentPendingBusyId, setTournamentPendingBusyId] = useState<string | null>(null)
 
   // "Solicitar entrada" — visível a qualquer usuário (mesmo quem não é dono do torneio), desde
   // que tenha pelo menos um time próprio sem entrada ativa em outro torneio agora.
@@ -175,17 +393,55 @@ export function TorneioDetalhe() {
     }
   }, [])
 
-  // Ranking e times elegíveis, todo mundo vê. Entradas pendentes, só depois de saber que é dono —
-  // membro comum recebe 404 desse endpoint (mesmo critério de Times/Detalhe.tsx com
-  // categorias/submissões).
+  const loadCatalog = useCallback(async () => {
+    if (!id) return
+    try {
+      setCatalog(await getTournamentCatalog(id))
+    } catch (err) {
+      setError(getApiErrorMessage(err, {}, 'Não foi possível carregar o catálogo de desafios.'))
+    }
+  }, [id])
+
+  const loadOwnChallenges = useCallback(async () => {
+    if (!id) return
+    try {
+      setOwnChallenges(await getTournamentOwnChallenges(id))
+    } catch (err) {
+      setError(getApiErrorMessage(err, {}, 'Não foi possível carregar os desafios próprios.'))
+    }
+  }, [id])
+
+  const loadTournamentPending = useCallback(async () => {
+    if (!id) return
+    try {
+      setTournamentPending(await getTournamentPendingSubmissions(id))
+    } catch (err) {
+      setError(getApiErrorMessage(err, {}, 'Não foi possível carregar as submissões pendentes.'))
+    }
+  }, [id])
+
+  // Ranking e times elegíveis, todo mundo vê. O resto (entradas pendentes, desafios do torneio,
+  // submissões pendentes), só depois de saber que é dono — membro comum recebe 404 desses
+  // endpoints (mesmo critério de Times/Detalhe.tsx com categorias/submissões).
   useEffect(() => {
     if (!details) return
     void loadRanking()
     void loadEligibleTeams()
     if (details.tournament.isOwner) {
       void loadPendingEntries()
+      void loadCatalog()
+      void loadOwnChallenges()
+      void loadTournamentPending()
     }
-  }, [details, loadRanking, loadEligibleTeams, loadPendingEntries])
+  }, [
+    details,
+    loadRanking,
+    loadEligibleTeams,
+    loadPendingEntries,
+    loadCatalog,
+    loadOwnChallenges,
+    loadTournamentPending,
+  ])
 
   // Caminho direto (um único time elegível — sem precisar escolher). O picker de múltiplos times
   // (TeamEntryPicker) cuida do próprio busy/sucesso/erro por linha; aqui é só o caso de 1 time.
@@ -228,6 +484,95 @@ export function TorneioDetalhe() {
       setError(getApiErrorMessage(err, {}, 'Não foi possível recusar a entrada.'))
     } finally {
       setEntryBusyId(null)
+    }
+  }
+
+  async function handleToggleCatalogLink(challenge: TournamentCatalogChallenge) {
+    if (!id) return
+    setCatalogBusyId(challenge.id)
+    setError(null)
+    try {
+      if (challenge.isLinked) {
+        await unlinkTournamentCatalogChallenge(id, challenge.id)
+      } else {
+        await linkTournamentCatalogChallenge(id, challenge.id)
+      }
+      await loadCatalog()
+    } catch (err) {
+      setError(getApiErrorMessage(err, {}, 'Não foi possível atualizar o vínculo com o catálogo.'))
+    } finally {
+      setCatalogBusyId(null)
+    }
+  }
+
+  async function handleCreateOwnChallenge(event: FormEvent) {
+    event.preventDefault()
+    if (!id) return
+
+    const points = Number(newPoints)
+    if (!newTitle.trim()) {
+      setCreateError('O título do desafio é obrigatório.')
+      return
+    }
+    if (!Number.isInteger(points) || points <= 0) {
+      setCreateError('A pontuação precisa ser um número inteiro maior que zero.')
+      return
+    }
+
+    setCreateBusy(true)
+    setCreateError(null)
+    try {
+      await createTournamentOwnChallenge(id, newTitle.trim(), newDescription.trim() || null, points)
+      setNewTitle('')
+      setNewDescription('')
+      setNewPoints('')
+      await loadOwnChallenges()
+    } catch (err) {
+      setCreateError(getApiErrorMessage(err, {}, 'Não foi possível criar o desafio.'))
+    } finally {
+      setCreateBusy(false)
+    }
+  }
+
+  async function handleDeleteOwnChallenge(challengeId: string) {
+    if (!id) return
+    setOwnChallengeBusyId(challengeId)
+    setError(null)
+    try {
+      await deleteTournamentOwnChallenge(id, challengeId)
+      await loadOwnChallenges()
+    } catch (err) {
+      setError(getApiErrorMessage(err, {}, 'Não foi possível remover o desafio.'))
+    } finally {
+      setOwnChallengeBusyId(null)
+    }
+  }
+
+  async function handleApproveTournamentSubmission(submission: PendingTournamentSubmissionWithTeam) {
+    if (!id) return
+    setTournamentPendingBusyId(submission.id)
+    setError(null)
+    try {
+      await approveTournamentSubmission(submission.teamId, id, submission.id)
+      await Promise.all([loadTournamentPending(), loadRanking()])
+    } catch (err) {
+      setError(getApiErrorMessage(err, {}, 'Não foi possível aprovar a submissão.'))
+    } finally {
+      setTournamentPendingBusyId(null)
+    }
+  }
+
+  async function handleRejectTournamentSubmission(submission: PendingTournamentSubmissionWithTeam) {
+    if (!id) return
+    setTournamentPendingBusyId(submission.id)
+    setError(null)
+    try {
+      await rejectTournamentSubmission(submission.teamId, id, submission.id)
+      await loadTournamentPending()
+    } catch (err) {
+      setError(getApiErrorMessage(err, {}, 'Não foi possível recusar a submissão.'))
+    } finally {
+      setTournamentPendingBusyId(null)
     }
   }
 
@@ -506,6 +851,115 @@ export function TorneioDetalhe() {
         </section>
       )}
 
+      {/* DESAFIOS DO TORNEIO — só o dono gerencia: escolher do catálogo geral ou criar um
+          desafio próprio, exclusivo deste torneio (Fase 5b). */}
+      {tournament.isOwner && (
+        <section className="flex flex-col gap-4">
+          <h2 className="flex items-center gap-1.5 text-sm font-medium text-slate-300">
+            <ListChecks size={15} className="text-brand-green" aria-hidden="true" />
+            Desafios do torneio
+          </h2>
+
+          {/* Escolher do catálogo */}
+          <div className="flex flex-col gap-2">
+            <h3 className={labelClasses}>Escolher do catálogo</h3>
+            {catalog === null ? (
+              <Skeleton className="h-16" />
+            ) : catalog.length === 0 ? (
+              <p className="rounded-md bg-surface px-4 py-3 text-sm text-slate-500 ring-1 ring-line">
+                Nenhum desafio no catálogo geral ainda.
+              </p>
+            ) : (
+              <ul className={listClasses}>
+                {catalog.map((challenge) => (
+                  <CatalogChallengeRow
+                    key={challenge.id}
+                    challenge={challenge}
+                    busy={catalogBusyId === challenge.id}
+                    onToggle={() => handleToggleCatalogLink(challenge)}
+                  />
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Criar desafio */}
+          <div className="flex flex-col gap-2">
+            <h3 className={labelClasses}>Criar desafio</h3>
+            <form onSubmit={handleCreateOwnChallenge} className="flex flex-col gap-2 rounded-md bg-surface px-4 py-3 ring-1 ring-line">
+              <div className="flex flex-col gap-1">
+                <label htmlFor="own-challenge-title" className={labelClasses}>
+                  Título
+                </label>
+                <input
+                  id="own-challenge-title"
+                  type="text"
+                  value={newTitle}
+                  onChange={(event) => setNewTitle(event.target.value)}
+                  placeholder="Ex.: Correr 10km no torneio"
+                  className={inputClasses}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="own-challenge-description" className={labelClasses}>
+                  Descrição <span className="font-normal text-slate-500">(opcional)</span>
+                </label>
+                <textarea
+                  id="own-challenge-description"
+                  value={newDescription}
+                  onChange={(event) => setNewDescription(event.target.value)}
+                  rows={2}
+                  className={`${inputClasses} resize-none`}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="own-challenge-points" className={labelClasses}>
+                  Pontos
+                </label>
+                <input
+                  id="own-challenge-points"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  value={newPoints}
+                  onChange={(event) => setNewPoints(event.target.value)}
+                  placeholder="Ex.: 20"
+                  className={`${inputClasses} max-w-32`}
+                />
+              </div>
+              {createError && (
+                <p role="alert" className="text-xs text-red-300">
+                  {createError}
+                </p>
+              )}
+              <button
+                type="submit"
+                disabled={createBusy}
+                className="mt-1 inline-flex items-center justify-center gap-1.5 self-start rounded-xl bg-brand-green px-4 py-2 text-sm font-semibold text-brand-dark transition hover:brightness-95 disabled:opacity-60"
+              >
+                <Plus size={15} aria-hidden="true" />
+                {createBusy ? 'Criando…' : 'Criar desafio'}
+              </button>
+            </form>
+
+            {ownChallenges === null ? (
+              <Skeleton className="h-16" />
+            ) : ownChallenges.length > 0 ? (
+              <ul className={listClasses}>
+                {ownChallenges.map((challenge) => (
+                  <OwnChallengeRow
+                    key={challenge.id}
+                    challenge={challenge}
+                    busy={ownChallengeBusyId === challenge.id}
+                    onDelete={() => handleDeleteOwnChallenge(challenge.id)}
+                  />
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        </section>
+      )}
+
       {/* ENTRADAS PENDENTES — só o dono aprova/recusa */}
       {tournament.isOwner && (
         <section className="flex flex-col gap-2">
@@ -525,6 +979,34 @@ export function TorneioDetalhe() {
                   busy={entryBusyId === entry.id}
                   onApprove={() => handleApproveEntry(entry.id)}
                   onReject={() => handleRejectEntry(entry.id)}
+                />
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
+      {/* SUBMISSÕES PENDENTES DE DESAFIOS DE TORNEIO — cruza todos os times participantes, só o
+          dono do torneio aprova/recusa (Fase 5b). Separado das entradas acima, que são sobre
+          times pedindo pra entrar no torneio, não sobre desafios. */}
+      {tournament.isOwner && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-sm font-medium text-slate-300">Submissões pendentes</h2>
+          {tournamentPending === null ? (
+            <Skeleton className="h-16" />
+          ) : tournamentPending.length === 0 ? (
+            <p className="rounded-md bg-surface px-4 py-3 text-sm text-slate-500 ring-1 ring-line">
+              Nenhuma submissão aguardando aprovação.
+            </p>
+          ) : (
+            <ul className={listClasses}>
+              {tournamentPending.map((submission) => (
+                <PendingTournamentSubmissionRow
+                  key={submission.id}
+                  submission={submission}
+                  busy={tournamentPendingBusyId === submission.id}
+                  onApprove={() => handleApproveTournamentSubmission(submission)}
+                  onReject={() => handleRejectTournamentSubmission(submission)}
                 />
               ))}
             </ul>

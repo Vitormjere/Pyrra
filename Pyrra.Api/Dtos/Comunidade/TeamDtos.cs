@@ -29,7 +29,7 @@ namespace Pyrra.Api.Dtos.Comunidade {
             new(s.UserId, UserSummaryResponse.FromSummary(s.User), s.IsOwner, s.JoinedAt);
     }
 
-    // Retorna o torneio ativo do time, quando ele existir
+    // Um dos torneios ativos do time (Fase 5b: pode haver vários, até MaxTournamentsPerTeam)
     public record ActiveTournamentResponse(Guid TournamentId, string TournamentName, string Status) {
         public static ActiveTournamentResponse FromModel(ActiveTeamTournament t) =>
             new(t.TournamentId, t.TournamentName, t.Status.ToString());
@@ -41,13 +41,13 @@ namespace Pyrra.Api.Dtos.Comunidade {
         IReadOnlyList<TeamMemberResponse> Members,
         string InviteToken,
         string InvitePath,
-        ActiveTournamentResponse? ActiveTournament) {
+        IReadOnlyList<ActiveTournamentResponse> ActiveTournaments) {
         public static TeamDetailsResponse FromDetails(TeamDetails d) => new(
             TeamSummaryResponse.FromSummary(d.Summary),
             d.Members.Select(TeamMemberResponse.FromSummary).ToList(),
             d.InviteToken,
             $"/times/convite/{d.InviteToken}",
-            d.ActiveTournament is null ? null : ActiveTournamentResponse.FromModel(d.ActiveTournament));
+            d.ActiveTournaments.Select(ActiveTournamentResponse.FromModel).ToList());
     }
 
     public record TeamInviteResponse(Guid InviteId, TeamSummaryResponse Team, UserSummaryResponse Inviter, DateTime CreatedAt) {

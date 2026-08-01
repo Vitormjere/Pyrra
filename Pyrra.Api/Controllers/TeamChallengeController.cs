@@ -187,6 +187,128 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
+        // ---- Desafios de torneio (Fase 5b) — separados dos desafios normais do time acima ----
+
+        // Desafios de um torneio específico em que o time está Aprovado (catálogo vinculado + próprios)
+        [HttpGet("torneios/{tournamentId:guid}")]
+        public async Task<ActionResult<IEnumerable<AvailableTournamentChallengeResponse>>> GetAvailableTournamentChallenges(
+            Guid teamId, Guid tournamentId, CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            try {
+                var challenges = await _service.GetAvailableTournamentChallengesAsync(userId, teamId, tournamentId, cancellationToken);
+                return Ok(challenges.Select(AvailableTournamentChallengeResponse.FromAvailable));
+            } catch (InvalidChallengeException ex) {
+                return BadRequest(new { message = ex.Message });
+            } catch (NotFoundException ex) {
+                return NotFound(new { message = ex.Message });
+            }
+        }
+
+        // Envia a prova de um desafio do catálogo geral vinculado ao torneio
+        [HttpPost("torneios/{tournamentId:guid}/catalogo/{challengeId:guid}/submissoes")]
+        public async Task<ActionResult<ChallengeSubmissionResponse>> SubmitTournamentCatalogChallengeProof(
+            Guid teamId, Guid tournamentId, Guid challengeId, IFormFile file, CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            if (file is null || file.Length == 0) {
+                return BadRequest(new { message = "Envie um arquivo de imagem." });
+            }
+
+            try {
+                await using var stream = file.OpenReadStream();
+                var submission = await _service.SubmitTournamentCatalogChallengeProofAsync(
+                    userId, teamId, tournamentId, challengeId, stream, file.ContentType, file.Length, cancellationToken);
+                return Created(
+                    $"/api/times/{teamId}/desafios/torneios/{tournamentId}/submissoes",
+                    ChallengeSubmissionResponse.FromEntity(submission));
+            } catch (InvalidChallengeException ex) {
+                return BadRequest(new { message = ex.Message });
+            } catch (NotFoundException ex) {
+                return NotFound(new { message = ex.Message });
+            }
+        }
+
+        // Envia a prova de um desafio próprio do torneio
+        [HttpPost("torneios/{tournamentId:guid}/proprios/{challengeId:guid}/submissoes")]
+        public async Task<ActionResult<ChallengeSubmissionResponse>> SubmitTournamentOwnChallengeProof(
+            Guid teamId, Guid tournamentId, Guid challengeId, IFormFile file, CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            if (file is null || file.Length == 0) {
+                return BadRequest(new { message = "Envie um arquivo de imagem." });
+            }
+
+            try {
+                await using var stream = file.OpenReadStream();
+                var submission = await _service.SubmitTournamentOwnChallengeProofAsync(
+                    userId, teamId, tournamentId, challengeId, stream, file.ContentType, file.Length, cancellationToken);
+                return Created(
+                    $"/api/times/{teamId}/desafios/torneios/{tournamentId}/submissoes",
+                    ChallengeSubmissionResponse.FromEntity(submission));
+            } catch (InvalidChallengeException ex) {
+                return BadRequest(new { message = ex.Message });
+            } catch (NotFoundException ex) {
+                return NotFound(new { message = ex.Message });
+            }
+        }
+
+        // Fila de submissões pendentes de um torneio específico, só pro dono dele
+        [HttpGet("torneios/{tournamentId:guid}/submissoes")]
+        public async Task<ActionResult<IEnumerable<PendingTournamentSubmissionResponse>>> GetPendingTournamentSubmissions(
+            Guid teamId, Guid tournamentId, CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            try {
+                var pending = await _service.GetPendingTournamentSubmissionsAsync(userId, teamId, tournamentId, cancellationToken);
+                return Ok(pending.Select(PendingTournamentSubmissionResponse.FromPending));
+            } catch (NotFoundException ex) {
+                return NotFound(new { message = ex.Message });
+            }
+        }
+
+        // Aprova a submissão de torneio: pontos vão só pro placar desse torneio específico
+        [HttpPost("torneios/{tournamentId:guid}/submissoes/{submissionId:guid}/aprovar")]
+        public async Task<IActionResult> ApproveTournamentSubmission(Guid teamId, Guid tournamentId, Guid submissionId, CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            try {
+                await _service.ApproveTournamentSubmissionAsync(userId, teamId, tournamentId, submissionId, cancellationToken);
+                return NoContent();
+            } catch (InvalidChallengeException ex) {
+                return BadRequest(new { message = ex.Message });
+            } catch (NotFoundException ex) {
+                return NotFound(new { message = ex.Message });
+            }
+        }
+
+        // Recusa a submissão de torneio, sem somar pontos
+        [HttpPost("torneios/{tournamentId:guid}/submissoes/{submissionId:guid}/recusar")]
+        public async Task<IActionResult> RejectTournamentSubmission(Guid teamId, Guid tournamentId, Guid submissionId, CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            try {
+                await _service.RejectTournamentSubmissionAsync(userId, teamId, tournamentId, submissionId, cancellationToken);
+                return NoContent();
+            } catch (InvalidChallengeException ex) {
+                return BadRequest(new { message = ex.Message });
+            } catch (NotFoundException ex) {
+                return NotFound(new { message = ex.Message });
+            }
+        }
+
         private bool TryGetUserId(out Guid userId) {
             var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
             return Guid.TryParse(claim, out userId);

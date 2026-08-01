@@ -344,31 +344,75 @@ namespace Pyrra.Application.Tests.Comunidade {
                 service.RequestTeamEntryAsync(TeamOwnerId, TeamId, Guid.NewGuid()));
         }
 
+        // Fase 5b: uma entrada pendente em outro torneio não bloqueia mais — o time pode ter até
+        // MaxTournamentsPerTeam entradas ativas simultâneas, em torneios diferentes.
         [Fact]
-        public async Task RequestTeamEntry_TimeComPendenteEmOutroTorneio_Lanca() {
+        public async Task RequestTeamEntry_TimeComPendenteEmOutroTorneio_Permite() {
             var (service, _, _, entries, _, _, _) = Build();
             var tournamentA = await service.CreateOfficialAsync(AdminId, "Copa A", null, TeamBannerTheme.Verde);
             var tournamentB = await service.CreateOfficialAsync(AdminId, "Copa B", null, TeamBannerTheme.Azul);
             await service.RequestTeamEntryAsync(TeamOwnerId, TeamId, tournamentA.Id);
 
-            await Assert.ThrowsAsync<InvalidTournamentException>(() =>
-                service.RequestTeamEntryAsync(TeamOwnerId, TeamId, tournamentB.Id));
+            await service.RequestTeamEntryAsync(TeamOwnerId, TeamId, tournamentB.Id);
 
-            Assert.Single(entries.Entries);
+            Assert.Equal(2, entries.Entries.Count);
         }
 
         [Fact]
-        public async Task RequestTeamEntry_TimeAprovadoEmOutroTorneio_Lanca() {
+        public async Task RequestTeamEntry_TimeAprovadoEmOutroTorneio_Permite() {
             var (service, _, _, entries, _, _, _) = Build();
             var tournamentA = await service.CreateOfficialAsync(AdminId, "Copa A", null, TeamBannerTheme.Verde);
             var tournamentB = await service.CreateOfficialAsync(AdminId, "Copa B", null, TeamBannerTheme.Azul);
             var entry = await service.RequestTeamEntryAsync(TeamOwnerId, TeamId, tournamentA.Id);
             await service.ApproveEntryAsync(AdminId, tournamentA.Id, entry.Id);
 
+            await service.RequestTeamEntryAsync(TeamOwnerId, TeamId, tournamentB.Id);
+
+            Assert.Equal(2, entries.Entries.Count);
+        }
+
+        // Pedir de novo o MESMO torneio enquanto já tem uma entrada ativa nele continua bloqueado,
+        // independente do limite de torneios simultâneos.
+        [Fact]
+        public async Task RequestTeamEntry_MesmoTorneioComEntradaPendente_Lanca() {
+            var (service, _, _, entries, _, _, _) = Build();
+            var tournament = await service.CreateOfficialAsync(AdminId, "Copa Pyrra", null, TeamBannerTheme.Verde);
+            await service.RequestTeamEntryAsync(TeamOwnerId, TeamId, tournament.Id);
+
             await Assert.ThrowsAsync<InvalidTournamentException>(() =>
-                service.RequestTeamEntryAsync(TeamOwnerId, TeamId, tournamentB.Id));
+                service.RequestTeamEntryAsync(TeamOwnerId, TeamId, tournament.Id));
 
             Assert.Single(entries.Entries);
+        }
+
+        [Fact]
+        public async Task RequestTeamEntry_MesmoTorneioComEntradaAprovada_Lanca() {
+            var (service, _, _, entries, _, _, _) = Build();
+            var tournament = await service.CreateOfficialAsync(AdminId, "Copa Pyrra", null, TeamBannerTheme.Verde);
+            var entry = await service.RequestTeamEntryAsync(TeamOwnerId, TeamId, tournament.Id);
+            await service.ApproveEntryAsync(AdminId, tournament.Id, entry.Id);
+
+            await Assert.ThrowsAsync<InvalidTournamentException>(() =>
+                service.RequestTeamEntryAsync(TeamOwnerId, TeamId, tournament.Id));
+
+            Assert.Single(entries.Entries);
+        }
+
+        [Fact]
+        public async Task RequestTeamEntry_NoLimiteDeCincoEntradasAtivas_Lanca() {
+            var (service, _, _, entries, _, _, _) = Build();
+
+            for (var i = 0; i < TournamentTeam.MaxTournamentsPerTeam; i++) {
+                var tournament = await service.CreateOfficialAsync(AdminId, $"Copa {i}", null, TeamBannerTheme.Verde);
+                await service.RequestTeamEntryAsync(TeamOwnerId, TeamId, tournament.Id);
+            }
+
+            var extraTournament = await service.CreateOfficialAsync(AdminId, "Copa Extra", null, TeamBannerTheme.Verde);
+
+            await Assert.ThrowsAsync<InvalidTournamentException>(() =>
+                service.RequestTeamEntryAsync(TeamOwnerId, TeamId, extraTournament.Id));
+
+            Assert.Equal(TournamentTeam.MaxTournamentsPerTeam, entries.Entries.Count);
         }
 
         [Fact]

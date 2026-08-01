@@ -98,6 +98,10 @@ namespace Pyrra.Application.Tests.Desafios {
             Task.FromResult<IReadOnlyList<ChallengeSubmission>>(
                 Submissions.Where(s => s.TeamId == teamId && s.Status == ChallengeSubmissionStatus.Pendente).ToList());
 
+        public Task<IReadOnlyList<ChallengeSubmission>> GetPendingForTournamentAsync(Guid tournamentId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ChallengeSubmission>>(
+                Submissions.Where(s => s.TournamentId == tournamentId && s.Status == ChallengeSubmissionStatus.Pendente).ToList());
+
         public Task AddAsync(ChallengeSubmission submission, CancellationToken cancellationToken = default) {
             Submissions.Add(submission);
             return Task.CompletedTask;
@@ -121,6 +125,49 @@ namespace Pyrra.Application.Tests.Desafios {
         }
 
         public Task UpdateAsync(TeamMemberScore score, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
+    internal sealed class FakeTournamentChallengeRepository : ITournamentChallengeRepository {
+        public readonly List<TournamentChallenge> Links = new();
+
+        public Task<IReadOnlyList<TournamentChallenge>> GetByTournamentAsync(Guid tournamentId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<TournamentChallenge>>(Links.Where(l => l.TournamentId == tournamentId).ToList());
+
+        public Task<TournamentChallenge?> GetAsync(Guid tournamentId, Guid challengeId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Links.FirstOrDefault(l => l.TournamentId == tournamentId && l.ChallengeId == challengeId));
+
+        public Task AddAsync(TournamentChallenge tournamentChallenge, CancellationToken cancellationToken = default) {
+            Links.Add(tournamentChallenge);
+            return Task.CompletedTask;
+        }
+
+        public Task RemoveAsync(TournamentChallenge tournamentChallenge, CancellationToken cancellationToken = default) {
+            Links.RemoveAll(l => l.Id == tournamentChallenge.Id);
+            return Task.CompletedTask;
+        }
+    }
+
+    internal sealed class FakeTournamentOwnChallengeRepository : ITournamentOwnChallengeRepository {
+        public readonly List<TournamentOwnChallenge> Challenges = new();
+
+        public Task<IReadOnlyList<TournamentOwnChallenge>> GetByTournamentAsync(Guid tournamentId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<TournamentOwnChallenge>>(
+                Challenges.Where(c => c.TournamentId == tournamentId).OrderBy(c => c.Title).ToList());
+
+        public Task<TournamentOwnChallenge?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Challenges.FirstOrDefault(c => c.Id == id));
+
+        public Task AddAsync(TournamentOwnChallenge challenge, CancellationToken cancellationToken = default) {
+            Challenges.Add(challenge);
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateAsync(TournamentOwnChallenge challenge, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task DeleteAsync(TournamentOwnChallenge challenge, CancellationToken cancellationToken = default) {
+            Challenges.RemoveAll(c => c.Id == challenge.Id);
+            return Task.CompletedTask;
+        }
     }
 
     // Guarda os bytes em memória (chaveado por submissionId) pra permitir round-trip nos testes de

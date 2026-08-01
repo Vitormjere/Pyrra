@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
+  Award,
   ChevronLeft,
   Check,
   Copy,
@@ -36,6 +37,11 @@ import {
   submitChallengeProof,
 } from '../../services/challengeService'
 import {
+  getAvailableTournamentChallenges,
+  submitTournamentCatalogChallengeProof,
+  submitTournamentOwnChallengeProof,
+} from '../../services/tournamentChallengeService'
+import {
   deleteTeam,
   getTeamDetails,
   inviteFriendToTeam,
@@ -53,6 +59,7 @@ import { getCategoryIcon } from '../../utils/challengeCategoryIcons'
 import { TEAM_BANNER_SWATCH, TEAM_BANNER_THEMES } from '../../utils/teamBanners'
 import type { Friend } from '../../types/community'
 import type { AvailableChallenge, PendingSubmission, TeamCategoryStatus, TeamMemberRanking } from '../../types/challenges'
+import type { AvailableTournamentChallenge } from '../../types/tournamentChallenges'
 import type { TeamBannerTheme, TeamDetails, TeamMember, TeamVisibility } from '../../types/teams'
 
 const VISIBILITY_OPTIONS: readonly TeamVisibility[] = ['Privado', 'Publico']
@@ -299,6 +306,88 @@ function ChallengeCard({
   )
 }
 
+// Desafio de UM torneio específico — mesmo layout de ChallengeCard, sem categoria (desafios de
+// torneio não têm uma) e com um selo neutro no lugar do ícone/cor de categoria.
+function TournamentChallengeCard({
+  challenge,
+  busy,
+  onSubmitProof,
+}: {
+  challenge: AvailableTournamentChallenge
+  busy: boolean
+  onSubmitProof: (file: File) => void
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [fileError, setFileError] = useState<string | null>(null)
+
+  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+
+    if (file.size > MAX_SUBMISSION_BYTES) {
+      setFileError('A imagem deve ter até 3MB.')
+      return
+    }
+
+    setFileError(null)
+    onSubmitProof(file)
+  }
+
+  return (
+    <li className="flex items-start gap-3 px-4 py-3">
+      <span
+        aria-hidden="true"
+        className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-green/15 text-brand-green"
+      >
+        <Award size={16} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="font-medium text-ink">{challenge.title}</p>
+        {challenge.description && <p className="text-xs text-slate-400">{challenge.description}</p>}
+        <p className="mt-1 text-xs font-medium text-slate-500">
+          {challenge.source === 'TorneioProprio' ? 'Desafio exclusivo do torneio' : 'Desafio do catálogo, vinculado ao torneio'}
+        </p>
+        {fileError && <p className="mt-1 text-xs text-red-300">{fileError}</p>}
+      </div>
+      <div className="flex shrink-0 flex-col items-end gap-2">
+        <span className="rounded-full bg-brand-green/10 px-2.5 py-1 text-xs font-semibold text-brand-green ring-1 ring-brand-green/20">
+          +{challenge.points} pts
+        </span>
+
+        {challenge.mySubmissionStatus === 'Pendente' ? (
+          <span className="rounded-lg px-2.5 py-1 text-xs font-medium text-slate-400 ring-1 ring-line">
+            Aguardando aprovação
+          </span>
+        ) : challenge.mySubmissionStatus === 'Aprovado' ? (
+          <span className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium text-brand-green">
+            <Check size={13} aria-hidden="true" />
+            Aprovado
+          </span>
+        ) : (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => fileInputRef.current?.click()}
+            className="inline-flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-ink ring-1 ring-line transition hover:bg-surface-hi disabled:opacity-50"
+          >
+            <ImagePlus size={13} aria-hidden="true" />
+            {busy ? 'Enviando…' : challenge.mySubmissionStatus === 'Recusado' ? 'Enviar de novo' : 'Enviar foto'}
+          </button>
+        )}
+      </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={ACCEPTED_SUBMISSION_TYPES}
+        onChange={handleFileChange}
+        className="hidden"
+      />
+    </li>
+  )
+}
+
 function PendingSubmissionRow({
   teamId,
   submission,
@@ -425,6 +514,11 @@ export function TimeDetalhe() {
   // Ranking individual do time — carregado pra qualquer membro (dono ou não)
   const [ranking, setRanking] = useState<TeamMemberRanking[] | null>(null)
 
+  // Desafios de cada torneio em que o time está Aprovado — separados dos desafios normais do
+  // time acima (Fase 5b). Chaveado por tournamentId porque agora pode haver vários ao mesmo tempo.
+  const [tournamentChallenges, setTournamentChallenges] = useState<Record<string, AvailableTournamentChallenge[] | null>>({})
+  const [tournamentSubmitBusyKey, setTournamentSubmitBusyKey] = useState<string | null>(null)
+
   const loadDetails = useCallback(async () => {
     if (!id) return
     try {
@@ -507,6 +601,30 @@ export function TimeDetalhe() {
     }
   }, [details, loadChallenges, loadRanking, loadCategories, loadPendingSubmissions])
 
+  const loadTournamentChallenges = useCallback(
+    async (tournamentId: string) => {
+      if (!id) return
+      try {
+        const data = await getAvailableTournamentChallenges(id, tournamentId)
+        setTournamentChallenges((current) => ({ ...current, [tournamentId]: data }))
+      } catch (err) {
+        setError(getApiErrorMessage(err, {}, 'Não foi possível carregar os desafios do torneio.'))
+      }
+    },
+    [id],
+  )
+
+  // Um time pode estar Aprovado em vários torneios ao mesmo tempo (Fase 5b) — carrega os
+  // desafios de cada um separadamente.
+  useEffect(() => {
+    if (!details) return
+    for (const activeTournament of details.activeTournaments) {
+      if (activeTournament.status === 'Aprovado') {
+        void loadTournamentChallenges(activeTournament.tournamentId)
+      }
+    }
+  }, [details, loadTournamentChallenges])
+
   async function handleSubmitProof(challengeId: string, file: File) {
     if (!id) return
     setSubmitBusyId(challengeId)
@@ -523,6 +641,25 @@ export function TimeDetalhe() {
       setError(getApiErrorMessage(err, {}, 'Não foi possível enviar a foto.'))
     } finally {
       setSubmitBusyId(null)
+    }
+  }
+
+  async function handleSubmitTournamentProof(tournamentId: string, challenge: AvailableTournamentChallenge, file: File) {
+    if (!id) return
+    const busyKey = `${tournamentId}:${challenge.id}`
+    setTournamentSubmitBusyKey(busyKey)
+    setError(null)
+    try {
+      if (challenge.source === 'TorneioProprio') {
+        await submitTournamentOwnChallengeProof(id, tournamentId, challenge.id, file)
+      } else {
+        await submitTournamentCatalogChallengeProof(id, tournamentId, challenge.id, file)
+      }
+      await loadTournamentChallenges(tournamentId)
+    } catch (err) {
+      setError(getApiErrorMessage(err, {}, 'Não foi possível enviar a foto.'))
+    } finally {
+      setTournamentSubmitBusyKey(null)
     }
   }
 
@@ -816,29 +953,31 @@ export function TimeDetalhe() {
 
       {team.description && <p className="text-sm text-slate-400">{team.description}</p>}
 
-      {/* AVISO DE TORNEIO — a aprovação de desafios migra pro dono do torneio enquanto essa
-          entrada estiver Pendente ou Aprovado (ver TeamChallengeService, Fase 4c). */}
-      {details.activeTournament && (
+      {/* AVISOS DE TORNEIO — um time pode estar em vários agora (Fase 5b, até 5 simultâneos). A
+          aprovação de desafios DAQUELE torneio migra pro dono dele enquanto a entrada estiver
+          Pendente ou Aprovado (ver TeamChallengeService). */}
+      {details.activeTournaments.map((activeTournament) => (
         <Link
-          to={`/torneios/${details.activeTournament.tournamentId}`}
+          key={activeTournament.tournamentId}
+          to={`/torneios/${activeTournament.tournamentId}`}
           className="flex items-center gap-2 rounded-md bg-brand-green/10 px-4 py-3 text-sm ring-1 ring-brand-green/20 transition hover:bg-brand-green/15"
         >
           <Trophy size={16} className="shrink-0 text-brand-green" aria-hidden="true" />
           <span className="min-w-0 flex-1 text-slate-200">
-            {details.activeTournament.status === 'Aprovado' ? (
+            {activeTournament.status === 'Aprovado' ? (
               <>
-                Este time está no torneio <strong className="font-semibold text-ink">{details.activeTournament.tournamentName}</strong> — a
-                aprovação de desafios agora é responsabilidade do dono do torneio.
+                Este time está no torneio <strong className="font-semibold text-ink">{activeTournament.tournamentName}</strong> — a
+                aprovação de desafios desse torneio agora é responsabilidade do dono dele.
               </>
             ) : (
               <>
                 Entrada solicitada no torneio{' '}
-                <strong className="font-semibold text-ink">{details.activeTournament.tournamentName}</strong>, aguardando aprovação do dono.
+                <strong className="font-semibold text-ink">{activeTournament.tournamentName}</strong>, aguardando aprovação do dono.
               </>
             )}
           </span>
         </Link>
-      )}
+      ))}
 
       {error && (
         <p
@@ -1110,6 +1249,47 @@ export function TimeDetalhe() {
           </ul>
         )}
       </section>
+
+      {/* DESAFIOS DE CADA TORNEIO — separados dos desafios normais do time acima, um bloco por
+          torneio Aprovado (pode haver vários agora, Fase 5b). Pendente não entra aqui: só depois
+          que a entrada é Aprovada os desafios daquele torneio ficam disponíveis. */}
+      {details.activeTournaments
+        .filter((activeTournament) => activeTournament.status === 'Aprovado')
+        .map((activeTournament) => {
+          const list = tournamentChallenges[activeTournament.tournamentId]
+          return (
+            <section key={activeTournament.tournamentId} className="flex flex-col gap-2">
+              <h2 className="flex flex-wrap items-center gap-1.5 text-sm font-medium text-slate-300">
+                <Trophy size={15} className="shrink-0 text-brand-green" aria-hidden="true" />
+                <span>Desafios do torneio</span>
+                <Link
+                  to={`/torneios/${activeTournament.tournamentId}`}
+                  className="font-semibold text-brand-green hover:underline"
+                >
+                  {activeTournament.tournamentName}
+                </Link>
+              </h2>
+              {list === undefined || list === null ? (
+                <Skeleton className="h-16" />
+              ) : list.length === 0 ? (
+                <p className="rounded-md bg-surface px-4 py-3 text-sm text-slate-500 ring-1 ring-line">
+                  Nenhum desafio disponível nesse torneio ainda.
+                </p>
+              ) : (
+                <ul className={listClasses}>
+                  {list.map((challenge) => (
+                    <TournamentChallengeCard
+                      key={challenge.id}
+                      challenge={challenge}
+                      busy={tournamentSubmitBusyKey === `${activeTournament.tournamentId}:${challenge.id}`}
+                      onSubmitProof={(file) => handleSubmitTournamentProof(activeTournament.tournamentId, challenge, file)}
+                    />
+                  ))}
+                </ul>
+              )}
+            </section>
+          )
+        })}
 
       {/* RANKING DO TIME — placar INDIVIDUAL dentro desse time, visível a todo membro (dono ou
           não). Não é o TotalPoints coletivo do time (que continua existindo, ver header/listagem

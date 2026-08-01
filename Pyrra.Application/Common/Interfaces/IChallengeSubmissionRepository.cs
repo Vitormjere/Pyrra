@@ -16,6 +16,10 @@ namespace Pyrra.Application.Common.Interfaces {
 
         Task<IReadOnlyList<ChallengeSubmission>> GetPendingForTeamAsync(Guid teamId, CancellationToken cancellationToken = default);
 
+        // Pendentes de um torneio em QUALQUER time participante — fila do dono do torneio
+        // (Fase 5b), que cruza vários times, ao contrário de GetPendingForTeamAsync acima.
+        Task<IReadOnlyList<ChallengeSubmission>> GetPendingForTournamentAsync(Guid tournamentId, CancellationToken cancellationToken = default);
+
         Task AddAsync(ChallengeSubmission submission, CancellationToken cancellationToken = default);
         Task UpdateAsync(ChallengeSubmission submission, CancellationToken cancellationToken = default);
     }

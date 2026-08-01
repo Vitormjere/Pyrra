@@ -28,6 +28,8 @@ namespace Pyrra.Application.Desafios {
         private readonly IChallengeSubmissionStorageService _submissionStorage;
         private readonly ITournamentTeamRepository          _tournamentTeamRepository;
         private readonly ITournamentRepository              _tournamentRepository;
+        private readonly ITournamentChallengeRepository     _tournamentChallengeRepository;
+        private readonly ITournamentOwnChallengeRepository  _tournamentOwnChallengeRepository;
         private readonly ITeamMemberScoreRepository         _memberScoreRepository;
         private readonly IUserRepository                    _userRepository;
         private readonly IClockService                      _clock;
@@ -42,6 +44,8 @@ namespace Pyrra.Application.Desafios {
             IChallengeSubmissionStorageService submissionStorage,
             ITournamentTeamRepository          tournamentTeamRepository,
             ITournamentRepository              tournamentRepository,
+            ITournamentChallengeRepository     tournamentChallengeRepository,
+            ITournamentOwnChallengeRepository  tournamentOwnChallengeRepository,
             ITeamMemberScoreRepository         memberScoreRepository,
             IUserRepository                    userRepository,
             IClockService                      clock) {
@@ -54,6 +58,8 @@ namespace Pyrra.Application.Desafios {
             _submissionStorage         = submissionStorage;
             _tournamentTeamRepository  = tournamentTeamRepository;
             _tournamentRepository      = tournamentRepository;
+            _tournamentChallengeRepository    = tournamentChallengeRepository;
+            _tournamentOwnChallengeRepository = tournamentOwnChallengeRepository;
             _memberScoreRepository     = memberScoreRepository;
             _userRepository            = userRepository;
             _clock                     = clock;
@@ -203,9 +209,14 @@ namespace Pyrra.Application.Desafios {
         }
 
         public async Task<IReadOnlyList<PendingSubmission>> GetPendingSubmissionsAsync(Guid callerId, Guid teamId, CancellationToken cancellationToken = default) {
-            await GetApproverTeamAsync(callerId, teamId, cancellationToken);
+            // Fase 5b: desafios de time são sempre aprovados pelo dono do time, mesmo com o time
+            // em algum torneio — desafios DAQUELE torneio têm fila e aprovador próprios agora, ver
+            // GetPendingTournamentSubmissionsAsync.
+            await GetOwnedTeamAsync(callerId, teamId, cancellationToken);
 
-            var pending = await _submissionRepository.GetPendingForTeamAsync(teamId, cancellationToken);
+            var pending = (await _submissionRepository.GetPendingForTeamAsync(teamId, cancellationToken))
+                .Where(s => s.Source == ChallengeSource.Time)
+                .ToList();
             if (pending.Count == 0) {
                 return Array.Empty<PendingSubmission>();
             }
@@ -227,13 +238,14 @@ namespace Pyrra.Application.Desafios {
         }
 
         public async Task ApproveSubmissionAsync(Guid callerId, Guid teamId, Guid submissionId, CancellationToken cancellationToken = default) {
-            var team = await GetApproverTeamAsync(callerId, teamId, cancellationToken);
+            // Fase 5b: só o dono do time aprova desafios de time — sem delegar mais pro dono de
+            // torneio nenhum, mesma observação de GetPendingSubmissionsAsync.
+            var team = await GetOwnedTeamAsync(callerId, teamId, cancellationToken);
             var submission = await GetPendingSubmissionForTeamAsync(teamId, submissionId, cancellationToken);
 
             // impede auto-aprovação da própria submissão
             if (submission.UserId == callerId) {
-                throw new InvalidChallengeException(
-                    "Você não pode aprovar a própria submissão. Peça para outro membro (ou o dono do torneio, se o time estiver em um) revisar.");
+                throw new InvalidChallengeException("Você não pode aprovar a própria submissão. Peça para outro membro revisar.");
             }
 
             var challenge = await _challengeRepository.GetByIdAsync(submission.ChallengeId, cancellationToken);
@@ -262,17 +274,10 @@ namespace Pyrra.Application.Desafios {
                 memberScore.UpdatedAt = _clock.UtcNow;
                 await _memberScoreRepository.UpdateAsync(memberScore, cancellationToken);
             }
-
-            // soma pontos do torneio separadamente quando o time estiver aprovado
-            var tournamentEntry = await GetApprovedTournamentEntryAsync(teamId, cancellationToken);
-            if (tournamentEntry is not null) {
-                tournamentEntry.Score += challenge.Points;
-                await _tournamentTeamRepository.UpdateAsync(tournamentEntry, cancellationToken);
-            }
         }
 
         public async Task RejectSubmissionAsync(Guid callerId, Guid teamId, Guid submissionId, CancellationToken cancellationToken = default) {
-            await GetApproverTeamAsync(callerId, teamId, cancellationToken);
+            await GetOwnedTeamAsync(callerId, teamId, cancellationToken);
             var submission = await GetPendingSubmissionForTeamAsync(teamId, submissionId, cancellationToken);
 
             submission.Status           = ChallengeSubmissionStatus.Recusado;
@@ -318,10 +323,174 @@ namespace Pyrra.Application.Desafios {
                 .ToList();
         }
 
-        // busca submissão pendente do time para avaliar uma vez
+        // ---- Desafios de torneio (Fase 5b) — caminho separado do de desafios de time acima:
+        // nenhum dos métodos daqui em diante toca em team.TotalPoints ou TeamMemberScore. ----
+
+        public async Task<IReadOnlyList<AvailableTournamentChallenge>> GetAvailableTournamentChallengesAsync(
+            Guid userId, Guid teamId, Guid tournamentId, CancellationToken cancellationToken = default) {
+            await GetOwnedOrMemberTeamAsync(userId, teamId, cancellationToken);
+            await GetApprovedEntryAsync(teamId, tournamentId, cancellationToken);
+
+            // usa a submissão mais recente NESSE torneio para definir o status exibido — escopado
+            // por TournamentId porque o mesmo ChallengeId de catálogo pode estar vinculado a mais
+            // de um torneio em que o time participa
+            var latestByChallenge = (await _submissionRepository.GetForUserAndTeamAsync(userId, teamId, cancellationToken))
+                .Where(s => s.TournamentId == tournamentId)
+                .GroupBy(s => s.ChallengeId)
+                .ToDictionary(g => g.Key, g => g.OrderByDescending(s => s.CreatedAt).First().Status);
+
+            var now = _clock.UtcNow;
+            var result = new List<AvailableTournamentChallenge>();
+
+            var linkedIds = (await _tournamentChallengeRepository.GetByTournamentAsync(tournamentId, cancellationToken))
+                .Select(l => l.ChallengeId)
+                .ToHashSet();
+            if (linkedIds.Count > 0) {
+                // catálogo pequeno, busca completa em memória simplifica o filtro (mesmo critério
+                // de GetAvailableChallengesAsync)
+                var catalogChallenges = await _challengeRepository.GetAllAsync(cancellationToken);
+                result.AddRange(catalogChallenges
+                    .Where(c => linkedIds.Contains(c.Id) && (c.Deadline is null || c.Deadline > now))
+                    .Select(c => new AvailableTournamentChallenge(
+                        c.Id, c.Title, c.Description, c.Points, ChallengeSource.TorneioCatalogo,
+                        latestByChallenge.TryGetValue(c.Id, out var catalogStatus) ? catalogStatus : null)));
+            }
+
+            var ownChallenges = await _tournamentOwnChallengeRepository.GetByTournamentAsync(tournamentId, cancellationToken);
+            result.AddRange(ownChallenges.Select(c => new AvailableTournamentChallenge(
+                c.Id, c.Title, c.Description, c.Points, ChallengeSource.TorneioProprio,
+                latestByChallenge.TryGetValue(c.Id, out var ownStatus) ? ownStatus : null)));
+
+            return result.OrderBy(a => a.Title).ToList();
+        }
+
+        public async Task<ChallengeSubmission> SubmitTournamentCatalogChallengeProofAsync(
+            Guid userId, Guid teamId, Guid tournamentId, Guid challengeId, Stream content, string contentType, long contentLength,
+            CancellationToken cancellationToken = default) {
+            await GetOwnedOrMemberTeamAsync(userId, teamId, cancellationToken);
+            await GetApprovedEntryAsync(teamId, tournamentId, cancellationToken);
+
+            var challenge = await _challengeRepository.GetByIdAsync(challengeId, cancellationToken);
+            if (challenge is null) {
+                throw new NotFoundException($"Desafio '{challengeId}' não encontrado.");
+            }
+
+            var isLinked = await _tournamentChallengeRepository.GetAsync(tournamentId, challengeId, cancellationToken) is not null;
+            if (!isLinked) {
+                throw new InvalidChallengeException("Esse desafio não está vinculado a esse torneio.");
+            }
+
+            if (challenge.Deadline is not null && challenge.Deadline <= _clock.UtcNow) {
+                throw new InvalidChallengeException("O prazo desse desafio já passou.");
+            }
+
+            await EnsureNoActiveTournamentSubmissionAsync(userId, teamId, tournamentId, challengeId, ChallengeSource.TorneioCatalogo, cancellationToken);
+            ValidateSubmissionFile(contentType, contentLength);
+
+            return await CreateTournamentSubmissionAsync(
+                userId, teamId, tournamentId, challengeId, ChallengeSource.TorneioCatalogo, content, contentType, cancellationToken);
+        }
+
+        public async Task<ChallengeSubmission> SubmitTournamentOwnChallengeProofAsync(
+            Guid userId, Guid teamId, Guid tournamentId, Guid ownChallengeId, Stream content, string contentType, long contentLength,
+            CancellationToken cancellationToken = default) {
+            await GetOwnedOrMemberTeamAsync(userId, teamId, cancellationToken);
+            await GetApprovedEntryAsync(teamId, tournamentId, cancellationToken);
+
+            var challenge = await _tournamentOwnChallengeRepository.GetByIdAsync(ownChallengeId, cancellationToken);
+            if (challenge is null || challenge.TournamentId != tournamentId) {
+                throw new NotFoundException($"Desafio '{ownChallengeId}' não encontrado.");
+            }
+
+            await EnsureNoActiveTournamentSubmissionAsync(userId, teamId, tournamentId, ownChallengeId, ChallengeSource.TorneioProprio, cancellationToken);
+            ValidateSubmissionFile(contentType, contentLength);
+
+            return await CreateTournamentSubmissionAsync(
+                userId, teamId, tournamentId, ownChallengeId, ChallengeSource.TorneioProprio, content, contentType, cancellationToken);
+        }
+
+        public async Task<IReadOnlyList<PendingTournamentSubmission>> GetPendingTournamentSubmissionsAsync(
+            Guid callerId, Guid teamId, Guid tournamentId, CancellationToken cancellationToken = default) {
+            await EnsureTournamentOwnerAsync(callerId, tournamentId, cancellationToken);
+
+            var pending = (await _submissionRepository.GetPendingForTeamAsync(teamId, cancellationToken))
+                .Where(s => s.TournamentId == tournamentId)
+                .ToList();
+            if (pending.Count == 0) {
+                return Array.Empty<PendingTournamentSubmission>();
+            }
+
+            var catalogById = (await _challengeRepository.GetAllAsync(cancellationToken)).ToDictionary(c => c.Id);
+            var ownById     = (await _tournamentOwnChallengeRepository.GetByTournamentAsync(tournamentId, cancellationToken)).ToDictionary(c => c.Id);
+            var submitters  = await LoadUsersAsync(pending.Select(s => s.UserId), cancellationToken);
+
+            var result = new List<PendingTournamentSubmission>(pending.Count);
+            foreach (var submission in pending) {
+                if (!submitters.TryGetValue(submission.UserId, out var submitter)) {
+                    continue;
+                }
+
+                // ignora registros removidos para não quebrar a fila
+                if (submission.Source == ChallengeSource.TorneioCatalogo) {
+                    if (!catalogById.TryGetValue(submission.ChallengeId, out var catalogChallenge)) {
+                        continue;
+                    }
+                    result.Add(new PendingTournamentSubmission(submission, catalogChallenge.Title, catalogChallenge.Points, submission.Source, ToSummary(submitter)));
+                } else if (submission.Source == ChallengeSource.TorneioProprio) {
+                    if (!ownById.TryGetValue(submission.ChallengeId, out var ownChallenge)) {
+                        continue;
+                    }
+                    result.Add(new PendingTournamentSubmission(submission, ownChallenge.Title, ownChallenge.Points, submission.Source, ToSummary(submitter)));
+                }
+            }
+
+            return result.OrderBy(p => p.Submission.CreatedAt).ToList();
+        }
+
+        public async Task ApproveTournamentSubmissionAsync(Guid callerId, Guid teamId, Guid tournamentId, Guid submissionId, CancellationToken cancellationToken = default) {
+            await EnsureTournamentOwnerAsync(callerId, tournamentId, cancellationToken);
+            var submission = await GetPendingTournamentSubmissionForTeamAsync(teamId, tournamentId, submissionId, cancellationToken);
+
+            // impede auto-aprovação da própria submissão (ex.: dono do time é também dono do torneio)
+            if (submission.UserId == callerId) {
+                throw new InvalidChallengeException("Você não pode aprovar a própria submissão. Peça para outro membro revisar.");
+            }
+
+            var points = await GetTournamentChallengePointsAsync(submission, cancellationToken);
+            if (points is null) {
+                throw new NotFoundException($"Desafio '{submission.ChallengeId}' não encontrado.");
+            }
+
+            submission.Status           = ChallengeSubmissionStatus.Aprovado;
+            submission.ReviewedAt       = _clock.UtcNow;
+            submission.ReviewedByUserId = callerId;
+            await _submissionRepository.UpdateAsync(submission, cancellationToken);
+
+            // pontos vão só pro placar DESSE torneio — nunca pro team.TotalPoints nem pro
+            // TeamMemberScore (ranking individual do time fica isolado de desafios de torneio)
+            var entries = await _tournamentTeamRepository.GetActiveEntriesForTeamAsync(teamId, cancellationToken);
+            var entry = entries.FirstOrDefault(e => e.TournamentId == tournamentId && e.Status == TournamentTeamStatus.Aprovado);
+            if (entry is not null) {
+                entry.Score += points.Value;
+                await _tournamentTeamRepository.UpdateAsync(entry, cancellationToken);
+            }
+        }
+
+        public async Task RejectTournamentSubmissionAsync(Guid callerId, Guid teamId, Guid tournamentId, Guid submissionId, CancellationToken cancellationToken = default) {
+            await EnsureTournamentOwnerAsync(callerId, tournamentId, cancellationToken);
+            var submission = await GetPendingTournamentSubmissionForTeamAsync(teamId, tournamentId, submissionId, cancellationToken);
+
+            submission.Status           = ChallengeSubmissionStatus.Recusado;
+            submission.ReviewedAt       = _clock.UtcNow;
+            submission.ReviewedByUserId = callerId;
+            await _submissionRepository.UpdateAsync(submission, cancellationToken);
+        }
+
+        // busca submissão pendente do time para avaliar uma vez — só desafios de time (Source
+        // Time); desafios de torneio têm fila própria, ver GetPendingTournamentSubmissionForTeamAsync
         private async Task<ChallengeSubmission> GetPendingSubmissionForTeamAsync(Guid teamId, Guid submissionId, CancellationToken cancellationToken) {
             var submission = await _submissionRepository.GetByIdAsync(submissionId, cancellationToken);
-            if (submission is null || submission.TeamId != teamId) {
+            if (submission is null || submission.TeamId != teamId || submission.Source != ChallengeSource.Time) {
                 throw new NotFoundException($"Submissão '{submissionId}' não encontrada.");
             }
 
@@ -349,36 +518,97 @@ namespace Pyrra.Application.Desafios {
             return team;
         }
 
-        // define quem pode aprovar submissões conforme o torneio atual
-        private async Task<Team> GetApproverTeamAsync(Guid callerId, Guid teamId, CancellationToken cancellationToken) {
-            var team = await _teamRepository.GetByIdAsync(teamId, cancellationToken);
-            if (team is null) {
-                throw new NotFoundException("Time não encontrado.");
+        // Garante que o time está Aprovado NAQUELE torneio específico — cada torneio tem sua
+        // própria fila/aprovador agora (Fase 5b), sem mais "o" torneio ativo do time.
+        private async Task<TournamentTeam> GetApprovedEntryAsync(Guid teamId, Guid tournamentId, CancellationToken cancellationToken) {
+            var entries = await _tournamentTeamRepository.GetActiveEntriesForTeamAsync(teamId, cancellationToken);
+            var entry = entries.FirstOrDefault(e => e.TournamentId == tournamentId && e.Status == TournamentTeamStatus.Aprovado);
+            if (entry is null) {
+                throw new InvalidChallengeException("Esse time não está Aprovado nesse torneio.");
             }
-
-            var approverId = await GetApproverIdAsync(team, cancellationToken);
-            if (approverId != callerId) {
-                throw new NotFoundException("Time não encontrado.");
-            }
-
-            return team;
+            return entry;
         }
 
-        private async Task<Guid> GetApproverIdAsync(Team team, CancellationToken cancellationToken) {
-            var tournamentEntry = await GetApprovedTournamentEntryAsync(team.Id, cancellationToken);
-            if (tournamentEntry is null) {
-                return team.OwnerId;
+        // valida dono do torneio — mesmo critério de TournamentService.GetOwnedTournamentAsync
+        private async Task EnsureTournamentOwnerAsync(Guid ownerId, Guid tournamentId, CancellationToken cancellationToken) {
+            var tournament = await _tournamentRepository.GetByIdAsync(tournamentId, cancellationToken);
+            if (tournament is null || tournament.OwnerId != ownerId) {
+                throw new NotFoundException("Torneio não encontrado.");
             }
-
-            var tournament = await _tournamentRepository.GetByIdAsync(tournamentEntry.TournamentId, cancellationToken);
-            // volta ao dono do time se o torneio não existir mais
-            return tournament?.OwnerId ?? team.OwnerId;
         }
 
-        // busca torneio aprovado em que o time participa
-        private async Task<TournamentTeam?> GetApprovedTournamentEntryAsync(Guid teamId, CancellationToken cancellationToken) {
-            var entry = await _tournamentTeamRepository.GetActiveForTeamAsync(teamId, cancellationToken);
-            return entry?.Status == TournamentTeamStatus.Aprovado ? entry : null;
+        // apenas pendente ou aprovado bloqueiam novo envio — escopado por torneio+origem porque o
+        // mesmo ChallengeId de catálogo pode ser desafio de time (Source Time) em paralelo a
+        // desafio de um ou mais torneios (Source TorneioCatalogo), sem se misturar
+        private async Task EnsureNoActiveTournamentSubmissionAsync(
+            Guid userId, Guid teamId, Guid tournamentId, Guid challengeId, ChallengeSource source, CancellationToken cancellationToken) {
+            var hasActive = (await _submissionRepository.GetForUserAndTeamAsync(userId, teamId, cancellationToken))
+                .Any(s => s.ChallengeId == challengeId && s.TournamentId == tournamentId && s.Source == source &&
+                          s.Status != ChallengeSubmissionStatus.Recusado);
+            if (hasActive) {
+                throw new InvalidChallengeException("Você já tem uma submissão pendente ou aprovada para esse desafio nesse torneio.");
+            }
+        }
+
+        private void ValidateSubmissionFile(string contentType, long contentLength) {
+            if (!AllowedSubmissionContentTypes.Contains(contentType)) {
+                throw new InvalidChallengeException("Formato de imagem inválido. Use JPG, PNG ou WEBP.");
+            }
+
+            if (contentLength <= 0 || contentLength > MaxSubmissionImageBytes) {
+                throw new InvalidChallengeException("A imagem deve ter até 3MB.");
+            }
+        }
+
+        private async Task<ChallengeSubmission> CreateTournamentSubmissionAsync(
+            Guid userId, Guid teamId, Guid tournamentId, Guid challengeId, ChallengeSource source,
+            Stream content, string contentType, CancellationToken cancellationToken) {
+            var submissionId = Guid.NewGuid();
+            var photoUrl = await _submissionStorage.UploadAsync(submissionId, content, contentType, cancellationToken);
+
+            var submission = new ChallengeSubmission {
+                Id           = submissionId,
+                ChallengeId  = challengeId,
+                TeamId       = teamId,
+                UserId       = userId,
+                PhotoUrl     = photoUrl,
+                Status       = ChallengeSubmissionStatus.Pendente,
+                Source       = source,
+                TournamentId = tournamentId,
+                CreatedAt    = _clock.UtcNow
+            };
+
+            await _submissionRepository.AddAsync(submission, cancellationToken);
+            return submission;
+        }
+
+        // busca submissão pendente do torneio pertencente ao time para avaliar uma vez — só
+        // desafios de torneio (Source TorneioCatalogo ou TorneioProprio), o par oposto de
+        // GetPendingSubmissionForTeamAsync
+        private async Task<ChallengeSubmission> GetPendingTournamentSubmissionForTeamAsync(
+            Guid teamId, Guid tournamentId, Guid submissionId, CancellationToken cancellationToken) {
+            var submission = await _submissionRepository.GetByIdAsync(submissionId, cancellationToken);
+            if (submission is null || submission.TeamId != teamId || submission.TournamentId != tournamentId ||
+                submission.Source == ChallengeSource.Time) {
+                throw new NotFoundException($"Submissão '{submissionId}' não encontrada.");
+            }
+
+            if (submission.Status != ChallengeSubmissionStatus.Pendente) {
+                throw new InvalidChallengeException("Essa submissão já foi avaliada.");
+            }
+
+            return submission;
+        }
+
+        // resolve os pontos do desafio de uma submissão de torneio, seja de catálogo ou próprio
+        private async Task<int?> GetTournamentChallengePointsAsync(ChallengeSubmission submission, CancellationToken cancellationToken) {
+            if (submission.Source == ChallengeSource.TorneioCatalogo) {
+                var challenge = await _challengeRepository.GetByIdAsync(submission.ChallengeId, cancellationToken);
+                return challenge?.Points;
+            }
+
+            var ownChallenge = await _tournamentOwnChallengeRepository.GetByIdAsync(submission.ChallengeId, cancellationToken);
+            return ownChallenge?.Points;
         }
 
         // valida acesso do usuário ao time

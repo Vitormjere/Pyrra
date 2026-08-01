@@ -8,8 +8,9 @@ namespace Pyrra.Application.Common.Interfaces {
     public interface ITournamentTeamRepository {
         Task<TournamentTeam?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
-        // Busca o torneio ativo do time
-        Task<TournamentTeam?> GetActiveForTeamAsync(Guid teamId, CancellationToken cancellationToken = default);
+        // Todas as entradas ativas (Pendente ou Aprovado) do time, em qualquer torneio — até
+        // MaxTournamentsPerTeam simultâneas (Fase 5b).
+        Task<IReadOnlyList<TournamentTeam>> GetActiveEntriesForTeamAsync(Guid teamId, CancellationToken cancellationToken = default);
 
         Task<IReadOnlyList<TournamentTeam>> GetPendingForTournamentAsync(Guid tournamentId, CancellationToken cancellationToken = default);
 

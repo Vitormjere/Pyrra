@@ -101,8 +101,8 @@ namespace Pyrra.Application.Comunidade {
 
             var results = new List<TeamSummary>();
             foreach (var team in owned) {
-                var activeEntry = await _tournamentTeamRepository.GetActiveForTeamAsync(team.Id, cancellationToken);
-                if (activeEntry is null) {
+                var activeEntries = await _tournamentTeamRepository.GetActiveEntriesForTeamAsync(team.Id, cancellationToken);
+                if (activeEntries.Count < TournamentTeam.MaxTournamentsPerTeam) {
                     results.Add(await ToSummaryAsync(team, userId, cancellationToken));
                 }
             }
@@ -201,9 +201,9 @@ namespace Pyrra.Application.Comunidade {
                 }
             }
 
-            var activeTournament = await GetActiveTournamentAsync(teamId, cancellationToken);
+            var activeTournaments = await GetActiveTournamentsAsync(teamId, cancellationToken);
 
-            return new TeamDetails(summary, list, team.InviteToken, activeTournament);
+            return new TeamDetails(summary, list, team.InviteToken, activeTournaments);
         }
 
         public async Task InviteFriendAsync(Guid ownerId, Guid teamId, Guid inviteeId, CancellationToken cancellationToken = default) {
@@ -482,19 +482,24 @@ namespace Pyrra.Application.Comunidade {
 
         private static UserSummary ToSummary(User user) => new(user.Id, user.Name, user.Username);
 
-        // Retorna o torneio ativo associado ao time
-        private async Task<ActiveTeamTournament?> GetActiveTournamentAsync(Guid teamId, CancellationToken cancellationToken) {
-            var entry = await _tournamentTeamRepository.GetActiveForTeamAsync(teamId, cancellationToken);
-            if (entry is null) {
-                return null;
+        // Retorna os torneios ativos associados ao time (até MaxTournamentsPerTeam, Fase 5b)
+        private async Task<IReadOnlyList<ActiveTeamTournament>> GetActiveTournamentsAsync(Guid teamId, CancellationToken cancellationToken) {
+            var entries = await _tournamentTeamRepository.GetActiveEntriesForTeamAsync(teamId, cancellationToken);
+            if (entries.Count == 0) {
+                return Array.Empty<ActiveTeamTournament>();
             }
 
-            var tournament = await _tournamentRepository.GetByIdAsync(entry.TournamentId, cancellationToken);
-            if (tournament is null) {
-                return null;
+            var result = new List<ActiveTeamTournament>(entries.Count);
+            foreach (var entry in entries) {
+                // Torneio removido: ignora para não quebrar a listagem
+                var tournament = await _tournamentRepository.GetByIdAsync(entry.TournamentId, cancellationToken);
+                if (tournament is null) {
+                    continue;
+                }
+                result.Add(new ActiveTeamTournament(tournament.Id, tournament.Name, entry.Status));
             }
 
-            return new ActiveTeamTournament(tournament.Id, tournament.Name, entry.Status);
+            return result;
         }
     }
 }
