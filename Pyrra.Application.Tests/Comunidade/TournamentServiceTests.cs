@@ -578,5 +578,86 @@ namespace Pyrra.Application.Tests.Comunidade {
 
             await Assert.ThrowsAsync<NotFoundException>(() => service.GetRankingAsync(Guid.NewGuid()));
         }
+
+        // ---- torneio com dono removido (conta excluída — soft delete) ----
+
+        // Variante que também devolve o FakeUserRepository — só usada pelos testes abaixo, que
+        // precisam marcar DeletedAt num usuário depois de criar o torneio.
+        private static (TournamentService service, FakeTournamentRepository tournaments, FakeUserRepository users) BuildWithUsers() {
+            var users = new FakeUserRepository(
+                new User { Id = AdminId, Name = "Admin", Email = "admin@x.com", IsAdmin = true },
+                new User { Id = RegularId, Name = "Regular", Email = "regular@x.com" },
+                new User { Id = OtherId, Name = "Other", Email = "other@x.com" },
+                new User { Id = TeamOwnerId, Name = "TeamOwner", Email = "teamowner@x.com" });
+
+            var members = new FakeTeamMemberRepository();
+            var teams = new FakeTeamRepository(members);
+            teams.Teams.Add(new Team {
+                Id = TeamId, Name = "Time QA", OwnerId = TeamOwnerId, MemberLimit = 10, InviteToken = "team-token"
+            });
+
+            var tournaments = new FakeTournamentRepository();
+            var requests = new FakeTournamentRequestRepository();
+            var entries = new FakeTournamentTeamRepository();
+            var bannerStorage = new FakeTournamentBannerStorageService();
+            var clock = new FakeClock();
+            var adminAuth = new AdminAuthorizationService(users);
+
+            var service = new TournamentService(tournaments, requests, entries, teams, users, bannerStorage, adminAuth, clock);
+            return (service, tournaments, users);
+        }
+
+        [Fact]
+        public async Task GetAll_TorneioComDonoRemovido_IgnoraOOrfaoMasListaOsDemais() {
+            var (service, _, users) = BuildWithUsers();
+            var normal = await service.CreateOfficialAsync(AdminId, "Copa Normal", null, TeamBannerTheme.Verde);
+            var orphanRequest = await service.RequestTournamentAsync(RegularId, "Copa Orfa", null);
+            var orphan = await service.ApproveRequestAsync(AdminId, orphanRequest.Id);
+
+            // Dono do torneio "órfão" exclui a própria conta — soft delete, mesmo critério de
+            // UserAccountService.DeleteAccountAsync (o usuário "some" de qualquer busca).
+            users.Users.Single(u => u.Id == RegularId).DeletedAt = DateTime.UtcNow;
+
+            var all = await service.GetAllAsync(OtherId);
+
+            var single = Assert.Single(all);
+            Assert.Equal(normal.Id, single.Id);
+            Assert.DoesNotContain(all, t => t.Id == orphan.Id);
+        }
+
+        [Fact]
+        public async Task GetMyTournaments_ComDonoRemovido_IgnoraOOrfao() {
+            var (service, _, users) = BuildWithUsers();
+            var orphanRequest = await service.RequestTournamentAsync(RegularId, "Copa Orfa", null);
+            await service.ApproveRequestAsync(AdminId, orphanRequest.Id);
+            users.Users.Single(u => u.Id == RegularId).DeletedAt = DateTime.UtcNow;
+
+            var mine = await service.GetMyTournamentsAsync(RegularId);
+
+            Assert.Empty(mine);
+        }
+
+        [Fact]
+        public async Task GetDetails_TorneioComDonoRemovido_LancaComoNaoEncontrado() {
+            var (service, _, users) = BuildWithUsers();
+            var request = await service.RequestTournamentAsync(RegularId, "Copa Orfa", null);
+            var orphan = await service.ApproveRequestAsync(AdminId, request.Id);
+            users.Users.Single(u => u.Id == RegularId).DeletedAt = DateTime.UtcNow;
+
+            await Assert.ThrowsAsync<NotFoundException>(() => service.GetDetailsAsync(OtherId, orphan.Id));
+        }
+
+        [Fact]
+        public async Task SetBannerTheme_TorneioComDonoRemovido_LancaComoNaoEncontrado() {
+            var (service, _, users) = BuildWithUsers();
+            var request = await service.RequestTournamentAsync(RegularId, "Copa Orfa", null);
+            var orphan = await service.ApproveRequestAsync(AdminId, request.Id);
+            users.Users.Single(u => u.Id == RegularId).DeletedAt = DateTime.UtcNow;
+
+            // RegularId "é" o dono (OwnerId bate) mas a conta foi excluída — um token antigo ainda
+            // válido não pode conseguir mais nada além de um 404 coerente, nunca um 500.
+            await Assert.ThrowsAsync<NotFoundException>(() =>
+                service.SetBannerThemeAsync(RegularId, orphan.Id, TeamBannerTheme.Azul));
+        }
     }
 }

@@ -273,16 +273,24 @@ namespace Pyrra.Application.Comunidade {
 
             var results = new List<TournamentSummary>(tournaments.Count);
             foreach (var tournament in tournaments) {
-                results.Add(await ToSummaryAsync(tournament, userId, cancellationToken));
+                // Dono removido (conta excluída, soft delete): ignora para não quebrar a
+                // listagem inteira por causa de UM torneio órfão — mesmo critério de
+                // GetPendingRequestsAsync com solicitante removido.
+                var summary = await TryToSummaryAsync(tournament, userId, cancellationToken);
+                if (summary is not null) {
+                    results.Add(summary);
+                }
             }
 
             return results.OrderBy(t => t.Name).ToList();
         }
 
-        private async Task<TournamentSummary> ToSummaryAsync(Tournament tournament, Guid userId, CancellationToken cancellationToken) {
+        // Versão que não lança: dono removido vira null em vez de exceção, pra quem lista vários
+        // torneios de uma vez poder simplesmente pular o órfão (ver ToSummariesAsync).
+        private async Task<TournamentSummary?> TryToSummaryAsync(Tournament tournament, Guid userId, CancellationToken cancellationToken) {
             var owner = await _userRepository.GetByIdAsync(tournament.OwnerId, cancellationToken);
             if (owner is null) {
-                throw new NotFoundException("Usuário não encontrado.");
+                return null;
             }
 
             return new TournamentSummary(
@@ -293,6 +301,18 @@ namespace Pyrra.Application.Comunidade {
                 tournament.OwnerId == userId,
                 tournament.BannerTheme,
                 tournament.BannerImageUrl);
+        }
+
+        // Dono removido (conta excluída): trata o torneio como inexistente — mesmo critério de
+        // GetTournamentAsync/GetOwnedTournamentAsync. Usado por GetDetailsAsync e pelas ações de
+        // banner, onde só existe UM torneio em jogo (não dá pra simplesmente pular como na
+        // listagem) — a resposta correta é 404, igual a acessar um torneio que nunca existiu.
+        private async Task<TournamentSummary> ToSummaryAsync(Tournament tournament, Guid userId, CancellationToken cancellationToken) {
+            var summary = await TryToSummaryAsync(tournament, userId, cancellationToken);
+            if (summary is null) {
+                throw new NotFoundException("Torneio não encontrado.");
+            }
+            return summary;
         }
 
         private async Task<Tournament> GetTournamentAsync(Guid tournamentId, CancellationToken cancellationToken) {

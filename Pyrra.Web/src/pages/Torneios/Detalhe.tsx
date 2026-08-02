@@ -61,6 +61,23 @@ const ACCEPTED_BANNER_TYPES = 'image/jpeg,image/png,image/webp'
 const listClasses =
   'divide-y divide-line overflow-hidden rounded-md bg-surface ring-1 ring-line'
 
+// Agrupa o catálogo por categoria pra exibição em "Escolher do catálogo" — a API já devolve
+// ordenado por nome da categoria e depois título, então só precisa juntar em blocos consecutivos.
+function groupCatalogByCategory(catalog: TournamentCatalogChallenge[]) {
+  const groups: { category: TournamentCatalogChallenge['category']; challenges: TournamentCatalogChallenge[] }[] = []
+
+  for (const challenge of catalog) {
+    const lastGroup = groups[groups.length - 1]
+    if (lastGroup && lastGroup.category.id === challenge.category.id) {
+      lastGroup.challenges.push(challenge)
+    } else {
+      groups.push({ category: challenge.category, challenges: [challenge] })
+    }
+  }
+
+  return groups
+}
+
 const inputClasses =
   'w-full rounded-md bg-surface-hi px-3 py-2 text-sm text-ink ring-1 ring-line transition outline-none placeholder:text-slate-500 focus:ring-2 focus:ring-brand-green'
 
@@ -128,8 +145,8 @@ function PendingEntryRow({
   )
 }
 
-// Checkbox de vínculo com o catálogo geral — a categoria/ícone/cor vêm do desafio real, mesmo
-// estilo de CategoryRow em Times/Detalhe.tsx.
+// Checkbox de vínculo com o catálogo geral — sem ícone/cor de categoria por linha: a lista já
+// vem agrupada por categoria (ver groupCatalogByCategory), o cabeçalho do grupo já mostra isso.
 function CatalogChallengeRow({
   challenge,
   busy,
@@ -139,7 +156,6 @@ function CatalogChallengeRow({
   busy: boolean
   onToggle: () => void
 }) {
-  const Icon = getCategoryIcon(challenge.category.icon)
   return (
     <li className="flex items-center gap-3 px-4 py-3">
       <button
@@ -156,20 +172,9 @@ function CatalogChallengeRow({
       >
         {challenge.isLinked && <Check size={13} className="text-brand-dark" aria-hidden="true" />}
       </button>
-      <span
-        aria-hidden="true"
-        className={[
-          'flex size-9 shrink-0 items-center justify-center rounded-full text-brand-dark',
-          CHALLENGE_CATEGORY_SWATCH[challenge.category.color],
-        ].join(' ')}
-      >
-        <Icon size={16} />
-      </span>
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium text-ink">{challenge.title}</p>
-        <p className={['truncate text-xs font-medium', CHALLENGE_CATEGORY_TEXT[challenge.category.color]].join(' ')}>
-          {challenge.category.name}
-        </p>
+        {challenge.description && <p className="truncate text-xs text-slate-400">{challenge.description}</p>}
       </div>
       <span className="shrink-0 rounded-full bg-brand-green/10 px-2.5 py-1 text-xs font-semibold text-brand-green ring-1 ring-brand-green/20">
         +{challenge.points} pts
@@ -870,16 +875,39 @@ export function TorneioDetalhe() {
                 Nenhum desafio no catálogo geral ainda.
               </p>
             ) : (
-              <ul className={listClasses}>
-                {catalog.map((challenge) => (
-                  <CatalogChallengeRow
-                    key={challenge.id}
-                    challenge={challenge}
-                    busy={catalogBusyId === challenge.id}
-                    onToggle={() => handleToggleCatalogLink(challenge)}
-                  />
-                ))}
-              </ul>
+              <div className="flex flex-col gap-3">
+                {groupCatalogByCategory(catalog).map((group) => {
+                  const CategoryIcon = getCategoryIcon(group.category.icon)
+                  return (
+                    <div key={group.category.id} className="flex flex-col gap-1.5">
+                      <div className="flex items-center gap-1.5 px-1">
+                        <span
+                          aria-hidden="true"
+                          className={[
+                            'flex size-5 shrink-0 items-center justify-center rounded-full text-brand-dark',
+                            CHALLENGE_CATEGORY_SWATCH[group.category.color],
+                          ].join(' ')}
+                        >
+                          <CategoryIcon size={11} />
+                        </span>
+                        <h4 className={['text-xs font-semibold', CHALLENGE_CATEGORY_TEXT[group.category.color]].join(' ')}>
+                          {group.category.name}
+                        </h4>
+                      </div>
+                      <ul className={listClasses}>
+                        {group.challenges.map((challenge) => (
+                          <CatalogChallengeRow
+                            key={challenge.id}
+                            challenge={challenge}
+                            busy={catalogBusyId === challenge.id}
+                            onToggle={() => handleToggleCatalogLink(challenge)}
+                          />
+                        ))}
+                      </ul>
+                    </div>
+                  )
+                })}
+              </div>
             )}
           </div>
 
