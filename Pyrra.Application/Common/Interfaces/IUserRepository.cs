@@ -21,6 +21,11 @@ namespace Pyrra.Application.Common.Interfaces {
         // Retorna usuários pelos identificadores informados
         Task<IReadOnlyList<User>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default);
 
+        // TODOS os usuários, INCLUSIVE os com DeletedAt marcado — diferente de todo o resto desta
+        // interface, que filtra soft-delete. Só para a listagem administrativa (Fase Admin-2), que
+        // precisa mostrar quem foi excluído.
+        Task<IReadOnlyList<User>> GetAllAsync(CancellationToken cancellationToken = default);
+
         Task AddAsync(User user, CancellationToken cancellationToken = default);
         Task UpdateAsync(User user, CancellationToken cancellationToken = default);
     }

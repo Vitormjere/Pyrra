@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Pyrra.Application.Common;
 using Pyrra.Application.Common.Exceptions;
 using Pyrra.Application.Comunidade;
 using Pyrra.Domain.Comunidade;
@@ -37,7 +38,8 @@ namespace Pyrra.Application.Tests.Comunidade {
             var clock = new FakeClock();
             var service = new TeamService(
                 teams, members, invites, friendships, users, bannerStorage, clock,
-                tournamentTeams ?? new FakeTournamentTeamRepository(), tournaments ?? new FakeTournamentRepository());
+                tournamentTeams ?? new FakeTournamentTeamRepository(), tournaments ?? new FakeTournamentRepository(),
+                new AdminAuthorizationService(users));
             return (service, teams, members, invites, friendships, bannerStorage, clock);
         }
 
@@ -633,7 +635,8 @@ namespace Pyrra.Application.Tests.Comunidade {
             var clock = new FakeClock();
             var service = new TeamService(
                 teams, members, invites, friendships, users, bannerStorage, clock,
-                new FakeTournamentTeamRepository(), new FakeTournamentRepository());
+                new FakeTournamentTeamRepository(), new FakeTournamentRepository(),
+                new AdminAuthorizationService(users));
             return (service, teams, users);
         }
 
@@ -686,6 +689,44 @@ namespace Pyrra.Application.Tests.Comunidade {
             // válido não pode conseguir mais nada além de um 404 coerente, nunca um 500.
             await Assert.ThrowsAsync<NotFoundException>(() =>
                 service.SetBannerThemeAsync(Alice, orphan.Id, TeamBannerTheme.Roxo));
+        }
+
+        // ---- listar todos os times (admin, Fase Admin-2.1) ----
+
+        [Fact]
+        public async Task GetAllTeams_ComoAdmin_ListaPublicosEPrivadosDeQualquerDono() {
+            var (service, _, users) = BuildWithUsers();
+            users.Users.Single(u => u.Id == Alice).IsAdmin = true;
+            await service.CreateAsync(Bob, "Time Público do Bob", null, 5, visibility: TeamVisibility.Publico);
+            await service.CreateAsync(Carol, "Time Privado da Carol", null, 5, visibility: TeamVisibility.Privado);
+
+            var all = await service.GetAllTeamsAsync(Alice);
+
+            Assert.Equal(2, all.Count);
+            Assert.Contains(all, t => t.Name == "Time Público do Bob");
+            Assert.Contains(all, t => t.Name == "Time Privado da Carol");
+        }
+
+        [Fact]
+        public async Task GetAllTeams_ComoNaoAdmin_Lanca() {
+            var (service, _, _, _, _, _, _) = Build();
+
+            await Assert.ThrowsAsync<ForbiddenException>(() => service.GetAllTeamsAsync(Alice));
+        }
+
+        [Fact]
+        public async Task GetAllTeams_ComoAdmin_IgnoraTimeComDonoRemovido() {
+            var (service, _, users) = BuildWithUsers();
+            users.Users.Single(u => u.Id == Alice).IsAdmin = true;
+            var normal = await service.CreateAsync(Bob, "Time Normal", null, 5);
+            var orphan = await service.CreateAsync(Carol, "Time Orfao", null, 5);
+            users.Users.Single(u => u.Id == Carol).DeletedAt = DateTime.UtcNow;
+
+            var all = await service.GetAllTeamsAsync(Alice);
+
+            var single = Assert.Single(all);
+            Assert.Equal(normal.Id, single.Id);
+            Assert.DoesNotContain(all, t => t.Id == orphan.Id);
         }
 
         // ---- ActiveTournaments (Fase 4d, listado a partir da Fase 5b) ----

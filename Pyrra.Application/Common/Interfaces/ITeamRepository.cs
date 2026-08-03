@@ -17,6 +17,11 @@ namespace Pyrra.Application.Common.Interfaces {
         // Retorna os times públicos
         Task<IReadOnlyList<Team>> GetPublicAsync(CancellationToken cancellationToken = default);
 
+        // TODOS os times, públicos e privados, de qualquer dono — só para a listagem
+        // administrativa (Fase Admin-2.1); GetForUserAsync/GetPublicAsync acima continuam
+        // escopados, essa é a única exceção.
+        Task<IReadOnlyList<Team>> GetAllAsync(CancellationToken cancellationToken = default);
+
         Task AddAsync(Team team, CancellationToken cancellationToken = default);
         Task UpdateAsync(Team team, CancellationToken cancellationToken = default);
         Task DeleteAsync(Team team, CancellationToken cancellationToken = default);

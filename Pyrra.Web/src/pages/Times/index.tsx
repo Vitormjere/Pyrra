@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Check, Compass, Crown, Plus, Users, X } from 'lucide-react'
+import { Check, Compass, Crown, Plus, Shield, Users, X } from 'lucide-react'
 import EmptyState from '../../components/EmptyState'
 import Skeleton from '../../components/Skeleton'
 import TeamBanner from '../../components/TeamBanner'
+import { useAuth } from '../../hooks/useAuth'
 import { useTeamInvites } from '../../hooks/useTeamInvites'
 import {
   acceptTeamInvite,
   declineTeamInvite,
+  getAllTeams,
   getMyTeams,
   getPendingTeamInvites,
   getPublicTeams,
@@ -56,6 +58,31 @@ function TeamRow({ team }: { team: Team }) {
           {team.memberCount}/{team.memberLimit}
         </span>
       </Link>
+    </li>
+  )
+}
+
+// Linha da listagem administrativa (Fase Admin-2.1) — nome, dono, contagem de membros, sem link
+// nem ação: GetDetailsAsync exige dono-ou-membro, e o admin normalmente não é nenhum dos dois
+// pra times alheios, então um link pra /times/:id quebraria com 404 na maioria dos casos.
+function AdminTeamRow({ team }: { team: Team }) {
+  return (
+    <li className="flex items-center gap-3 p-3">
+      <TeamBanner
+        theme={team.bannerTheme}
+        imageUrl={team.bannerImageUrl}
+        className="w-16 shrink-0 rounded-lg"
+      />
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-medium text-ink">{team.name}</p>
+        <p className="truncate text-xs text-slate-500">
+          Dono: {team.owner.name}
+          {team.owner.username && ` (@${team.owner.username})`}
+        </p>
+      </div>
+      <span className="shrink-0 text-xs font-medium text-slate-400 tabular-nums">
+        {team.memberCount}/{team.memberLimit}
+      </span>
     </li>
   )
 }
@@ -119,7 +146,72 @@ function ExploreCard({
 
 type Tab = 'meus' | 'explorar'
 
-export function Times() {
+// Visão de admin (Fase Admin-2.1) — lista única com TODOS os times do site, sem abas
+// "Meus Times"/"Explorar" (que não fazem sentido pra quem não joga) e sem ação de entrar.
+function AdminTeamsView() {
+  const [teams, setTeams] = useState<Team[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+
+    async function run() {
+      try {
+        const data = await getAllTeams()
+        if (!active) return
+        setTeams(data)
+      } catch (err) {
+        if (!active) return
+        setError(getApiErrorMessage(err, {}, 'Não foi possível carregar os times.'))
+      }
+    }
+
+    void run()
+    return () => {
+      active = false
+    }
+  }, [])
+
+  return (
+    <div className="flex flex-col gap-5">
+      <header className="flex items-center justify-between gap-3">
+        <h1 className="glow-ink font-display text-3xl font-semibold tracking-tight text-ink">
+          Times
+        </h1>
+        <Link
+          to="/times/novo"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-brand-green px-3 py-2 text-sm font-semibold text-brand-dark transition hover:brightness-95"
+        >
+          <Plus size={15} aria-hidden="true" />
+          Criar Time
+        </Link>
+      </header>
+
+      {error && (
+        <p
+          role="alert"
+          className="rounded-lg bg-red-500/10 px-3 py-2 text-center text-sm text-red-300 ring-1 ring-red-500/20"
+        >
+          {error}
+        </p>
+      )}
+
+      {teams === null ? (
+        <Skeleton className="h-20" />
+      ) : teams.length === 0 ? (
+        <EmptyState icon={Shield} title="Nenhum time criado no site ainda." />
+      ) : (
+        <ul className={listClasses}>
+          {teams.map((team) => (
+            <AdminTeamRow key={team.id} team={team} />
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function PlayerTeamsView() {
   const { count, refresh: refreshInviteCount } = useTeamInvites()
 
   const [tab, setTab] = useState<Tab>('meus')
@@ -404,6 +496,11 @@ export function Times() {
         ))}
     </div>
   )
+}
+
+export function Times() {
+  const { user } = useAuth()
+  return user?.isAdmin ? <AdminTeamsView /> : <PlayerTeamsView />
 }
 
 export default Times

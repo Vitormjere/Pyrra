@@ -26,6 +26,11 @@ namespace Pyrra.Application.Comunidade {
         // Retorna os times públicos disponíveis para exploração
         Task<IReadOnlyList<PublicTeamSummary>> GetPublicTeamsAsync(Guid userId, CancellationToken cancellationToken = default);
 
+        // TODOS os times do site, públicos e privados, de qualquer dono — restrito a admins
+        // (Fase Admin-2.1). Diferente de GetMyTeamsAsync/GetPublicTeamsAsync acima, que são
+        // sempre escopadas ao usuário que consulta.
+        Task<IReadOnlyList<TeamSummary>> GetAllTeamsAsync(Guid callerId, CancellationToken cancellationToken = default);
+
         // Altera a visibilidade do time
         Task SetVisibilityAsync(Guid ownerId, Guid teamId, TeamVisibility visibility, CancellationToken cancellationToken = default);
 

@@ -36,6 +36,12 @@ namespace Pyrra.Infrastructure.Repositories {
                 .OrderBy(t => t.Name)
                 .ToListAsync(cancellationToken);
 
+        // Sem filtro de visibilidade ou dono — só a listagem administrativa usa isso.
+        public async Task<IReadOnlyList<Team>> GetAllAsync(CancellationToken cancellationToken = default) =>
+            await _context.Teams
+                .OrderBy(t => t.Name)
+                .ToListAsync(cancellationToken);
+
         public async Task AddAsync(Team team, CancellationToken cancellationToken = default) {
             await _context.Teams.AddAsync(team, cancellationToken);
             await _context.SaveChangesAsync(cancellationToken);

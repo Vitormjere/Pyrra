@@ -68,7 +68,20 @@ namespace Pyrra.Application.Tests.Comunidade {
         public Task<IReadOnlyList<User>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<User>>(Active.Where(u => ids.Contains(u.Id)).ToList());
 
+        // Diferente dos demais: NÃO filtra por Active, igual ao UserRepository real.
+        public Task<IReadOnlyList<User>> GetAllAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<User>>(Users.OrderBy(u => u.Name).ToList());
+
         public Task AddAsync(User user, CancellationToken cancellationToken = default) {
+            // Mesma proteção de corrida do UpdateAsync abaixo — simula os índices únicos do
+            // UserRepository real, agora também no insert (relevante desde a Fase Admin-2, que cria
+            // usuários já com username).
+            if (user.Username is not null && Active.Any(u => u.Id != user.Id && u.Username == user.Username)) {
+                throw new UsernameAlreadyTakenException(user.Username);
+            }
+            if (Active.Any(u => u.Id != user.Id && u.Email == user.Email)) {
+                throw new EmailAlreadyRegisteredException(user.Email);
+            }
             Users.Add(user);
             return Task.CompletedTask;
         }
@@ -159,6 +172,9 @@ namespace Pyrra.Application.Tests.Comunidade {
                 .Where(t => t.Visibility == TeamVisibility.Publico)
                 .OrderBy(t => t.Name)
                 .ToList());
+
+        public Task<IReadOnlyList<Team>> GetAllAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<Team>>(Teams.OrderBy(t => t.Name).ToList());
 
         public Task AddAsync(Team team, CancellationToken cancellationToken = default) {
             Teams.Add(team);

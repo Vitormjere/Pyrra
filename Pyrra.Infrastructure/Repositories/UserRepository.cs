@@ -65,10 +65,20 @@ namespace Pyrra.Infrastructure.Repositories {
                 .ToListAsync(cancellationToken);
         }
 
+        // Único método que NÃO filtra DeletedAt — a listagem administrativa (Fase Admin-2) precisa
+        // mostrar quem foi excluído, não só quem está ativo.
+        public async Task<IReadOnlyList<User>> GetAllAsync(CancellationToken cancellationToken = default) =>
+            await _context.Users.OrderBy(u => u.Name).ToListAsync(cancellationToken);
+
         public async Task AddAsync(User user, CancellationToken cancellationToken = default) {
             await _context.Users.AddAsync(user, cancellationToken);
             try {
                 await _context.SaveChangesAsync(cancellationToken);
+            } catch (DbUpdateException ex) when (IsUniqueViolation(ex, "IX_Users_Username")) {
+                // Mesma proteção de corrida do UpdateAsync abaixo — só passa a importar aqui a
+                // partir da Fase Admin-2, que é a primeira a criar um usuário já COM username
+                // (cadastro normal cria com Username nulo, só preenchido depois via UsernameService).
+                throw new UsernameAlreadyTakenException(user.Username ?? string.Empty);
             } catch (DbUpdateException ex) when (IsUniqueViolation(ex, "IX_Users_Email")) {
                 // Protege contra corrida: entre a checagem prévia de e-mail e este insert, outra
                 // requisição pode ter cadastrado o mesmo e-mail. O índice único IX_Users_Email

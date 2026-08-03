@@ -26,6 +26,7 @@ namespace Pyrra.Application.Comunidade {
         private readonly IClockService              _clock;
         private readonly ITournamentTeamRepository  _tournamentTeamRepository;
         private readonly ITournamentRepository      _tournamentRepository;
+        private readonly IAdminAuthorizationService _adminAuth;
 
         public TeamService(
             ITeamRepository            teamRepository,
@@ -36,7 +37,8 @@ namespace Pyrra.Application.Comunidade {
             ITeamBannerStorageService  bannerStorage,
             IClockService              clock,
             ITournamentTeamRepository  tournamentTeamRepository,
-            ITournamentRepository      tournamentRepository) {
+            ITournamentRepository      tournamentRepository,
+            IAdminAuthorizationService adminAuth) {
             _teamRepository           = teamRepository;
             _teamMemberRepository     = teamMemberRepository;
             _teamInviteRepository     = teamInviteRepository;
@@ -46,6 +48,7 @@ namespace Pyrra.Application.Comunidade {
             _clock                    = clock;
             _tournamentTeamRepository = tournamentTeamRepository;
             _tournamentRepository     = tournamentRepository;
+            _adminAuth                = adminAuth;
         }
 
         public async Task<TeamSummary> CreateAsync(
@@ -121,6 +124,13 @@ namespace Pyrra.Application.Comunidade {
             }
 
             return results;
+        }
+
+        public async Task<IReadOnlyList<TeamSummary>> GetAllTeamsAsync(Guid callerId, CancellationToken cancellationToken = default) {
+            await _adminAuth.EnsureAdminAsync(callerId, cancellationToken);
+
+            var teams = await _teamRepository.GetAllAsync(cancellationToken);
+            return await ToSummariesAsync(teams, callerId, cancellationToken);
         }
 
         public async Task SetVisibilityAsync(Guid ownerId, Guid teamId, TeamVisibility visibility, CancellationToken cancellationToken = default) {

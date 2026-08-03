@@ -31,6 +31,13 @@ export async function getMyTeams(): Promise<Team[]> {
   return data
 }
 
+// TODOS os times do site, públicos e privados, de qualquer dono — restrito a admins (Fase
+// Admin-2.1). Usado pela tela de Times quando IsAdmin=true, no lugar de getMyTeams/getPublicTeams.
+export async function getAllTeams(): Promise<Team[]> {
+  const { data } = await api.get<Team[]>('/api/times/todos')
+  return data
+}
+
 // Times próprios sem entrada ativa em nenhum torneio — usado pelo botão "Solicitar entrada" na
 // tela de Detalhes do Torneio e pelo Convite de Torneio, pra saber quais times oferecer sem
 // precisar tentar e receber erro depois (regra "um torneio por vez").

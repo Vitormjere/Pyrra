@@ -143,6 +143,10 @@ builder.Services.AddScoped<IUsernameService, UsernameService>();
 builder.Services.AddScoped<IUserAccountService, UserAccountService>();
 builder.Services.AddScoped<INightlyMessageService, NightlyMessageService>();
 
+// IAdminUserService depende de IAdminAuthorizationService (registrado abaixo, junto com o resto
+// do módulo administrativo) — gestão de contas da Fase Admin-2.
+builder.Services.AddScoped<IAdminUserService, AdminUserService>();
+
 builder.Services.AddScoped<IFriendshipRepository, FriendshipRepository>();
 builder.Services.AddScoped<IFriendshipService, FriendshipService>();
 

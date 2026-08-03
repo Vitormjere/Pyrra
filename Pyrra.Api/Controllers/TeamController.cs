@@ -53,6 +53,23 @@ namespace Pyrra.Api.Controllers {
             return Ok(teams.Select(TeamSummaryResponse.FromSummary));
         }
 
+        // TODOS os times do site, públicos e privados, de qualquer dono — restrito a admins
+        // (Fase Admin-2.1). Usado pela tela de Times quando IsAdmin=true, no lugar das abas
+        // "Meus Times"/"Explorar" do usuário comum.
+        [HttpGet("todos")]
+        public async Task<ActionResult<IEnumerable<TeamSummaryResponse>>> GetAllTeams(CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            try {
+                var teams = await _teamService.GetAllTeamsAsync(userId, cancellationToken);
+                return Ok(teams.Select(TeamSummaryResponse.FromSummary));
+            } catch (ForbiddenException ex) {
+                return StatusCode(403, new { message = ex.Message });
+            }
+        }
+
         // Retorna os times do usuário que podem participar de um torneio
         [HttpGet("meus/elegiveis-torneio")]
         public async Task<ActionResult<IEnumerable<TeamSummaryResponse>>> GetMyEligibleForTournament(CancellationToken cancellationToken) {
