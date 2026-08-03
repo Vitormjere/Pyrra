@@ -38,16 +38,20 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // vincula um desafio do catálogo geral ao torneio
+        // vincula um desafio do catálogo geral ao torneio (ou atualiza a meta/unidade se já
+        // estiver vinculado)
         [HttpPost("catalogo/{challengeId:guid}")]
-        public async Task<IActionResult> LinkCatalogChallenge(Guid tournamentId, Guid challengeId, CancellationToken cancellationToken) {
+        public async Task<IActionResult> LinkCatalogChallenge(
+            Guid tournamentId, Guid challengeId, LinkTournamentCatalogChallengeRequest? request, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
                 return Unauthorized();
             }
 
             try {
-                await _service.LinkCatalogChallengeAsync(userId, tournamentId, challengeId, cancellationToken);
+                await _service.LinkCatalogChallengeAsync(userId, tournamentId, challengeId, request?.Goal, request?.Unit, cancellationToken);
                 return NoContent();
+            } catch (InvalidChallengeException ex) {
+                return BadRequest(new { message = ex.Message });
             } catch (NotFoundException ex) {
                 return NotFound(new { message = ex.Message });
             }
@@ -92,7 +96,7 @@ namespace Pyrra.Api.Controllers {
 
             try {
                 var challenge = await _service.CreateOwnChallengeAsync(
-                    userId, tournamentId, request.Title, request.Description, request.Points!.Value, cancellationToken);
+                    userId, tournamentId, request.Title, request.Description, request.Points!.Value, request.Goal, request.Unit, cancellationToken);
                 return Created($"/api/torneios/{tournamentId}/desafios/proprios/{challenge.Id}", TournamentOwnChallengeResponse.FromEntity(challenge));
             } catch (InvalidChallengeException ex) {
                 return BadRequest(new { message = ex.Message });
@@ -110,7 +114,7 @@ namespace Pyrra.Api.Controllers {
 
             try {
                 var challenge = await _service.UpdateOwnChallengeAsync(
-                    userId, tournamentId, challengeId, request.Title, request.Description, request.Points!.Value, cancellationToken);
+                    userId, tournamentId, challengeId, request.Title, request.Description, request.Points!.Value, request.Goal, request.Unit, cancellationToken);
                 return Ok(TournamentOwnChallengeResponse.FromEntity(challenge));
             } catch (InvalidChallengeException ex) {
                 return BadRequest(new { message = ex.Message });
@@ -146,6 +150,22 @@ namespace Pyrra.Api.Controllers {
             try {
                 var pending = await _service.GetPendingSubmissionsAsync(userId, tournamentId, cancellationToken);
                 return Ok(pending.Select(PendingTournamentSubmissionWithTeamResponse.FromPending));
+            } catch (NotFoundException ex) {
+                return NotFound(new { message = ex.Message });
+            }
+        }
+
+        // Progresso agregado de cada desafio COM META, cruzando todos os times Aprovados no
+        // torneio — só o dono vê (Fase 5c).
+        [HttpGet("progresso")]
+        public async Task<ActionResult<IEnumerable<TournamentChallengeProgressResponse>>> GetChallengeProgress(Guid tournamentId, CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            try {
+                var progress = await _service.GetChallengeProgressAsync(userId, tournamentId, cancellationToken);
+                return Ok(progress.Select(TournamentChallengeProgressResponse.FromProgress));
             } catch (NotFoundException ex) {
                 return NotFound(new { message = ex.Message });
             }

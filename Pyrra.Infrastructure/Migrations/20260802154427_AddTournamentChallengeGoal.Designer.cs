@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Pyrra.Infrastructure.Data;
 
@@ -11,9 +12,11 @@ using Pyrra.Infrastructure.Data;
 namespace Pyrra.Infrastructure.Migrations
 {
     [DbContext(typeof(PyrraDbContext))]
-    partial class PyrraDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260802154427_AddTournamentChallengeGoal")]
+    partial class AddTournamentChallengeGoal
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -378,10 +381,6 @@ namespace Pyrra.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
-
-                    b.Property<decimal?>("Quantity")
-                        .HasPrecision(9, 2)
-                        .HasColumnType("decimal(9,2)");
 
                     b.Property<DateTime?>("ReviewedAt")
                         .HasColumnType("datetime2");

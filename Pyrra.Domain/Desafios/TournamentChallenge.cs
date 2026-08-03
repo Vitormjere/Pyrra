@@ -9,5 +9,14 @@ namespace Pyrra.Domain.Desafios {
         public Guid TournamentId { get; set; }
         public Guid ChallengeId { get; set; }
         public DateTime LinkedAt { get; set; }
+
+        // Meta cumulativa deste desafio NESSE torneio (Fase 5c) — não existe no Challenge
+        // original, que continua sem meta e é usado normalmente por times fora de torneio.
+        // Nula = sem meta, desafio continua binário (aprovado/recusado, sem progresso). Sempre
+        // preenchida junto com Unit — uma sem a outra não faz sentido.
+        public decimal? Goal { get; set; }
+
+        // Texto livre (ex.: "km", "vezes", "litros"), só exibição — sem validação de formato.
+        public string? Unit { get; set; }
     }
 }

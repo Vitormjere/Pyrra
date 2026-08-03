@@ -3,6 +3,7 @@ import type {
   AvailableTournamentChallenge,
   PendingTournamentSubmissionWithTeam,
   TournamentCatalogChallenge,
+  TournamentChallengeProgress,
   TournamentOwnChallenge,
 } from '../types/tournamentChallenges'
 
@@ -14,8 +15,15 @@ export async function getTournamentCatalog(tournamentId: string): Promise<Tourna
   return data
 }
 
-export async function linkTournamentCatalogChallenge(tournamentId: string, challengeId: string): Promise<void> {
-  await api.post(`/api/torneios/${tournamentId}/desafios/catalogo/${challengeId}`)
+// goal/unit são opcionais (Fase 5c) — chamar de novo num desafio já vinculado ATUALIZA a
+// meta/unidade em vez de não fazer nada (evita ter que desvincular pra editar).
+export async function linkTournamentCatalogChallenge(
+  tournamentId: string,
+  challengeId: string,
+  goal?: number | null,
+  unit?: string | null,
+): Promise<void> {
+  await api.post(`/api/torneios/${tournamentId}/desafios/catalogo/${challengeId}`, { goal: goal ?? null, unit: unit ?? null })
 }
 
 export async function unlinkTournamentCatalogChallenge(tournamentId: string, challengeId: string): Promise<void> {
@@ -32,11 +40,15 @@ export async function createTournamentOwnChallenge(
   title: string,
   description: string | null,
   points: number,
+  goal: number | null,
+  unit: string | null,
 ): Promise<TournamentOwnChallenge> {
   const { data } = await api.post<TournamentOwnChallenge>(`/api/torneios/${tournamentId}/desafios/proprios`, {
     title,
     description,
     points,
+    goal,
+    unit,
   })
   return data
 }
@@ -48,6 +60,12 @@ export async function deleteTournamentOwnChallenge(tournamentId: string, challen
 // Fila de submissões pendentes do torneio, cruzando todos os times participantes — só o dono vê.
 export async function getTournamentPendingSubmissions(tournamentId: string): Promise<PendingTournamentSubmissionWithTeam[]> {
   const { data } = await api.get<PendingTournamentSubmissionWithTeam[]>(`/api/torneios/${tournamentId}/desafios/submissoes`)
+  return data
+}
+
+// Progresso agregado de cada desafio COM META, cruzando todos os times Aprovados — só o dono vê.
+export async function getTournamentChallengeProgress(tournamentId: string): Promise<TournamentChallengeProgress[]> {
+  const { data } = await api.get<TournamentChallengeProgress[]>(`/api/torneios/${tournamentId}/desafios/progresso`)
   return data
 }
 
@@ -63,29 +81,38 @@ export async function getAvailableTournamentChallenges(
 }
 
 // Envia a prova de um desafio do catálogo geral vinculado ao torneio — multipart/form-data,
-// mesmo padrão de submitChallengeProof (desafio de time).
+// mesmo padrão de submitChallengeProof (desafio de time). quantity só é exigida quando o desafio
+// tem meta configurada (Fase 5c) — sem meta, é ignorada mesmo se informada.
 export async function submitTournamentCatalogChallengeProof(
   teamId: string,
   tournamentId: string,
   challengeId: string,
   file: File,
+  quantity?: number | null,
 ): Promise<void> {
   const formData = new FormData()
   formData.append('file', file)
+  if (quantity !== undefined && quantity !== null) {
+    formData.append('quantity', String(quantity))
+  }
   await api.post(`/api/times/${teamId}/desafios/torneios/${tournamentId}/catalogo/${challengeId}/submissoes`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
 }
 
-// Envia a prova de um desafio próprio do torneio.
+// Envia a prova de um desafio próprio do torneio. Mesma regra de quantity acima.
 export async function submitTournamentOwnChallengeProof(
   teamId: string,
   tournamentId: string,
   challengeId: string,
   file: File,
+  quantity?: number | null,
 ): Promise<void> {
   const formData = new FormData()
   formData.append('file', file)
+  if (quantity !== undefined && quantity !== null) {
+    formData.append('quantity', String(quantity))
+  }
   await api.post(`/api/times/${teamId}/desafios/torneios/${tournamentId}/proprios/${challengeId}/submissoes`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })

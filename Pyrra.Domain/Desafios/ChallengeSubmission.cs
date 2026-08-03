@@ -26,6 +26,14 @@ namespace Pyrra.Domain.Desafios {
         // torneios ao mesmo tempo (Fase 5b), então não dá pra inferir de volta a partir do time.
         public Guid? TournamentId { get; set; }
 
+        // Contribuição numérica desta submissão pra meta do desafio (Fase 5c) — ex.: 3 (de "3km").
+        // Sempre nula pra Source Time (desafio de time continua binário, sem quantidade). Pra
+        // desafios de torneio, só é exigida quando o desafio (vínculo ou próprio) tem Goal
+        // configurada; sem meta, fica nula igual ao desafio de time. O progresso acumulado do
+        // desafio é a SOMA das Quantity aprovadas — calculado na hora da leitura, não guardado
+        // aqui nem em contador separado (sobrevive a desvincular/vincular de novo o mesmo desafio).
+        public decimal? Quantity { get; set; }
+
         public DateTime CreatedAt { get; set; }
 
         // Nulo enquanto Pendente. Preenchido ao aprovar/recusar.

@@ -331,41 +331,56 @@ namespace Pyrra.Application.Desafios {
             await GetOwnedOrMemberTeamAsync(userId, teamId, cancellationToken);
             await GetApprovedEntryAsync(teamId, tournamentId, cancellationToken);
 
-            // usa a submissão mais recente NESSE torneio para definir o status exibido — escopado
-            // por TournamentId porque o mesmo ChallengeId de catálogo pode estar vinculado a mais
-            // de um torneio em que o time participa
-            var latestByChallenge = (await _submissionRepository.GetForUserAndTeamAsync(userId, teamId, cancellationToken))
+            // TODAS as submissões do TIME nesse torneio (qualquer usuário) — escopado por
+            // TournamentId porque o mesmo ChallengeId de catálogo pode estar vinculado a mais de um
+            // torneio em que o time participa. Usadas tanto pro status do chamador (só as dele)
+            // quanto pro progresso agregado do time inteiro (Fase 5c: times diferentes perseguem a
+            // mesma meta de forma independente, mas dentro do MESMO time todo mundo soma junto).
+            var teamSubmissions = (await _submissionRepository.GetForTeamAsync(teamId, cancellationToken))
                 .Where(s => s.TournamentId == tournamentId)
+                .ToList();
+
+            var latestMineByChallenge = teamSubmissions
+                .Where(s => s.UserId == userId)
                 .GroupBy(s => s.ChallengeId)
                 .ToDictionary(g => g.Key, g => g.OrderByDescending(s => s.CreatedAt).First().Status);
+
+            var progressByChallenge = teamSubmissions
+                .Where(s => s.Status == ChallengeSubmissionStatus.Aprovado && s.Quantity.HasValue)
+                .GroupBy(s => s.ChallengeId)
+                .ToDictionary(g => g.Key, g => g.Sum(s => s.Quantity!.Value));
 
             var now = _clock.UtcNow;
             var result = new List<AvailableTournamentChallenge>();
 
-            var linkedIds = (await _tournamentChallengeRepository.GetByTournamentAsync(tournamentId, cancellationToken))
-                .Select(l => l.ChallengeId)
-                .ToHashSet();
-            if (linkedIds.Count > 0) {
+            var linksByChallenge = (await _tournamentChallengeRepository.GetByTournamentAsync(tournamentId, cancellationToken))
+                .ToDictionary(l => l.ChallengeId);
+            if (linksByChallenge.Count > 0) {
                 // catálogo pequeno, busca completa em memória simplifica o filtro (mesmo critério
                 // de GetAvailableChallengesAsync)
                 var catalogChallenges = await _challengeRepository.GetAllAsync(cancellationToken);
                 result.AddRange(catalogChallenges
-                    .Where(c => linkedIds.Contains(c.Id) && (c.Deadline is null || c.Deadline > now))
-                    .Select(c => new AvailableTournamentChallenge(
-                        c.Id, c.Title, c.Description, c.Points, ChallengeSource.TorneioCatalogo,
-                        latestByChallenge.TryGetValue(c.Id, out var catalogStatus) ? catalogStatus : null)));
+                    .Where(c => linksByChallenge.ContainsKey(c.Id) && (c.Deadline is null || c.Deadline > now))
+                    .Select(c => {
+                        var link = linksByChallenge[c.Id];
+                        return new AvailableTournamentChallenge(
+                            c.Id, c.Title, c.Description, c.Points, ChallengeSource.TorneioCatalogo,
+                            link.Goal, link.Unit, link.Goal is not null ? progressByChallenge.GetValueOrDefault(c.Id) : null,
+                            latestMineByChallenge.TryGetValue(c.Id, out var catalogStatus) ? catalogStatus : null);
+                    }));
             }
 
             var ownChallenges = await _tournamentOwnChallengeRepository.GetByTournamentAsync(tournamentId, cancellationToken);
             result.AddRange(ownChallenges.Select(c => new AvailableTournamentChallenge(
                 c.Id, c.Title, c.Description, c.Points, ChallengeSource.TorneioProprio,
-                latestByChallenge.TryGetValue(c.Id, out var ownStatus) ? ownStatus : null)));
+                c.Goal, c.Unit, c.Goal is not null ? progressByChallenge.GetValueOrDefault(c.Id) : null,
+                latestMineByChallenge.TryGetValue(c.Id, out var ownStatus) ? ownStatus : null)));
 
             return result.OrderBy(a => a.Title).ToList();
         }
 
         public async Task<ChallengeSubmission> SubmitTournamentCatalogChallengeProofAsync(
-            Guid userId, Guid teamId, Guid tournamentId, Guid challengeId, Stream content, string contentType, long contentLength,
+            Guid userId, Guid teamId, Guid tournamentId, Guid challengeId, decimal? quantity, Stream content, string contentType, long contentLength,
             CancellationToken cancellationToken = default) {
             await GetOwnedOrMemberTeamAsync(userId, teamId, cancellationToken);
             await GetApprovedEntryAsync(teamId, tournamentId, cancellationToken);
@@ -375,8 +390,8 @@ namespace Pyrra.Application.Desafios {
                 throw new NotFoundException($"Desafio '{challengeId}' não encontrado.");
             }
 
-            var isLinked = await _tournamentChallengeRepository.GetAsync(tournamentId, challengeId, cancellationToken) is not null;
-            if (!isLinked) {
+            var link = await _tournamentChallengeRepository.GetAsync(tournamentId, challengeId, cancellationToken);
+            if (link is null) {
                 throw new InvalidChallengeException("Esse desafio não está vinculado a esse torneio.");
             }
 
@@ -384,15 +399,22 @@ namespace Pyrra.Application.Desafios {
                 throw new InvalidChallengeException("O prazo desse desafio já passou.");
             }
 
-            await EnsureNoActiveTournamentSubmissionAsync(userId, teamId, tournamentId, challengeId, ChallengeSource.TorneioCatalogo, cancellationToken);
+            var normalizedQuantity = ValidateQuantity(link.Goal, quantity);
+
+            // Com meta (Fase 5c): aceita quantas contribuições a pessoa quiser, mesmo com uma
+            // anterior já aprovada — é assim que o progresso acumula, sem limite de envios (nunca
+            // fecha sozinho). Sem meta: continua binário, só uma pendente/aprovada por vez.
+            if (link.Goal is null) {
+                await EnsureNoActiveTournamentSubmissionAsync(userId, teamId, tournamentId, challengeId, ChallengeSource.TorneioCatalogo, cancellationToken);
+            }
             ValidateSubmissionFile(contentType, contentLength);
 
             return await CreateTournamentSubmissionAsync(
-                userId, teamId, tournamentId, challengeId, ChallengeSource.TorneioCatalogo, content, contentType, cancellationToken);
+                userId, teamId, tournamentId, challengeId, ChallengeSource.TorneioCatalogo, normalizedQuantity, content, contentType, cancellationToken);
         }
 
         public async Task<ChallengeSubmission> SubmitTournamentOwnChallengeProofAsync(
-            Guid userId, Guid teamId, Guid tournamentId, Guid ownChallengeId, Stream content, string contentType, long contentLength,
+            Guid userId, Guid teamId, Guid tournamentId, Guid ownChallengeId, decimal? quantity, Stream content, string contentType, long contentLength,
             CancellationToken cancellationToken = default) {
             await GetOwnedOrMemberTeamAsync(userId, teamId, cancellationToken);
             await GetApprovedEntryAsync(teamId, tournamentId, cancellationToken);
@@ -402,11 +424,16 @@ namespace Pyrra.Application.Desafios {
                 throw new NotFoundException($"Desafio '{ownChallengeId}' não encontrado.");
             }
 
-            await EnsureNoActiveTournamentSubmissionAsync(userId, teamId, tournamentId, ownChallengeId, ChallengeSource.TorneioProprio, cancellationToken);
+            var normalizedQuantity = ValidateQuantity(challenge.Goal, quantity);
+
+            // Mesmo critério do vínculo de catálogo acima: com meta, sem limite de envios.
+            if (challenge.Goal is null) {
+                await EnsureNoActiveTournamentSubmissionAsync(userId, teamId, tournamentId, ownChallengeId, ChallengeSource.TorneioProprio, cancellationToken);
+            }
             ValidateSubmissionFile(contentType, contentLength);
 
             return await CreateTournamentSubmissionAsync(
-                userId, teamId, tournamentId, ownChallengeId, ChallengeSource.TorneioProprio, content, contentType, cancellationToken);
+                userId, teamId, tournamentId, ownChallengeId, ChallengeSource.TorneioProprio, normalizedQuantity, content, contentType, cancellationToken);
         }
 
         public async Task<IReadOnlyList<PendingTournamentSubmission>> GetPendingTournamentSubmissionsAsync(
@@ -435,12 +462,12 @@ namespace Pyrra.Application.Desafios {
                     if (!catalogById.TryGetValue(submission.ChallengeId, out var catalogChallenge)) {
                         continue;
                     }
-                    result.Add(new PendingTournamentSubmission(submission, catalogChallenge.Title, catalogChallenge.Points, submission.Source, ToSummary(submitter)));
+                    result.Add(new PendingTournamentSubmission(submission, catalogChallenge.Title, catalogChallenge.Points, submission.Source, submission.Quantity, ToSummary(submitter)));
                 } else if (submission.Source == ChallengeSource.TorneioProprio) {
                     if (!ownById.TryGetValue(submission.ChallengeId, out var ownChallenge)) {
                         continue;
                     }
-                    result.Add(new PendingTournamentSubmission(submission, ownChallenge.Title, ownChallenge.Points, submission.Source, ToSummary(submitter)));
+                    result.Add(new PendingTournamentSubmission(submission, ownChallenge.Title, ownChallenge.Points, submission.Source, submission.Quantity, ToSummary(submitter)));
                 }
             }
 
@@ -560,8 +587,22 @@ namespace Pyrra.Application.Desafios {
             }
         }
 
+        // Quantidade só é exigida quando o desafio tem meta configurada (Fase 5c) — sem meta,
+        // continua binário e a quantidade informada é ignorada (fica nula na submissão).
+        private static decimal? ValidateQuantity(decimal? goal, decimal? quantity) {
+            if (goal is null) {
+                return null;
+            }
+
+            if (quantity is null || quantity <= 0) {
+                throw new InvalidChallengeException("Esse desafio tem meta configurada — informe a quantidade da sua contribuição.");
+            }
+
+            return quantity;
+        }
+
         private async Task<ChallengeSubmission> CreateTournamentSubmissionAsync(
-            Guid userId, Guid teamId, Guid tournamentId, Guid challengeId, ChallengeSource source,
+            Guid userId, Guid teamId, Guid tournamentId, Guid challengeId, ChallengeSource source, decimal? quantity,
             Stream content, string contentType, CancellationToken cancellationToken) {
             var submissionId = Guid.NewGuid();
             var photoUrl = await _submissionStorage.UploadAsync(submissionId, content, contentType, cancellationToken);
@@ -575,6 +616,7 @@ namespace Pyrra.Application.Desafios {
                 Status       = ChallengeSubmissionStatus.Pendente,
                 Source       = source,
                 TournamentId = tournamentId,
+                Quantity     = quantity,
                 CreatedAt    = _clock.UtcNow
             };
 

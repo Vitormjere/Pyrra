@@ -57,18 +57,23 @@ namespace Pyrra.Api.Dtos.Desafios {
     }
 
     // Representa um desafio disponível de um torneio específico — de catálogo vinculado ou
-    // próprio (Fase 5b), separado dos desafios normais do time acima
+    // próprio (Fase 5b), separado dos desafios normais do time acima. Goal/Unit/Progress nulos =
+    // desafio sem meta configurada, continua binário (Fase 5c).
     public record AvailableTournamentChallengeResponse(
-        Guid Id, string Title, string? Description, int Points, string Source, string? MySubmissionStatus) {
+        Guid Id, string Title, string? Description, int Points, string Source,
+        decimal? Goal, string? Unit, decimal? Progress, string? MySubmissionStatus) {
         public static AvailableTournamentChallengeResponse FromAvailable(AvailableTournamentChallenge a) => new(
-            a.ChallengeId, a.Title, a.Description, a.Points, a.Source.ToString(), a.MySubmissionStatus?.ToString());
+            a.ChallengeId, a.Title, a.Description, a.Points, a.Source.ToString(),
+            a.Goal, a.Unit, a.Progress, a.MySubmissionStatus?.ToString());
     }
 
-    // Representa uma submissão pendente de um desafio de torneio, pro dono do torneio avaliar
+    // Representa uma submissão pendente de um desafio de torneio, pro dono do torneio avaliar.
+    // Quantity nula = desafio sem meta (Fase 5c).
     public record PendingTournamentSubmissionResponse(
-        Guid Id, DateTime CreatedAt, string ChallengeTitle, int ChallengePoints, string Source, UserSummaryResponse Submitter) {
+        Guid Id, DateTime CreatedAt, string ChallengeTitle, int ChallengePoints, string Source,
+        decimal? Quantity, UserSummaryResponse Submitter) {
         public static PendingTournamentSubmissionResponse FromPending(PendingTournamentSubmission p) => new(
             p.Submission.Id, p.Submission.CreatedAt, p.ChallengeTitle, p.ChallengePoints, p.Source.ToString(),
-            UserSummaryResponse.FromSummary(p.Submitter));
+            p.Quantity, UserSummaryResponse.FromSummary(p.Submitter));
     }
 }

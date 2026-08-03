@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react'
 import EmptyState from '../../components/EmptyState'
+import ProgressBar from '../../components/ProgressBar'
 import Segmented from '../../components/Segmented'
 import Skeleton from '../../components/Skeleton'
 import TeamBanner from '../../components/TeamBanner'
@@ -56,6 +57,7 @@ import {
 import { getApiErrorMessage } from '../../services/apiError'
 import { CHALLENGE_CATEGORY_SWATCH, CHALLENGE_CATEGORY_TEXT } from '../../utils/challengeCategoryColors'
 import { getCategoryIcon } from '../../utils/challengeCategoryIcons'
+import { formatNumber } from '../../utils/format'
 import { TEAM_BANNER_SWATCH, TEAM_BANNER_THEMES } from '../../utils/teamBanners'
 import type { Friend } from '../../types/community'
 import type { AvailableChallenge, PendingSubmission, TeamCategoryStatus, TeamMemberRanking } from '../../types/challenges'
@@ -307,7 +309,8 @@ function ChallengeCard({
 }
 
 // Desafio de UM torneio específico — mesmo layout de ChallengeCard, sem categoria (desafios de
-// torneio não têm uma) e com um selo neutro no lugar do ícone/cor de categoria.
+// torneio não têm uma) e com um selo neutro no lugar do ícone/cor de categoria. Quando tem meta
+// (Fase 5c), mostra a barra de progresso do TIME e exige a quantidade antes de enviar a foto.
 function TournamentChallengeCard({
   challenge,
   busy,
@@ -315,14 +318,19 @@ function TournamentChallengeCard({
 }: {
   challenge: AvailableTournamentChallenge
   busy: boolean
-  onSubmitProof: (file: File) => void
+  onSubmitProof: (file: File, quantity: number | null) => void
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [fileError, setFileError] = useState<string | null>(null)
+  const [quantityInput, setQuantityInput] = useState('')
+
+  const hasGoal = challenge.goal !== null
+  const progress = challenge.progress ?? 0
+  const goalReached = hasGoal && progress >= challenge.goal!
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
-    event.target.value = ''
+    event.target.value = '' // permite escolher o mesmo arquivo de novo depois de um erro
     if (!file) return
 
     if (file.size > MAX_SUBMISSION_BYTES) {
@@ -330,8 +338,20 @@ function TournamentChallengeCard({
       return
     }
 
+    if (hasGoal) {
+      const quantity = Number(quantityInput.replace(',', '.'))
+      if (!quantityInput.trim() || !Number.isFinite(quantity) || quantity <= 0) {
+        setFileError(`Informe a quantidade (${challenge.unit}) da sua contribuição.`)
+        return
+      }
+      setFileError(null)
+      onSubmitProof(file, quantity)
+      setQuantityInput('')
+      return
+    }
+
     setFileError(null)
-    onSubmitProof(file)
+    onSubmitProof(file, null)
   }
 
   return (
@@ -348,6 +368,19 @@ function TournamentChallengeCard({
         <p className="mt-1 text-xs font-medium text-slate-500">
           {challenge.source === 'TorneioProprio' ? 'Desafio exclusivo do torneio' : 'Desafio do catálogo, vinculado ao torneio'}
         </p>
+
+        {hasGoal && (
+          <div className="mt-2 flex flex-col gap-1">
+            <div className="flex items-center justify-between gap-2 text-xs">
+              <span className="font-medium text-slate-300">
+                {formatNumber(progress)} / {formatNumber(challenge.goal!)} {challenge.unit}
+              </span>
+              {goalReached && <span className="shrink-0 font-semibold text-brand-green">Meta atingida</span>}
+            </div>
+            <ProgressBar percent={(progress / challenge.goal!) * 100} />
+          </div>
+        )}
+
         {fileError && <p className="mt-1 text-xs text-red-300">{fileError}</p>}
       </div>
       <div className="flex shrink-0 flex-col items-end gap-2">
@@ -355,7 +388,52 @@ function TournamentChallengeCard({
           +{challenge.points} pts
         </span>
 
-        {challenge.mySubmissionStatus === 'Pendente' ? (
+        {hasGoal ? (
+          // Com meta, o desafio nunca fecha — aceita novos envios mesmo com uma contribuição
+          // anterior Pendente ou já Aprovada (Fase 5c), então o status só vira um rótulo
+          // informativo da ÚLTIMA contribuição, sem bloquear o formulário de envio.
+          <div className="flex flex-col items-end gap-1.5">
+            {challenge.mySubmissionStatus && (
+              <span
+                className={[
+                  'text-[11px] font-medium',
+                  challenge.mySubmissionStatus === 'Aprovado'
+                    ? 'text-brand-green'
+                    : challenge.mySubmissionStatus === 'Pendente'
+                      ? 'text-slate-400'
+                      : 'text-red-300',
+                ].join(' ')}
+              >
+                Última contribuição:{' '}
+                {challenge.mySubmissionStatus === 'Aprovado'
+                  ? 'aprovada'
+                  : challenge.mySubmissionStatus === 'Pendente'
+                    ? 'aguardando aprovação'
+                    : 'recusada'}
+              </span>
+            )}
+            <div className="flex items-center gap-1.5">
+              <input
+                type="text"
+                inputMode="decimal"
+                value={quantityInput}
+                onChange={(event) => setQuantityInput(event.target.value)}
+                placeholder={challenge.unit ?? ''}
+                aria-label={`Quantidade (${challenge.unit}) da contribuição para ${challenge.title}`}
+                className="w-16 rounded-lg bg-surface-hi px-2 py-1.5 text-xs text-ink ring-1 ring-line outline-none placeholder:text-slate-500 focus:ring-2 focus:ring-brand-green"
+              />
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => fileInputRef.current?.click()}
+                className="inline-flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-ink ring-1 ring-line transition hover:bg-surface-hi disabled:opacity-50"
+              >
+                <ImagePlus size={13} aria-hidden="true" />
+                {busy ? 'Enviando…' : 'Enviar foto'}
+              </button>
+            </div>
+          </div>
+        ) : challenge.mySubmissionStatus === 'Pendente' ? (
           <span className="rounded-lg px-2.5 py-1 text-xs font-medium text-slate-400 ring-1 ring-line">
             Aguardando aprovação
           </span>
@@ -644,16 +722,21 @@ export function TimeDetalhe() {
     }
   }
 
-  async function handleSubmitTournamentProof(tournamentId: string, challenge: AvailableTournamentChallenge, file: File) {
+  async function handleSubmitTournamentProof(
+    tournamentId: string,
+    challenge: AvailableTournamentChallenge,
+    file: File,
+    quantity: number | null,
+  ) {
     if (!id) return
     const busyKey = `${tournamentId}:${challenge.id}`
     setTournamentSubmitBusyKey(busyKey)
     setError(null)
     try {
       if (challenge.source === 'TorneioProprio') {
-        await submitTournamentOwnChallengeProof(id, tournamentId, challenge.id, file)
+        await submitTournamentOwnChallengeProof(id, tournamentId, challenge.id, file, quantity)
       } else {
-        await submitTournamentCatalogChallengeProof(id, tournamentId, challenge.id, file)
+        await submitTournamentCatalogChallengeProof(id, tournamentId, challenge.id, file, quantity)
       }
       await loadTournamentChallenges(tournamentId)
     } catch (err) {
@@ -1282,7 +1365,7 @@ export function TimeDetalhe() {
                       key={challenge.id}
                       challenge={challenge}
                       busy={tournamentSubmitBusyKey === `${activeTournament.tournamentId}:${challenge.id}`}
-                      onSubmitProof={(file) => handleSubmitTournamentProof(activeTournament.tournamentId, challenge, file)}
+                      onSubmitProof={(file, quantity) => handleSubmitTournamentProof(activeTournament.tournamentId, challenge, file, quantity)}
                     />
                   ))}
                 </ul>

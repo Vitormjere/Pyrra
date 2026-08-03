@@ -72,13 +72,18 @@ namespace Pyrra.Application.Tests.Desafios {
 
         private static Stream MakePhoto() => new MemoryStream(new byte[] { 1, 2, 3 });
 
-        private static TournamentOwnChallenge MakeOwnChallenge(Guid tournamentId, string title = "Desafio Próprio", int points = 20) => new() {
-            Id = Guid.NewGuid(), TournamentId = tournamentId, Title = title, Points = points,
+        private static TournamentOwnChallenge MakeOwnChallenge(
+            Guid tournamentId, string title = "Desafio Próprio", int points = 20, decimal? goal = null, string? unit = null) => new() {
+            Id = Guid.NewGuid(), TournamentId = tournamentId, Title = title, Points = points, Goal = goal, Unit = unit,
             CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
         };
 
-        private static void LinkChallenge(FakeTournamentChallengeRepository links, Guid tournamentId, Guid challengeId) =>
-            links.Links.Add(new TournamentChallenge { Id = Guid.NewGuid(), TournamentId = tournamentId, ChallengeId = challengeId, LinkedAt = DateTime.UtcNow });
+        private static void LinkChallenge(
+            FakeTournamentChallengeRepository links, Guid tournamentId, Guid challengeId, decimal? goal = null, string? unit = null) =>
+            links.Links.Add(new TournamentChallenge {
+                Id = Guid.NewGuid(), TournamentId = tournamentId, ChallengeId = challengeId, LinkedAt = DateTime.UtcNow,
+                Goal = goal, Unit = unit
+            });
 
         // Cria um torneio e uma entrada do TeamId nele, com o status pedido (Aprovado por padrão
         // — só entrada Aprovada muda quem aprova submissões). Devolve o Id do torneio.
@@ -781,7 +786,7 @@ namespace Pyrra.Application.Tests.Desafios {
             await service.SubmitChallengeProofAsync(MemberId, TeamId, challenge.Id, MakePhoto(), "image/jpeg", 1024);
 
             // Envia só no torneio A.
-            await service.SubmitTournamentCatalogChallengeProofAsync(MemberId, TeamId, tournamentAId, challenge.Id, MakePhoto(), "image/jpeg", 1024);
+            await service.SubmitTournamentCatalogChallengeProofAsync(MemberId, TeamId, tournamentAId, challenge.Id, null, MakePhoto(), "image/jpeg", 1024);
 
             var availableA = await service.GetAvailableTournamentChallengesAsync(MemberId, TeamId, tournamentAId);
             var availableB = await service.GetAvailableTournamentChallengesAsync(MemberId, TeamId, tournamentBId);
@@ -802,7 +807,7 @@ namespace Pyrra.Application.Tests.Desafios {
             LinkChallenge(links, tournamentId, challenge.Id);
 
             var submission = await service.SubmitTournamentCatalogChallengeProofAsync(
-                MemberId, TeamId, tournamentId, challenge.Id, MakePhoto(), "image/jpeg", 1024);
+                MemberId, TeamId, tournamentId, challenge.Id, null, MakePhoto(), "image/jpeg", 1024);
 
             var stored = Assert.Single(submissions.Submissions);
             Assert.Equal(ChallengeSource.TorneioCatalogo, stored.Source);
@@ -823,7 +828,7 @@ namespace Pyrra.Application.Tests.Desafios {
             var tournamentId = PutTeamInTournament(tournaments, tournamentEntries);
 
             await Assert.ThrowsAsync<InvalidChallengeException>(() =>
-                service.SubmitTournamentCatalogChallengeProofAsync(MemberId, TeamId, tournamentId, challenge.Id, MakePhoto(), "image/jpeg", 1024));
+                service.SubmitTournamentCatalogChallengeProofAsync(MemberId, TeamId, tournamentId, challenge.Id, null, MakePhoto(), "image/jpeg", 1024));
         }
 
         [Fact]
@@ -837,7 +842,7 @@ namespace Pyrra.Application.Tests.Desafios {
             LinkChallenge(links, tournamentId, challenge.Id);
 
             await Assert.ThrowsAsync<InvalidChallengeException>(() =>
-                service.SubmitTournamentCatalogChallengeProofAsync(MemberId, TeamId, tournamentId, challenge.Id, MakePhoto(), "image/jpeg", 1024));
+                service.SubmitTournamentCatalogChallengeProofAsync(MemberId, TeamId, tournamentId, challenge.Id, null, MakePhoto(), "image/jpeg", 1024));
         }
 
         [Fact]
@@ -851,7 +856,7 @@ namespace Pyrra.Application.Tests.Desafios {
             LinkChallenge(links, tournamentId, challenge.Id);
 
             await Assert.ThrowsAsync<InvalidChallengeException>(() =>
-                service.SubmitTournamentCatalogChallengeProofAsync(MemberId, TeamId, tournamentId, challenge.Id, MakePhoto(), "image/jpeg", 1024));
+                service.SubmitTournamentCatalogChallengeProofAsync(MemberId, TeamId, tournamentId, challenge.Id, null, MakePhoto(), "image/jpeg", 1024));
         }
 
         [Fact]
@@ -863,10 +868,10 @@ namespace Pyrra.Application.Tests.Desafios {
             challenges.Challenges.Add(challenge);
             var tournamentId = PutTeamInTournament(tournaments, tournamentEntries);
             LinkChallenge(links, tournamentId, challenge.Id);
-            await service.SubmitTournamentCatalogChallengeProofAsync(MemberId, TeamId, tournamentId, challenge.Id, MakePhoto(), "image/jpeg", 1024);
+            await service.SubmitTournamentCatalogChallengeProofAsync(MemberId, TeamId, tournamentId, challenge.Id, null, MakePhoto(), "image/jpeg", 1024);
 
             await Assert.ThrowsAsync<InvalidChallengeException>(() =>
-                service.SubmitTournamentCatalogChallengeProofAsync(MemberId, TeamId, tournamentId, challenge.Id, MakePhoto(), "image/jpeg", 1024));
+                service.SubmitTournamentCatalogChallengeProofAsync(MemberId, TeamId, tournamentId, challenge.Id, null, MakePhoto(), "image/jpeg", 1024));
         }
 
         // Regressão-chave: o mesmo ChallengeId pode ter uma submissão ativa como desafio de TIME
@@ -884,7 +889,7 @@ namespace Pyrra.Application.Tests.Desafios {
             var tournamentId = PutTeamInTournament(tournaments, tournamentEntries);
             LinkChallenge(links, tournamentId, challenge.Id);
 
-            await service.SubmitTournamentCatalogChallengeProofAsync(MemberId, TeamId, tournamentId, challenge.Id, MakePhoto(), "image/jpeg", 1024);
+            await service.SubmitTournamentCatalogChallengeProofAsync(MemberId, TeamId, tournamentId, challenge.Id, null, MakePhoto(), "image/jpeg", 1024);
 
             Assert.Equal(2, submissions.Submissions.Count(s => s.ChallengeId == challenge.Id));
         }
@@ -900,7 +905,7 @@ namespace Pyrra.Application.Tests.Desafios {
             LinkChallenge(links, tournamentId, challenge.Id);
 
             await Assert.ThrowsAsync<InvalidChallengeException>(() =>
-                service.SubmitTournamentCatalogChallengeProofAsync(MemberId, TeamId, tournamentId, challenge.Id, MakePhoto(), "application/pdf", 1024));
+                service.SubmitTournamentCatalogChallengeProofAsync(MemberId, TeamId, tournamentId, challenge.Id, null, MakePhoto(), "application/pdf", 1024));
         }
 
         [Fact]
@@ -911,7 +916,7 @@ namespace Pyrra.Application.Tests.Desafios {
             ownChallenges.Challenges.Add(ownChallenge);
 
             var submission = await service.SubmitTournamentOwnChallengeProofAsync(
-                MemberId, TeamId, tournamentId, ownChallenge.Id, MakePhoto(), "image/jpeg", 1024);
+                MemberId, TeamId, tournamentId, ownChallenge.Id, null, MakePhoto(), "image/jpeg", 1024);
 
             var stored = Assert.Single(submissions.Submissions);
             Assert.Equal(ChallengeSource.TorneioProprio, stored.Source);
@@ -928,7 +933,7 @@ namespace Pyrra.Application.Tests.Desafios {
             ownChallenges.Challenges.Add(ownChallenge);
 
             await Assert.ThrowsAsync<NotFoundException>(() =>
-                service.SubmitTournamentOwnChallengeProofAsync(MemberId, TeamId, tournamentId, ownChallenge.Id, MakePhoto(), "image/jpeg", 1024));
+                service.SubmitTournamentOwnChallengeProofAsync(MemberId, TeamId, tournamentId, ownChallenge.Id, null, MakePhoto(), "image/jpeg", 1024));
         }
 
         [Fact]
@@ -937,10 +942,10 @@ namespace Pyrra.Application.Tests.Desafios {
             var tournamentId = PutTeamInTournament(tournaments, tournamentEntries);
             var ownChallenge = MakeOwnChallenge(tournamentId);
             ownChallenges.Challenges.Add(ownChallenge);
-            await service.SubmitTournamentOwnChallengeProofAsync(MemberId, TeamId, tournamentId, ownChallenge.Id, MakePhoto(), "image/jpeg", 1024);
+            await service.SubmitTournamentOwnChallengeProofAsync(MemberId, TeamId, tournamentId, ownChallenge.Id, null, MakePhoto(), "image/jpeg", 1024);
 
             await Assert.ThrowsAsync<InvalidChallengeException>(() =>
-                service.SubmitTournamentOwnChallengeProofAsync(MemberId, TeamId, tournamentId, ownChallenge.Id, MakePhoto(), "image/jpeg", 1024));
+                service.SubmitTournamentOwnChallengeProofAsync(MemberId, TeamId, tournamentId, ownChallenge.Id, null, MakePhoto(), "image/jpeg", 1024));
         }
 
         [Fact]
@@ -949,7 +954,7 @@ namespace Pyrra.Application.Tests.Desafios {
             var tournamentId = PutTeamInTournament(tournaments, tournamentEntries);
             var ownChallenge = MakeOwnChallenge(tournamentId, points: 12);
             ownChallenges.Challenges.Add(ownChallenge);
-            await service.SubmitTournamentOwnChallengeProofAsync(MemberId, TeamId, tournamentId, ownChallenge.Id, MakePhoto(), "image/jpeg", 1024);
+            await service.SubmitTournamentOwnChallengeProofAsync(MemberId, TeamId, tournamentId, ownChallenge.Id, null, MakePhoto(), "image/jpeg", 1024);
 
             var pending = await service.GetPendingTournamentSubmissionsAsync(TournamentOwnerId, TeamId, tournamentId);
 
@@ -966,7 +971,7 @@ namespace Pyrra.Application.Tests.Desafios {
             var tournamentId = PutTeamInTournament(tournaments, tournamentEntries);
             var ownChallenge = MakeOwnChallenge(tournamentId);
             ownChallenges.Challenges.Add(ownChallenge);
-            await service.SubmitTournamentOwnChallengeProofAsync(MemberId, TeamId, tournamentId, ownChallenge.Id, MakePhoto(), "image/jpeg", 1024);
+            await service.SubmitTournamentOwnChallengeProofAsync(MemberId, TeamId, tournamentId, ownChallenge.Id, null, MakePhoto(), "image/jpeg", 1024);
 
             // Dono do TIME não tem nada a ver com a fila de um torneio que não é dele.
             await Assert.ThrowsAsync<NotFoundException>(() => service.GetPendingTournamentSubmissionsAsync(OwnerId, TeamId, tournamentId));
@@ -988,8 +993,8 @@ namespace Pyrra.Application.Tests.Desafios {
             var ownChallengeB = MakeOwnChallenge(tournamentBId, "Desafio B");
             ownChallenges.Challenges.Add(ownChallengeA);
             ownChallenges.Challenges.Add(ownChallengeB);
-            await service.SubmitTournamentOwnChallengeProofAsync(MemberId, TeamId, tournamentAId, ownChallengeA.Id, MakePhoto(), "image/jpeg", 1024);
-            await service.SubmitTournamentOwnChallengeProofAsync(MemberId, TeamId, tournamentBId, ownChallengeB.Id, MakePhoto(), "image/jpeg", 1024);
+            await service.SubmitTournamentOwnChallengeProofAsync(MemberId, TeamId, tournamentAId, ownChallengeA.Id, null, MakePhoto(), "image/jpeg", 1024);
+            await service.SubmitTournamentOwnChallengeProofAsync(MemberId, TeamId, tournamentBId, ownChallengeB.Id, null, MakePhoto(), "image/jpeg", 1024);
 
             var pendingA = await service.GetPendingTournamentSubmissionsAsync(TournamentOwnerId, TeamId, tournamentAId);
 
@@ -1007,7 +1012,7 @@ namespace Pyrra.Application.Tests.Desafios {
             var tournamentId = PutTeamInTournament(tournaments, tournamentEntries);
             LinkChallenge(links, tournamentId, challenge.Id);
             var submission = await service.SubmitTournamentCatalogChallengeProofAsync(
-                MemberId, TeamId, tournamentId, challenge.Id, MakePhoto(), "image/jpeg", 1024);
+                MemberId, TeamId, tournamentId, challenge.Id, null, MakePhoto(), "image/jpeg", 1024);
 
             await service.ApproveTournamentSubmissionAsync(TournamentOwnerId, TeamId, tournamentId, submission.Id);
 
@@ -1025,7 +1030,7 @@ namespace Pyrra.Application.Tests.Desafios {
             var ownChallenge = MakeOwnChallenge(tournamentId, points: 18);
             ownChallenges.Challenges.Add(ownChallenge);
             var submission = await service.SubmitTournamentOwnChallengeProofAsync(
-                MemberId, TeamId, tournamentId, ownChallenge.Id, MakePhoto(), "image/jpeg", 1024);
+                MemberId, TeamId, tournamentId, ownChallenge.Id, null, MakePhoto(), "image/jpeg", 1024);
 
             await service.ApproveTournamentSubmissionAsync(TournamentOwnerId, TeamId, tournamentId, submission.Id);
 
@@ -1045,7 +1050,7 @@ namespace Pyrra.Application.Tests.Desafios {
             ownChallenges.Challenges.Add(ownChallenge);
             // Dono do torneio TAMBÉM é dono do time aqui — pode submeter como dono/membro implícito.
             var submission = await service.SubmitTournamentOwnChallengeProofAsync(
-                OwnerId, TeamId, tournamentId, ownChallenge.Id, MakePhoto(), "image/jpeg", 1024);
+                OwnerId, TeamId, tournamentId, ownChallenge.Id, null, MakePhoto(), "image/jpeg", 1024);
 
             await Assert.ThrowsAsync<InvalidChallengeException>(() =>
                 service.ApproveTournamentSubmissionAsync(OwnerId, TeamId, tournamentId, submission.Id));
@@ -1063,7 +1068,7 @@ namespace Pyrra.Application.Tests.Desafios {
             var ownChallengeA = MakeOwnChallenge(tournamentAId, points: 40);
             ownChallenges.Challenges.Add(ownChallengeA);
             var submission = await service.SubmitTournamentOwnChallengeProofAsync(
-                MemberId, TeamId, tournamentAId, ownChallengeA.Id, MakePhoto(), "image/jpeg", 1024);
+                MemberId, TeamId, tournamentAId, ownChallengeA.Id, null, MakePhoto(), "image/jpeg", 1024);
 
             await service.ApproveTournamentSubmissionAsync(TournamentOwnerId, TeamId, tournamentAId, submission.Id);
 
@@ -1078,7 +1083,7 @@ namespace Pyrra.Application.Tests.Desafios {
             var ownChallenge = MakeOwnChallenge(tournamentId);
             ownChallenges.Challenges.Add(ownChallenge);
             var submission = await service.SubmitTournamentOwnChallengeProofAsync(
-                MemberId, TeamId, tournamentId, ownChallenge.Id, MakePhoto(), "image/jpeg", 1024);
+                MemberId, TeamId, tournamentId, ownChallenge.Id, null, MakePhoto(), "image/jpeg", 1024);
 
             await Assert.ThrowsAsync<NotFoundException>(() =>
                 service.ApproveTournamentSubmissionAsync(OwnerId, TeamId, tournamentId, submission.Id));
@@ -1093,12 +1098,265 @@ namespace Pyrra.Application.Tests.Desafios {
             var ownChallenge = MakeOwnChallenge(tournamentId);
             ownChallenges.Challenges.Add(ownChallenge);
             var submission = await service.SubmitTournamentOwnChallengeProofAsync(
-                MemberId, TeamId, tournamentId, ownChallenge.Id, MakePhoto(), "image/jpeg", 1024);
+                MemberId, TeamId, tournamentId, ownChallenge.Id, null, MakePhoto(), "image/jpeg", 1024);
 
             await service.RejectTournamentSubmissionAsync(TournamentOwnerId, TeamId, tournamentId, submission.Id);
 
             Assert.Equal(ChallengeSubmissionStatus.Recusado, submissions.Submissions.Single().Status);
             Assert.Equal(0, tournamentEntries.Entries.Single(e => e.TournamentId == tournamentId).Score);
+        }
+
+        // ---- meta/quantidade/progresso (Fase 5c) ----
+
+        [Fact]
+        public async Task SubmitTournamentCatalogChallengeProofAsync_ComMeta_SemQuantidade_Lanca() {
+            var (service, categories, challenges, _, _, _, _, _, tournamentEntries, tournaments, links, _) = Build();
+            var category = MakeCategory();
+            categories.Categories.Add(category);
+            var challenge = MakeChallenge(category.Id);
+            challenges.Challenges.Add(challenge);
+            var tournamentId = PutTeamInTournament(tournaments, tournamentEntries);
+            LinkChallenge(links, tournamentId, challenge.Id, goal: 10m, unit: "km");
+
+            await Assert.ThrowsAsync<InvalidChallengeException>(() =>
+                service.SubmitTournamentCatalogChallengeProofAsync(MemberId, TeamId, tournamentId, challenge.Id, null, MakePhoto(), "image/jpeg", 1024));
+        }
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(-1)]
+        public async Task SubmitTournamentCatalogChallengeProofAsync_ComMeta_QuantidadeInvalida_Lanca(decimal quantity) {
+            var (service, categories, challenges, _, _, _, _, _, tournamentEntries, tournaments, links, _) = Build();
+            var category = MakeCategory();
+            categories.Categories.Add(category);
+            var challenge = MakeChallenge(category.Id);
+            challenges.Challenges.Add(challenge);
+            var tournamentId = PutTeamInTournament(tournaments, tournamentEntries);
+            LinkChallenge(links, tournamentId, challenge.Id, goal: 10m, unit: "km");
+
+            await Assert.ThrowsAsync<InvalidChallengeException>(() =>
+                service.SubmitTournamentCatalogChallengeProofAsync(MemberId, TeamId, tournamentId, challenge.Id, quantity, MakePhoto(), "image/jpeg", 1024));
+        }
+
+        [Fact]
+        public async Task SubmitTournamentCatalogChallengeProofAsync_SemMeta_QuantidadeInformadaEIgnorada() {
+            var (service, categories, challenges, _, submissions, _, _, _, tournamentEntries, tournaments, links, _) = Build();
+            var category = MakeCategory();
+            categories.Categories.Add(category);
+            var challenge = MakeChallenge(category.Id);
+            challenges.Challenges.Add(challenge);
+            var tournamentId = PutTeamInTournament(tournaments, tournamentEntries);
+            LinkChallenge(links, tournamentId, challenge.Id);
+
+            await service.SubmitTournamentCatalogChallengeProofAsync(MemberId, TeamId, tournamentId, challenge.Id, 5m, MakePhoto(), "image/jpeg", 1024);
+
+            Assert.Null(submissions.Submissions.Single().Quantity);
+        }
+
+        [Fact]
+        public async Task SubmitTournamentCatalogChallengeProofAsync_ComMeta_PermiteMultiplosEnviosDoMesmoUsuario() {
+            var (service, categories, challenges, _, submissions, _, _, _, tournamentEntries, tournaments, links, _) = Build();
+            var category = MakeCategory();
+            categories.Categories.Add(category);
+            var challenge = MakeChallenge(category.Id);
+            challenges.Challenges.Add(challenge);
+            var tournamentId = PutTeamInTournament(tournaments, tournamentEntries);
+            LinkChallenge(links, tournamentId, challenge.Id, goal: 10m, unit: "km");
+
+            await service.SubmitTournamentCatalogChallengeProofAsync(MemberId, TeamId, tournamentId, challenge.Id, 3m, MakePhoto(), "image/jpeg", 1024);
+            await service.SubmitTournamentCatalogChallengeProofAsync(MemberId, TeamId, tournamentId, challenge.Id, 4m, MakePhoto(), "image/jpeg", 1024);
+
+            Assert.Equal(2, submissions.Submissions.Count);
+        }
+
+        [Fact]
+        public async Task SubmitTournamentOwnChallengeProofAsync_ComMeta_SemQuantidade_Lanca() {
+            var (service, _, _, _, _, _, _, _, tournamentEntries, tournaments, _, ownChallenges) = Build();
+            var tournamentId = PutTeamInTournament(tournaments, tournamentEntries);
+            var ownChallenge = MakeOwnChallenge(tournamentId, goal: 10m, unit: "km");
+            ownChallenges.Challenges.Add(ownChallenge);
+
+            await Assert.ThrowsAsync<InvalidChallengeException>(() =>
+                service.SubmitTournamentOwnChallengeProofAsync(MemberId, TeamId, tournamentId, ownChallenge.Id, null, MakePhoto(), "image/jpeg", 1024));
+        }
+
+        [Fact]
+        public async Task SubmitTournamentOwnChallengeProofAsync_SemMeta_QuantidadeInformadaEIgnorada() {
+            var (service, _, _, _, submissions, _, _, _, tournamentEntries, tournaments, _, ownChallenges) = Build();
+            var tournamentId = PutTeamInTournament(tournaments, tournamentEntries);
+            var ownChallenge = MakeOwnChallenge(tournamentId);
+            ownChallenges.Challenges.Add(ownChallenge);
+
+            await service.SubmitTournamentOwnChallengeProofAsync(MemberId, TeamId, tournamentId, ownChallenge.Id, 5m, MakePhoto(), "image/jpeg", 1024);
+
+            Assert.Null(submissions.Submissions.Single().Quantity);
+        }
+
+        [Fact]
+        public async Task GetAvailableTournamentChallengesAsync_ComMeta_ProgressoZeroSemAprovacoes() {
+            var (service, categories, challenges, _, _, _, _, _, tournamentEntries, tournaments, links, _) = Build();
+            var category = MakeCategory();
+            categories.Categories.Add(category);
+            var challenge = MakeChallenge(category.Id);
+            challenges.Challenges.Add(challenge);
+            var tournamentId = PutTeamInTournament(tournaments, tournamentEntries);
+            LinkChallenge(links, tournamentId, challenge.Id, goal: 10m, unit: "km");
+
+            var available = await service.GetAvailableTournamentChallengesAsync(MemberId, TeamId, tournamentId);
+
+            var item = available.Single();
+            Assert.Equal(10m, item.Goal);
+            Assert.Equal("km", item.Unit);
+            Assert.Equal(0m, item.Progress);
+        }
+
+        [Fact]
+        public async Task GetAvailableTournamentChallengesAsync_SemMeta_GoalUnitProgressoNulos() {
+            var (service, categories, challenges, _, _, _, _, _, tournamentEntries, tournaments, links, _) = Build();
+            var category = MakeCategory();
+            categories.Categories.Add(category);
+            var challenge = MakeChallenge(category.Id);
+            challenges.Challenges.Add(challenge);
+            var tournamentId = PutTeamInTournament(tournaments, tournamentEntries);
+            LinkChallenge(links, tournamentId, challenge.Id);
+
+            var available = await service.GetAvailableTournamentChallengesAsync(MemberId, TeamId, tournamentId);
+
+            var item = available.Single();
+            Assert.Null(item.Goal);
+            Assert.Null(item.Unit);
+            Assert.Null(item.Progress);
+        }
+
+        [Fact]
+        public async Task GetAvailableTournamentChallengesAsync_SomaContribuicoesAprovadasDeMembrosDiferentes() {
+            var (service, categories, challenges, _, _, _, _, _, tournamentEntries, tournaments, links, _) = Build();
+            var category = MakeCategory();
+            categories.Categories.Add(category);
+            var challenge = MakeChallenge(category.Id);
+            challenges.Challenges.Add(challenge);
+            var tournamentId = PutTeamInTournament(tournaments, tournamentEntries);
+            LinkChallenge(links, tournamentId, challenge.Id, goal: 10m, unit: "km");
+
+            var fromMember = await service.SubmitTournamentCatalogChallengeProofAsync(
+                MemberId, TeamId, tournamentId, challenge.Id, 3m, MakePhoto(), "image/jpeg", 1024);
+            var fromOwner = await service.SubmitTournamentCatalogChallengeProofAsync(
+                OwnerId, TeamId, tournamentId, challenge.Id, 4m, MakePhoto(), "image/jpeg", 1024);
+            await service.ApproveTournamentSubmissionAsync(TournamentOwnerId, TeamId, tournamentId, fromMember.Id);
+            await service.ApproveTournamentSubmissionAsync(TournamentOwnerId, TeamId, tournamentId, fromOwner.Id);
+
+            var available = await service.GetAvailableTournamentChallengesAsync(MemberId, TeamId, tournamentId);
+
+            Assert.Equal(7m, available.Single().Progress);
+        }
+
+        [Fact]
+        public async Task GetAvailableTournamentChallengesAsync_IgnoraSubmissoesPendentesERecusadas() {
+            var (service, categories, challenges, _, submissions, _, _, _, tournamentEntries, tournaments, links, _) = Build();
+            var category = MakeCategory();
+            categories.Categories.Add(category);
+            var challenge = MakeChallenge(category.Id);
+            challenges.Challenges.Add(challenge);
+            var tournamentId = PutTeamInTournament(tournaments, tournamentEntries);
+            LinkChallenge(links, tournamentId, challenge.Id, goal: 10m, unit: "km");
+
+            var approved = await service.SubmitTournamentCatalogChallengeProofAsync(
+                MemberId, TeamId, tournamentId, challenge.Id, 3m, MakePhoto(), "image/jpeg", 1024);
+            await service.ApproveTournamentSubmissionAsync(TournamentOwnerId, TeamId, tournamentId, approved.Id);
+
+            await service.SubmitTournamentCatalogChallengeProofAsync(
+                MemberId, TeamId, tournamentId, challenge.Id, 5m, MakePhoto(), "image/jpeg", 1024);
+
+            var rejected = await service.SubmitTournamentCatalogChallengeProofAsync(
+                MemberId, TeamId, tournamentId, challenge.Id, 2m, MakePhoto(), "image/jpeg", 1024);
+            await service.RejectTournamentSubmissionAsync(TournamentOwnerId, TeamId, tournamentId, rejected.Id);
+
+            var available = await service.GetAvailableTournamentChallengesAsync(MemberId, TeamId, tournamentId);
+
+            Assert.Equal(3m, available.Single().Progress);
+            Assert.Equal(3, submissions.Submissions.Count);
+        }
+
+        [Fact]
+        public async Task GetAvailableTournamentChallengesAsync_ContinuaAceitandoEnviosAposUltrapassarMeta() {
+            var (service, categories, challenges, _, _, _, _, _, tournamentEntries, tournaments, links, _) = Build();
+            var category = MakeCategory();
+            categories.Categories.Add(category);
+            var challenge = MakeChallenge(category.Id);
+            challenges.Challenges.Add(challenge);
+            var tournamentId = PutTeamInTournament(tournaments, tournamentEntries);
+            LinkChallenge(links, tournamentId, challenge.Id, goal: 5m, unit: "km");
+
+            var first = await service.SubmitTournamentCatalogChallengeProofAsync(
+                MemberId, TeamId, tournamentId, challenge.Id, 3m, MakePhoto(), "image/jpeg", 1024);
+            var second = await service.SubmitTournamentCatalogChallengeProofAsync(
+                MemberId, TeamId, tournamentId, challenge.Id, 4m, MakePhoto(), "image/jpeg", 1024);
+            await service.ApproveTournamentSubmissionAsync(TournamentOwnerId, TeamId, tournamentId, first.Id);
+            await service.ApproveTournamentSubmissionAsync(TournamentOwnerId, TeamId, tournamentId, second.Id);
+
+            // Soma (7) já passou da meta (5) — o desafio continua aceitando novos envios, sem trava.
+            var third = await service.SubmitTournamentCatalogChallengeProofAsync(
+                MemberId, TeamId, tournamentId, challenge.Id, 2m, MakePhoto(), "image/jpeg", 1024);
+            await service.ApproveTournamentSubmissionAsync(TournamentOwnerId, TeamId, tournamentId, third.Id);
+
+            var available = await service.GetAvailableTournamentChallengesAsync(MemberId, TeamId, tournamentId);
+
+            Assert.Equal(9m, available.Single().Progress);
+        }
+
+        [Fact]
+        public async Task GetAvailableTournamentChallengesAsync_ComMetaEmDesafioProprio_SomaProgresso() {
+            var (service, _, _, _, _, _, _, _, tournamentEntries, tournaments, _, ownChallenges) = Build();
+            var tournamentId = PutTeamInTournament(tournaments, tournamentEntries);
+            var ownChallenge = MakeOwnChallenge(tournamentId, goal: 10m, unit: "flexões");
+            ownChallenges.Challenges.Add(ownChallenge);
+
+            var submission = await service.SubmitTournamentOwnChallengeProofAsync(
+                MemberId, TeamId, tournamentId, ownChallenge.Id, 6m, MakePhoto(), "image/jpeg", 1024);
+            await service.ApproveTournamentSubmissionAsync(TournamentOwnerId, TeamId, tournamentId, submission.Id);
+
+            var available = await service.GetAvailableTournamentChallengesAsync(MemberId, TeamId, tournamentId);
+
+            var item = available.Single();
+            Assert.Equal(10m, item.Goal);
+            Assert.Equal("flexões", item.Unit);
+            Assert.Equal(6m, item.Progress);
+        }
+
+        [Fact]
+        public async Task GetAvailableTournamentChallengesAsync_ProgressoIsoladoPorTime() {
+            var (service, categories, challenges, _, _, _, teams, _, tournamentEntries, tournaments, links, _) = Build();
+            var category = MakeCategory();
+            categories.Categories.Add(category);
+            var challenge = MakeChallenge(category.Id);
+            challenges.Challenges.Add(challenge);
+            var tournamentId = PutTeamInTournament(tournaments, tournamentEntries);
+            LinkChallenge(links, tournamentId, challenge.Id, goal: 10m, unit: "km");
+
+            var otherTeamId = Guid.NewGuid();
+            var otherOwnerId = Guid.NewGuid();
+            teams.Teams.Add(new Team {
+                Id = otherTeamId, Name = "Outro Time", OwnerId = otherOwnerId, MemberLimit = 10,
+                InviteToken = Guid.NewGuid().ToString("N"), TotalPoints = 0
+            });
+            tournamentEntries.Entries.Add(new TournamentTeam {
+                Id = Guid.NewGuid(), TournamentId = tournamentId, TeamId = otherTeamId,
+                Status = TournamentTeamStatus.Aprovado, Score = 0, RequestedAt = DateTime.UtcNow
+            });
+
+            var mine = await service.SubmitTournamentCatalogChallengeProofAsync(
+                MemberId, TeamId, tournamentId, challenge.Id, 3m, MakePhoto(), "image/jpeg", 1024);
+            await service.ApproveTournamentSubmissionAsync(TournamentOwnerId, TeamId, tournamentId, mine.Id);
+
+            var otherTeamSubmission = await service.SubmitTournamentCatalogChallengeProofAsync(
+                otherOwnerId, otherTeamId, tournamentId, challenge.Id, 9m, MakePhoto(), "image/jpeg", 1024);
+            await service.ApproveTournamentSubmissionAsync(TournamentOwnerId, otherTeamId, tournamentId, otherTeamSubmission.Id);
+
+            var availableMine = await service.GetAvailableTournamentChallengesAsync(MemberId, TeamId, tournamentId);
+            var availableOther = await service.GetAvailableTournamentChallengesAsync(otherOwnerId, otherTeamId, tournamentId);
+
+            Assert.Equal(3m, availableMine.Single().Progress);
+            Assert.Equal(9m, availableOther.Single().Progress);
         }
 
         // ---- foto da submissão (container privado) ----

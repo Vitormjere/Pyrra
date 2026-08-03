@@ -344,6 +344,12 @@ namespace Pyrra.Infrastructure.Data {
                 .Property(s => s.PhotoUrl)
                 .HasMaxLength(500);
 
+            // Quantidade da contribuição (Fase 5c) — mesma precisão de TournamentChallenge.Goal,
+            // já que uma é comparada contra a outra pra formar o progresso.
+            modelBuilder.Entity<ChallengeSubmission>()
+                .Property(s => s.Quantity)
+                .HasPrecision(9, 2);
+
             // Cobre a checagem de duplicidade ao enviar (usuário+desafio+time) e a listagem de
             // desafios disponíveis (usuário+time, todas as submissões pra achar a mais recente).
             modelBuilder.Entity<ChallengeSubmission>()
@@ -419,6 +425,16 @@ namespace Pyrra.Infrastructure.Data {
                 .HasIndex(l => new { l.TournamentId, l.ChallengeId })
                 .IsUnique();
 
+            // Meta cumulativa do vínculo (Fase 5c) — precisão explícita pelo mesmo motivo de
+            // WorkoutLog.DistanceKm: o default (18,2) do SQL Server arredondaria metas fracionárias.
+            modelBuilder.Entity<TournamentChallenge>()
+                .Property(l => l.Goal)
+                .HasPrecision(9, 2);
+
+            modelBuilder.Entity<TournamentChallenge>()
+                .Property(l => l.Unit)
+                .HasMaxLength(30);
+
             // Desafio próprio de um torneio (Fase 5b): sem categoria, lista flat por torneio.
             modelBuilder.Entity<TournamentOwnChallenge>()
                 .Property(c => c.Title)
@@ -427,6 +443,15 @@ namespace Pyrra.Infrastructure.Data {
             modelBuilder.Entity<TournamentOwnChallenge>()
                 .Property(c => c.Description)
                 .HasMaxLength(1000);
+
+            // Meta cumulativa (Fase 5c) — mesma precisão/critério do TournamentChallenge.Goal.
+            modelBuilder.Entity<TournamentOwnChallenge>()
+                .Property(c => c.Goal)
+                .HasPrecision(9, 2);
+
+            modelBuilder.Entity<TournamentOwnChallenge>()
+                .Property(c => c.Unit)
+                .HasMaxLength(30);
 
             // Cobre a listagem de desafios próprios de um torneio.
             modelBuilder.Entity<TournamentOwnChallenge>()

@@ -9,13 +9,16 @@ import {
   Link2,
   ListChecks,
   Medal,
+  Pencil,
   Plus,
+  Target,
   Trash2,
   Trophy,
   UserPlus,
   X,
 } from 'lucide-react'
 import EmptyState from '../../components/EmptyState'
+import ProgressBar from '../../components/ProgressBar'
 import Skeleton from '../../components/Skeleton'
 import TeamBanner from '../../components/TeamBanner'
 import TeamEntryPicker from '../../components/TeamEntryPicker'
@@ -37,6 +40,7 @@ import {
   createTournamentOwnChallenge,
   deleteTournamentOwnChallenge,
   getTournamentCatalog,
+  getTournamentChallengeProgress,
   getTournamentOwnChallenges,
   getTournamentPendingSubmissions,
   linkTournamentCatalogChallenge,
@@ -46,12 +50,14 @@ import {
 import { getApiErrorMessage } from '../../services/apiError'
 import { CHALLENGE_CATEGORY_SWATCH, CHALLENGE_CATEGORY_TEXT } from '../../utils/challengeCategoryColors'
 import { getCategoryIcon } from '../../utils/challengeCategoryIcons'
+import { formatNumber } from '../../utils/format'
 import { TEAM_BANNER_SWATCH, TEAM_BANNER_THEMES } from '../../utils/teamBanners'
 import type { Team, TeamBannerTheme } from '../../types/teams'
 import type { TournamentDetails, TournamentTeamEntry } from '../../types/tournaments'
 import type {
   PendingTournamentSubmissionWithTeam,
   TournamentCatalogChallenge,
+  TournamentChallengeProgress,
   TournamentOwnChallenge,
 } from '../../types/tournamentChallenges'
 
@@ -147,38 +153,142 @@ function PendingEntryRow({
 
 // Checkbox de vínculo com o catálogo geral — sem ícone/cor de categoria por linha: a lista já
 // vem agrupada por categoria (ver groupCatalogByCategory), o cabeçalho do grupo já mostra isso.
+// Meta/unidade são opcionais e só fazem sentido pra um desafio já vinculado (Fase 5c) — editáveis
+// inline, sem precisar desvincular e vincular de novo (a API já faz upsert).
 function CatalogChallengeRow({
   challenge,
   busy,
+  goalBusy,
   onToggle,
+  onSaveGoal,
 }: {
   challenge: TournamentCatalogChallenge
   busy: boolean
+  goalBusy: boolean
   onToggle: () => void
+  onSaveGoal: (goal: number | null, unit: string | null) => void
 }) {
+  const [editingGoal, setEditingGoal] = useState(false)
+  const [goalInput, setGoalInput] = useState('')
+  const [unitInput, setUnitInput] = useState('')
+  const [goalError, setGoalError] = useState<string | null>(null)
+
+  function openEditor() {
+    setGoalInput(challenge.goal !== null ? String(challenge.goal) : '')
+    setUnitInput(challenge.unit ?? '')
+    setGoalError(null)
+    setEditingGoal(true)
+  }
+
+  function handleSaveGoal() {
+    const trimmedUnit = unitInput.trim()
+    if (!goalInput.trim() && !trimmedUnit) {
+      onSaveGoal(null, null)
+      setEditingGoal(false)
+      return
+    }
+
+    const goal = Number(goalInput.replace(',', '.'))
+    if (!goalInput.trim() || !Number.isFinite(goal) || goal <= 0 || !trimmedUnit) {
+      setGoalError('Meta e unidade devem ser preenchidas juntas, com meta maior que zero.')
+      return
+    }
+
+    onSaveGoal(goal, trimmedUnit)
+    setEditingGoal(false)
+  }
+
   return (
-    <li className="flex items-center gap-3 px-4 py-3">
-      <button
-        type="button"
-        role="checkbox"
-        aria-checked={challenge.isLinked}
-        aria-label={`Vincular ${challenge.title} ao torneio`}
-        disabled={busy}
-        onClick={onToggle}
-        className={[
-          'flex size-5 shrink-0 items-center justify-center rounded transition disabled:opacity-50',
-          challenge.isLinked ? 'bg-brand-green' : 'ring-1 ring-line hover:ring-slate-500',
-        ].join(' ')}
-      >
-        {challenge.isLinked && <Check size={13} className="text-brand-dark" aria-hidden="true" />}
-      </button>
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-medium text-ink">{challenge.title}</p>
-        {challenge.description && <p className="truncate text-xs text-slate-400">{challenge.description}</p>}
+    <li className="flex flex-col gap-2 px-4 py-3">
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          role="checkbox"
+          aria-checked={challenge.isLinked}
+          aria-label={`Vincular ${challenge.title} ao torneio`}
+          disabled={busy}
+          onClick={onToggle}
+          className={[
+            'flex size-5 shrink-0 items-center justify-center rounded transition disabled:opacity-50',
+            challenge.isLinked ? 'bg-brand-green' : 'ring-1 ring-line hover:ring-slate-500',
+          ].join(' ')}
+        >
+          {challenge.isLinked && <Check size={13} className="text-brand-dark" aria-hidden="true" />}
+        </button>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-medium text-ink">{challenge.title}</p>
+          {challenge.description && <p className="truncate text-xs text-slate-400">{challenge.description}</p>}
+        </div>
+        <span className="shrink-0 rounded-full bg-brand-green/10 px-2.5 py-1 text-xs font-semibold text-brand-green ring-1 ring-brand-green/20">
+          +{challenge.points} pts
+        </span>
       </div>
-      <span className="shrink-0 rounded-full bg-brand-green/10 px-2.5 py-1 text-xs font-semibold text-brand-green ring-1 ring-brand-green/20">
-        +{challenge.points} pts
-      </span>
+
+      {challenge.isLinked && (
+        <div className="pl-8">
+          {editingGoal ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="text"
+                inputMode="decimal"
+                value={goalInput}
+                onChange={(event) => setGoalInput(event.target.value)}
+                placeholder="Meta"
+                aria-label={`Meta de ${challenge.title}`}
+                className="w-20 rounded-lg bg-surface-hi px-2 py-1.5 text-xs text-ink ring-1 ring-line outline-none placeholder:text-slate-500 focus:ring-2 focus:ring-brand-green"
+              />
+              <input
+                type="text"
+                value={unitInput}
+                onChange={(event) => setUnitInput(event.target.value)}
+                placeholder="Unidade (ex.: km)"
+                aria-label={`Unidade de ${challenge.title}`}
+                className="w-32 rounded-lg bg-surface-hi px-2 py-1.5 text-xs text-ink ring-1 ring-line outline-none placeholder:text-slate-500 focus:ring-2 focus:ring-brand-green"
+              />
+              <button
+                type="button"
+                disabled={goalBusy}
+                onClick={handleSaveGoal}
+                className="rounded-lg bg-brand-green px-2.5 py-1.5 text-xs font-semibold text-brand-dark transition hover:brightness-95 disabled:opacity-60"
+              >
+                Salvar
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditingGoal(false)}
+                className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-400 ring-1 ring-line transition hover:bg-surface-hi hover:text-ink"
+              >
+                Cancelar
+              </button>
+              {goalError && <p className="w-full text-xs text-red-300">{goalError}</p>}
+            </div>
+          ) : challenge.goal !== null ? (
+            <div className="flex items-center gap-2 text-xs">
+              <Target size={12} className="shrink-0 text-slate-500" aria-hidden="true" />
+              <span className="text-slate-400">
+                Meta: {formatNumber(challenge.goal)} {challenge.unit}
+              </span>
+              <button
+                type="button"
+                onClick={openEditor}
+                aria-label={`Editar meta de ${challenge.title}`}
+                className="inline-flex items-center gap-1 text-slate-500 transition hover:text-brand-green"
+              >
+                <Pencil size={12} />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={openEditor}
+              className="inline-flex items-center gap-1 text-xs text-slate-500 transition hover:text-brand-green"
+            >
+              <Target size={12} aria-hidden="true" />
+              Definir meta
+            </button>
+          )}
+        </div>
+      )}
     </li>
   )
 }
@@ -198,6 +308,12 @@ function OwnChallengeRow({
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium text-ink">{challenge.title}</p>
         {challenge.description && <p className="truncate text-xs text-slate-400">{challenge.description}</p>}
+        {challenge.goal !== null && (
+          <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-500">
+            <Target size={12} className="shrink-0" aria-hidden="true" />
+            Meta: {formatNumber(challenge.goal)} {challenge.unit}
+          </p>
+        )}
       </div>
       <span className="shrink-0 rounded-full bg-brand-green/10 px-2.5 py-1 text-xs font-semibold text-brand-green ring-1 ring-brand-green/20">
         +{challenge.points} pts
@@ -270,7 +386,12 @@ function PendingTournamentSubmissionRow({
           {submission.submitter.username && ` (@${submission.submitter.username})`} — time{' '}
           <span className="font-medium text-slate-300">{submission.teamName}</span>
         </p>
-        <p className="mt-1 text-xs font-semibold text-brand-green">+{submission.challengePoints} pts</p>
+        <p className="mt-1 flex items-center gap-2 text-xs">
+          <span className="font-semibold text-brand-green">+{submission.challengePoints} pts</span>
+          {submission.quantity !== null && (
+            <span className="font-medium text-slate-400">Contribuição: {formatNumber(submission.quantity)}</span>
+          )}
+        </p>
       </div>
       <div className="flex shrink-0 items-center gap-2">
         <button
@@ -316,13 +437,16 @@ export function TorneioDetalhe() {
   // Desafios do torneio — catálogo geral com status de vínculo + desafios próprios (só o dono vê)
   const [catalog, setCatalog] = useState<TournamentCatalogChallenge[] | null>(null)
   const [catalogBusyId, setCatalogBusyId] = useState<string | null>(null)
+  const [catalogGoalBusyId, setCatalogGoalBusyId] = useState<string | null>(null)
   const [ownChallenges, setOwnChallenges] = useState<TournamentOwnChallenge[] | null>(null)
   const [ownChallengeBusyId, setOwnChallengeBusyId] = useState<string | null>(null)
 
-  // Formulário "Criar desafio"
+  // Formulário "Criar desafio" — meta/unidade opcionais (Fase 5c)
   const [newTitle, setNewTitle] = useState('')
   const [newDescription, setNewDescription] = useState('')
   const [newPoints, setNewPoints] = useState('')
+  const [newGoal, setNewGoal] = useState('')
+  const [newUnit, setNewUnit] = useState('')
   const [createBusy, setCreateBusy] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
 
@@ -330,6 +454,10 @@ export function TorneioDetalhe() {
   // dono vê) — separado das entradas pendentes acima, que são sobre times entrando no torneio.
   const [tournamentPending, setTournamentPending] = useState<PendingTournamentSubmissionWithTeam[] | null>(null)
   const [tournamentPendingBusyId, setTournamentPendingBusyId] = useState<string | null>(null)
+
+  // Progresso agregado de cada desafio COM META, cruzando todos os times Aprovados (só o dono vê,
+  // Fase 5c) — separado da fila de submissões acima, que é por contribuição individual.
+  const [challengeProgress, setChallengeProgress] = useState<TournamentChallengeProgress[] | null>(null)
 
   // "Solicitar entrada" — visível a qualquer usuário (mesmo quem não é dono do torneio), desde
   // que tenha pelo menos um time próprio sem entrada ativa em outro torneio agora.
@@ -425,9 +553,18 @@ export function TorneioDetalhe() {
     }
   }, [id])
 
+  const loadChallengeProgress = useCallback(async () => {
+    if (!id) return
+    try {
+      setChallengeProgress(await getTournamentChallengeProgress(id))
+    } catch (err) {
+      setError(getApiErrorMessage(err, {}, 'Não foi possível carregar o progresso dos desafios.'))
+    }
+  }, [id])
+
   // Ranking e times elegíveis, todo mundo vê. O resto (entradas pendentes, desafios do torneio,
-  // submissões pendentes), só depois de saber que é dono — membro comum recebe 404 desses
-  // endpoints (mesmo critério de Times/Detalhe.tsx com categorias/submissões).
+  // submissões pendentes, progresso), só depois de saber que é dono — membro comum recebe 404
+  // desses endpoints (mesmo critério de Times/Detalhe.tsx com categorias/submissões).
   useEffect(() => {
     if (!details) return
     void loadRanking()
@@ -437,6 +574,7 @@ export function TorneioDetalhe() {
       void loadCatalog()
       void loadOwnChallenges()
       void loadTournamentPending()
+      void loadChallengeProgress()
     }
   }, [
     details,
@@ -446,6 +584,7 @@ export function TorneioDetalhe() {
     loadCatalog,
     loadOwnChallenges,
     loadTournamentPending,
+    loadChallengeProgress,
   ])
 
   // Caminho direto (um único time elegível — sem precisar escolher). O picker de múltiplos times
@@ -502,11 +641,27 @@ export function TorneioDetalhe() {
       } else {
         await linkTournamentCatalogChallenge(id, challenge.id)
       }
-      await loadCatalog()
+      await Promise.all([loadCatalog(), loadChallengeProgress()])
     } catch (err) {
       setError(getApiErrorMessage(err, {}, 'Não foi possível atualizar o vínculo com o catálogo.'))
     } finally {
       setCatalogBusyId(null)
+    }
+  }
+
+  // Meta/unidade de um desafio do catálogo já vinculado (Fase 5c) — chama o mesmo endpoint de
+  // vínculo, que faz upsert em vez de duplicar.
+  async function handleSaveCatalogGoal(challengeId: string, goal: number | null, unit: string | null) {
+    if (!id) return
+    setCatalogGoalBusyId(challengeId)
+    setError(null)
+    try {
+      await linkTournamentCatalogChallenge(id, challengeId, goal, unit)
+      await Promise.all([loadCatalog(), loadChallengeProgress()])
+    } catch (err) {
+      setError(getApiErrorMessage(err, {}, 'Não foi possível atualizar a meta.'))
+    } finally {
+      setCatalogGoalBusyId(null)
     }
   }
 
@@ -524,14 +679,26 @@ export function TorneioDetalhe() {
       return
     }
 
+    const trimmedUnit = newUnit.trim()
+    let goal: number | null = null
+    if (newGoal.trim() || trimmedUnit) {
+      goal = Number(newGoal.replace(',', '.'))
+      if (!newGoal.trim() || !Number.isFinite(goal) || goal <= 0 || !trimmedUnit) {
+        setCreateError('Meta e unidade devem ser preenchidas juntas, com meta maior que zero.')
+        return
+      }
+    }
+
     setCreateBusy(true)
     setCreateError(null)
     try {
-      await createTournamentOwnChallenge(id, newTitle.trim(), newDescription.trim() || null, points)
+      await createTournamentOwnChallenge(id, newTitle.trim(), newDescription.trim() || null, points, goal, goal !== null ? trimmedUnit : null)
       setNewTitle('')
       setNewDescription('')
       setNewPoints('')
-      await loadOwnChallenges()
+      setNewGoal('')
+      setNewUnit('')
+      await Promise.all([loadOwnChallenges(), loadChallengeProgress()])
     } catch (err) {
       setCreateError(getApiErrorMessage(err, {}, 'Não foi possível criar o desafio.'))
     } finally {
@@ -559,7 +726,7 @@ export function TorneioDetalhe() {
     setError(null)
     try {
       await approveTournamentSubmission(submission.teamId, id, submission.id)
-      await Promise.all([loadTournamentPending(), loadRanking()])
+      await Promise.all([loadTournamentPending(), loadRanking(), loadChallengeProgress()])
     } catch (err) {
       setError(getApiErrorMessage(err, {}, 'Não foi possível aprovar a submissão.'))
     } finally {
@@ -900,7 +1067,9 @@ export function TorneioDetalhe() {
                             key={challenge.id}
                             challenge={challenge}
                             busy={catalogBusyId === challenge.id}
+                            goalBusy={catalogGoalBusyId === challenge.id}
                             onToggle={() => handleToggleCatalogLink(challenge)}
+                            onSaveGoal={(goal, unit) => handleSaveCatalogGoal(challenge.id, goal, unit)}
                           />
                         ))}
                       </ul>
@@ -955,6 +1124,38 @@ export function TorneioDetalhe() {
                   className={`${inputClasses} max-w-32`}
                 />
               </div>
+              <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="own-challenge-goal" className={labelClasses}>
+                    Meta <span className="font-normal text-slate-500">(opcional)</span>
+                  </label>
+                  <input
+                    id="own-challenge-goal"
+                    type="text"
+                    inputMode="decimal"
+                    value={newGoal}
+                    onChange={(event) => setNewGoal(event.target.value)}
+                    placeholder="Ex.: 10"
+                    className={`${inputClasses} max-w-32`}
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="own-challenge-unit" className={labelClasses}>
+                    Unidade
+                  </label>
+                  <input
+                    id="own-challenge-unit"
+                    type="text"
+                    value={newUnit}
+                    onChange={(event) => setNewUnit(event.target.value)}
+                    placeholder="Ex.: km"
+                    className={`${inputClasses} max-w-32`}
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-slate-500">
+                Preencha os dois pra ter progresso cumulativo (ex.: "7 / 10km") — deixe em branco pra um desafio binário.
+              </p>
               {createError && (
                 <p role="alert" className="text-xs text-red-300">
                   {createError}
@@ -1038,6 +1239,53 @@ export function TorneioDetalhe() {
                 />
               ))}
             </ul>
+          )}
+        </section>
+      )}
+
+      {/* PROGRESSO POR TIME — agregado de cada desafio COM META, cruzando todos os times
+          Aprovados no torneio, só o dono vê (Fase 5c). Desafios binários (sem meta) não aparecem
+          aqui, já que não há progresso a mostrar. */}
+      {tournament.isOwner && (
+        <section className="flex flex-col gap-2">
+          <h2 className="flex items-center gap-1.5 text-sm font-medium text-slate-300">
+            <Target size={15} className="text-brand-green" aria-hidden="true" />
+            Progresso por time
+          </h2>
+          {challengeProgress === null ? (
+            <Skeleton className="h-16" />
+          ) : challengeProgress.length === 0 ? (
+            <p className="rounded-md bg-surface px-4 py-3 text-sm text-slate-500 ring-1 ring-line">
+              Nenhum desafio com meta configurada ainda.
+            </p>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {challengeProgress.map((item) => (
+                <div key={item.challengeId} className="rounded-md bg-surface px-4 py-3 ring-1 ring-line">
+                  <p className="font-medium text-ink">{item.challengeTitle}</p>
+                  <p className="text-xs text-slate-500">
+                    Meta: {formatNumber(item.goal)} {item.unit}
+                  </p>
+                  {item.teams.length === 0 ? (
+                    <p className="mt-2 text-xs text-slate-500">Nenhum time Aprovado neste torneio ainda.</p>
+                  ) : (
+                    <ul className="mt-3 flex flex-col gap-2.5">
+                      {item.teams.map((team) => (
+                        <li key={team.teamId} className="flex flex-col gap-1">
+                          <div className="flex items-center justify-between gap-2 text-xs">
+                            <span className="min-w-0 truncate font-medium text-slate-300">{team.teamName}</span>
+                            <span className="shrink-0 text-slate-400 tabular-nums">
+                              {formatNumber(team.progress)} / {formatNumber(item.goal)} {item.unit}
+                            </span>
+                          </div>
+                          <ProgressBar percent={(team.progress / item.goal) * 100} />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))}
+            </div>
           )}
         </section>
       )}

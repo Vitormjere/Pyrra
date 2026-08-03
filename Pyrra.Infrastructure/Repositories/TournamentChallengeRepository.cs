@@ -30,6 +30,11 @@ namespace Pyrra.Infrastructure.Repositories {
             await _context.SaveChangesAsync(cancellationToken);
         }
 
+        public async Task UpdateAsync(TournamentChallenge tournamentChallenge, CancellationToken cancellationToken = default) {
+            _context.TournamentChallenges.Update(tournamentChallenge);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+
         public async Task RemoveAsync(TournamentChallenge tournamentChallenge, CancellationToken cancellationToken = default) {
             _context.TournamentChallenges.Remove(tournamentChallenge);
             await _context.SaveChangesAsync(cancellationToken);

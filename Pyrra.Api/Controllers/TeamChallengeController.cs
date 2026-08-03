@@ -207,10 +207,11 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Envia a prova de um desafio do catálogo geral vinculado ao torneio
+        // Envia a prova de um desafio do catálogo geral vinculado ao torneio. quantity é exigida
+        // só quando o desafio tem meta configurada (Fase 5c) — sem meta, é ignorada.
         [HttpPost("torneios/{tournamentId:guid}/catalogo/{challengeId:guid}/submissoes")]
         public async Task<ActionResult<ChallengeSubmissionResponse>> SubmitTournamentCatalogChallengeProof(
-            Guid teamId, Guid tournamentId, Guid challengeId, IFormFile file, CancellationToken cancellationToken) {
+            Guid teamId, Guid tournamentId, Guid challengeId, IFormFile file, [FromForm] decimal? quantity, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
                 return Unauthorized();
             }
@@ -222,7 +223,7 @@ namespace Pyrra.Api.Controllers {
             try {
                 await using var stream = file.OpenReadStream();
                 var submission = await _service.SubmitTournamentCatalogChallengeProofAsync(
-                    userId, teamId, tournamentId, challengeId, stream, file.ContentType, file.Length, cancellationToken);
+                    userId, teamId, tournamentId, challengeId, quantity, stream, file.ContentType, file.Length, cancellationToken);
                 return Created(
                     $"/api/times/{teamId}/desafios/torneios/{tournamentId}/submissoes",
                     ChallengeSubmissionResponse.FromEntity(submission));
@@ -233,10 +234,10 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Envia a prova de um desafio próprio do torneio
+        // Envia a prova de um desafio próprio do torneio. Mesma regra de quantity acima.
         [HttpPost("torneios/{tournamentId:guid}/proprios/{challengeId:guid}/submissoes")]
         public async Task<ActionResult<ChallengeSubmissionResponse>> SubmitTournamentOwnChallengeProof(
-            Guid teamId, Guid tournamentId, Guid challengeId, IFormFile file, CancellationToken cancellationToken) {
+            Guid teamId, Guid tournamentId, Guid challengeId, IFormFile file, [FromForm] decimal? quantity, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
                 return Unauthorized();
             }
@@ -248,7 +249,7 @@ namespace Pyrra.Api.Controllers {
             try {
                 await using var stream = file.OpenReadStream();
                 var submission = await _service.SubmitTournamentOwnChallengeProofAsync(
-                    userId, teamId, tournamentId, challengeId, stream, file.ContentType, file.Length, cancellationToken);
+                    userId, teamId, tournamentId, challengeId, quantity, stream, file.ContentType, file.Length, cancellationToken);
                 return Created(
                     $"/api/times/{teamId}/desafios/torneios/{tournamentId}/submissoes",
                     ChallengeSubmissionResponse.FromEntity(submission));

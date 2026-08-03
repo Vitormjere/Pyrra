@@ -24,6 +24,11 @@ namespace Pyrra.Infrastructure.Repositories {
                 .Where(s => s.UserId == userId && s.TeamId == teamId)
                 .ToListAsync(cancellationToken);
 
+        public async Task<IReadOnlyList<ChallengeSubmission>> GetForTeamAsync(Guid teamId, CancellationToken cancellationToken = default) =>
+            await _context.ChallengeSubmissions
+                .Where(s => s.TeamId == teamId)
+                .ToListAsync(cancellationToken);
+
         public Task<ChallengeSubmission?> GetActiveForUserChallengeAsync(Guid userId, Guid challengeId, Guid teamId, CancellationToken cancellationToken = default) =>
             _context.ChallengeSubmissions.FirstOrDefaultAsync(s =>
                 s.UserId == userId && s.ChallengeId == challengeId && s.TeamId == teamId &&
@@ -38,6 +43,11 @@ namespace Pyrra.Infrastructure.Repositories {
         public async Task<IReadOnlyList<ChallengeSubmission>> GetPendingForTournamentAsync(Guid tournamentId, CancellationToken cancellationToken = default) =>
             await _context.ChallengeSubmissions
                 .Where(s => s.TournamentId == tournamentId && s.Status == ChallengeSubmissionStatus.Pendente)
+                .ToListAsync(cancellationToken);
+
+        public async Task<IReadOnlyList<ChallengeSubmission>> GetApprovedForTournamentAsync(Guid tournamentId, CancellationToken cancellationToken = default) =>
+            await _context.ChallengeSubmissions
+                .Where(s => s.TournamentId == tournamentId && s.Status == ChallengeSubmissionStatus.Aprovado)
                 .ToListAsync(cancellationToken);
 
         public async Task AddAsync(ChallengeSubmission submission, CancellationToken cancellationToken = default) {

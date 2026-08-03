@@ -46,14 +46,16 @@ namespace Pyrra.Application.Desafios {
         Task<IReadOnlyList<AvailableTournamentChallenge>> GetAvailableTournamentChallengesAsync(
             Guid userId, Guid teamId, Guid tournamentId, CancellationToken cancellationToken = default);
 
-        // envia prova de um desafio do catálogo geral vinculado ao torneio
+        // envia prova de um desafio do catálogo geral vinculado ao torneio. quantity é exigida só
+        // quando o desafio tem meta configurada (Fase 5c) — sem meta, é ignorada.
         Task<ChallengeSubmission> SubmitTournamentCatalogChallengeProofAsync(
-            Guid userId, Guid teamId, Guid tournamentId, Guid challengeId, Stream content, string contentType, long contentLength,
+            Guid userId, Guid teamId, Guid tournamentId, Guid challengeId, decimal? quantity, Stream content, string contentType, long contentLength,
             CancellationToken cancellationToken = default);
 
-        // envia prova de um desafio próprio do torneio
+        // envia prova de um desafio próprio do torneio. quantity é exigida só quando o desafio tem
+        // meta configurada (Fase 5c) — sem meta, é ignorada.
         Task<ChallengeSubmission> SubmitTournamentOwnChallengeProofAsync(
-            Guid userId, Guid teamId, Guid tournamentId, Guid ownChallengeId, Stream content, string contentType, long contentLength,
+            Guid userId, Guid teamId, Guid tournamentId, Guid ownChallengeId, decimal? quantity, Stream content, string contentType, long contentLength,
             CancellationToken cancellationToken = default);
 
         // lista submissões pendentes de um torneio específico, só pro dono dele

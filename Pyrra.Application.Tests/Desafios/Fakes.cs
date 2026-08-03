@@ -89,6 +89,10 @@ namespace Pyrra.Application.Tests.Desafios {
             Task.FromResult<IReadOnlyList<ChallengeSubmission>>(
                 Submissions.Where(s => s.UserId == userId && s.TeamId == teamId).ToList());
 
+        public Task<IReadOnlyList<ChallengeSubmission>> GetForTeamAsync(Guid teamId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ChallengeSubmission>>(
+                Submissions.Where(s => s.TeamId == teamId).ToList());
+
         public Task<ChallengeSubmission?> GetActiveForUserChallengeAsync(Guid userId, Guid challengeId, Guid teamId, CancellationToken cancellationToken = default) =>
             Task.FromResult(Submissions.FirstOrDefault(s =>
                 s.UserId == userId && s.ChallengeId == challengeId && s.TeamId == teamId &&
@@ -101,6 +105,10 @@ namespace Pyrra.Application.Tests.Desafios {
         public Task<IReadOnlyList<ChallengeSubmission>> GetPendingForTournamentAsync(Guid tournamentId, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<ChallengeSubmission>>(
                 Submissions.Where(s => s.TournamentId == tournamentId && s.Status == ChallengeSubmissionStatus.Pendente).ToList());
+
+        public Task<IReadOnlyList<ChallengeSubmission>> GetApprovedForTournamentAsync(Guid tournamentId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ChallengeSubmission>>(
+                Submissions.Where(s => s.TournamentId == tournamentId && s.Status == ChallengeSubmissionStatus.Aprovado).ToList());
 
         public Task AddAsync(ChallengeSubmission submission, CancellationToken cancellationToken = default) {
             Submissions.Add(submission);
@@ -140,6 +148,10 @@ namespace Pyrra.Application.Tests.Desafios {
             Links.Add(tournamentChallenge);
             return Task.CompletedTask;
         }
+
+        // GetAsync já devolve a referência real da lista — mutar e chamar isso é redundante, mas
+        // mantém o fake fiel à interface (mesmo padrão de outros Update no arquivo).
+        public Task UpdateAsync(TournamentChallenge tournamentChallenge, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public Task RemoveAsync(TournamentChallenge tournamentChallenge, CancellationToken cancellationToken = default) {
             Links.RemoveAll(l => l.Id == tournamentChallenge.Id);

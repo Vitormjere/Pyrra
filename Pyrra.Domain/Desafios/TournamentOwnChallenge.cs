@@ -11,6 +11,13 @@ namespace Pyrra.Domain.Desafios {
         public string? Description { get; set; }
         public int Points { get; set; }
 
+        // Meta cumulativa (Fase 5c) — opcional. Nula = sem meta, desafio continua binário (sem
+        // progresso). Sempre preenchida junto com Unit — uma sem a outra não faz sentido.
+        public decimal? Goal { get; set; }
+
+        // Texto livre (ex.: "km", "vezes", "litros"), só exibição — sem validação de formato.
+        public string? Unit { get; set; }
+
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
     }

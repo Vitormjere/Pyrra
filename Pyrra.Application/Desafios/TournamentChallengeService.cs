@@ -18,6 +18,7 @@ namespace Pyrra.Application.Desafios {
         private readonly ITournamentOwnChallengeRepository _ownChallengeRepository;
         private readonly IChallengeSubmissionRepository    _submissionRepository;
         private readonly ITeamRepository                   _teamRepository;
+        private readonly ITournamentTeamRepository          _tournamentTeamRepository;
         private readonly IUserRepository                   _userRepository;
         private readonly IClockService                     _clock;
 
@@ -29,6 +30,7 @@ namespace Pyrra.Application.Desafios {
             ITournamentOwnChallengeRepository ownChallengeRepository,
             IChallengeSubmissionRepository   submissionRepository,
             ITeamRepository                  teamRepository,
+            ITournamentTeamRepository        tournamentTeamRepository,
             IUserRepository                  userRepository,
             IClockService                    clock) {
             _tournamentRepository          = tournamentRepository;
@@ -38,6 +40,7 @@ namespace Pyrra.Application.Desafios {
             _ownChallengeRepository        = ownChallengeRepository;
             _submissionRepository          = submissionRepository;
             _teamRepository                = teamRepository;
+            _tournamentTeamRepository      = tournamentTeamRepository;
             _userRepository                = userRepository;
             _clock                         = clock;
         }
@@ -51,9 +54,8 @@ namespace Pyrra.Application.Desafios {
             }
 
             var categoriesById = (await _categoryRepository.GetAllAsync(cancellationToken)).ToDictionary(c => c.Id);
-            var linkedIds = (await _tournamentChallengeRepository.GetByTournamentAsync(tournamentId, cancellationToken))
-                .Select(l => l.ChallengeId)
-                .ToHashSet();
+            var linksByChallenge = (await _tournamentChallengeRepository.GetByTournamentAsync(tournamentId, cancellationToken))
+                .ToDictionary(l => l.ChallengeId);
 
             var result = new List<TournamentCatalogChallengeStatus>(challenges.Count);
             foreach (var challenge in challenges) {
@@ -61,7 +63,9 @@ namespace Pyrra.Application.Desafios {
                 if (!categoriesById.TryGetValue(challenge.CategoryId, out var category)) {
                     continue;
                 }
-                result.Add(new TournamentCatalogChallengeStatus(challenge, category, linkedIds.Contains(challenge.Id)));
+
+                var isLinked = linksByChallenge.TryGetValue(challenge.Id, out var link);
+                result.Add(new TournamentCatalogChallengeStatus(challenge, category, isLinked, link?.Goal, link?.Unit));
             }
 
             return result
@@ -70,7 +74,8 @@ namespace Pyrra.Application.Desafios {
                 .ToList();
         }
 
-        public async Task LinkCatalogChallengeAsync(Guid ownerId, Guid tournamentId, Guid challengeId, CancellationToken cancellationToken = default) {
+        public async Task LinkCatalogChallengeAsync(
+            Guid ownerId, Guid tournamentId, Guid challengeId, decimal? goal, string? unit, CancellationToken cancellationToken = default) {
             await EnsureOwnerAsync(ownerId, tournamentId, cancellationToken);
 
             var challenge = await _challengeRepository.GetByIdAsync(challengeId, cancellationToken);
@@ -78,9 +83,15 @@ namespace Pyrra.Application.Desafios {
                 throw new NotFoundException($"Desafio '{challengeId}' não encontrado.");
             }
 
-            // evita duplicar vínculo em chamadas repetidas
+            var normalizedGoal = ValidateGoal(goal, ref unit);
+
+            // Já vinculado: atualiza a meta/unidade em vez de não fazer nada — evita ter que
+            // desvincular e vincular de novo só pra editar (Fase 5c).
             var existing = await _tournamentChallengeRepository.GetAsync(tournamentId, challengeId, cancellationToken);
             if (existing is not null) {
+                existing.Goal = normalizedGoal;
+                existing.Unit = unit;
+                await _tournamentChallengeRepository.UpdateAsync(existing, cancellationToken);
                 return;
             }
 
@@ -88,7 +99,9 @@ namespace Pyrra.Application.Desafios {
                 Id           = Guid.NewGuid(),
                 TournamentId = tournamentId,
                 ChallengeId  = challengeId,
-                LinkedAt     = _clock.UtcNow
+                LinkedAt     = _clock.UtcNow,
+                Goal         = normalizedGoal,
+                Unit         = unit
             }, cancellationToken);
         }
 
@@ -110,11 +123,13 @@ namespace Pyrra.Application.Desafios {
         }
 
         public async Task<TournamentOwnChallenge> CreateOwnChallengeAsync(
-            Guid ownerId, Guid tournamentId, string title, string? description, int points, CancellationToken cancellationToken = default) {
+            Guid ownerId, Guid tournamentId, string title, string? description, int points, decimal? goal, string? unit,
+            CancellationToken cancellationToken = default) {
             await EnsureOwnerAsync(ownerId, tournamentId, cancellationToken);
 
             var normalizedTitle = ValidateInput(title, points);
             var normalizedDescription = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+            var normalizedGoal = ValidateGoal(goal, ref unit);
 
             var now = _clock.UtcNow;
             var challenge = new TournamentOwnChallenge {
@@ -123,6 +138,8 @@ namespace Pyrra.Application.Desafios {
                 Title        = normalizedTitle,
                 Description  = normalizedDescription,
                 Points       = points,
+                Goal         = normalizedGoal,
+                Unit         = unit,
                 CreatedAt    = now,
                 UpdatedAt    = now
             };
@@ -132,17 +149,21 @@ namespace Pyrra.Application.Desafios {
         }
 
         public async Task<TournamentOwnChallenge> UpdateOwnChallengeAsync(
-            Guid ownerId, Guid tournamentId, Guid challengeId, string title, string? description, int points, CancellationToken cancellationToken = default) {
+            Guid ownerId, Guid tournamentId, Guid challengeId, string title, string? description, int points, decimal? goal, string? unit,
+            CancellationToken cancellationToken = default) {
             await EnsureOwnerAsync(ownerId, tournamentId, cancellationToken);
 
             var challenge = await GetOwnChallengeForTournamentAsync(tournamentId, challengeId, cancellationToken);
 
             var normalizedTitle = ValidateInput(title, points);
             var normalizedDescription = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+            var normalizedGoal = ValidateGoal(goal, ref unit);
 
             challenge.Title       = normalizedTitle;
             challenge.Description = normalizedDescription;
             challenge.Points      = points;
+            challenge.Goal        = normalizedGoal;
+            challenge.Unit        = unit;
             challenge.UpdatedAt   = _clock.UtcNow;
 
             await _ownChallengeRepository.UpdateAsync(challenge, cancellationToken);
@@ -194,18 +215,81 @@ namespace Pyrra.Application.Desafios {
                     }
                     result.Add(new PendingTournamentSubmissionWithTeam(
                         submission, catalogChallenge.Title, catalogChallenge.Points, submission.Source,
-                        ToSummary(submitter), submission.TeamId, teamName));
+                        submission.Quantity, ToSummary(submitter), submission.TeamId, teamName));
                 } else if (submission.Source == ChallengeSource.TorneioProprio) {
                     if (!ownById.TryGetValue(submission.ChallengeId, out var ownChallenge)) {
                         continue;
                     }
                     result.Add(new PendingTournamentSubmissionWithTeam(
                         submission, ownChallenge.Title, ownChallenge.Points, submission.Source,
-                        ToSummary(submitter), submission.TeamId, teamName));
+                        submission.Quantity, ToSummary(submitter), submission.TeamId, teamName));
                 }
             }
 
             return result.OrderBy(p => p.Submission.CreatedAt).ToList();
+        }
+
+        public async Task<IReadOnlyList<TournamentChallengeProgress>> GetChallengeProgressAsync(
+            Guid ownerId, Guid tournamentId, CancellationToken cancellationToken = default) {
+            await EnsureOwnerAsync(ownerId, tournamentId, cancellationToken);
+
+            var approvedEntries = await _tournamentTeamRepository.GetApprovedForTournamentAsync(tournamentId, cancellationToken);
+            if (approvedEntries.Count == 0) {
+                return Array.Empty<TournamentChallengeProgress>();
+            }
+
+            // catálogo pequeno de times por torneio, busca individual (mesmo critério de
+            // GetPendingSubmissionsAsync acima)
+            var teamNamesById = new Dictionary<Guid, string>();
+            foreach (var entry in approvedEntries) {
+                var team = await _teamRepository.GetByIdAsync(entry.TeamId, cancellationToken);
+                if (team is not null) {
+                    teamNamesById[entry.TeamId] = team.Name;
+                }
+            }
+
+            // soma das Aprovadas por (desafio, time) — base do progresso de cada linha abaixo
+            var sumsByChallengeAndTeam = (await _submissionRepository.GetApprovedForTournamentAsync(tournamentId, cancellationToken))
+                .Where(s => s.Quantity.HasValue)
+                .GroupBy(s => s.ChallengeId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.GroupBy(s => s.TeamId).ToDictionary(tg => tg.Key, tg => tg.Sum(s => s.Quantity!.Value)));
+
+            IReadOnlyList<TeamChallengeProgress> BuildTeamProgress(Guid challengeId) {
+                var sumsByTeam = sumsByChallengeAndTeam.GetValueOrDefault(challengeId);
+                return approvedEntries
+                    .Where(e => teamNamesById.ContainsKey(e.TeamId))
+                    .Select(e => new TeamChallengeProgress(e.TeamId, teamNamesById[e.TeamId], sumsByTeam?.GetValueOrDefault(e.TeamId) ?? 0m))
+                    .OrderByDescending(t => t.Progress)
+                    .ToList();
+            }
+
+            var result = new List<TournamentChallengeProgress>();
+
+            var linksWithGoal = (await _tournamentChallengeRepository.GetByTournamentAsync(tournamentId, cancellationToken))
+                .Where(l => l.Goal is not null)
+                .ToList();
+            if (linksWithGoal.Count > 0) {
+                var catalogById = (await _challengeRepository.GetAllAsync(cancellationToken)).ToDictionary(c => c.Id);
+                foreach (var link in linksWithGoal) {
+                    if (!catalogById.TryGetValue(link.ChallengeId, out var challenge)) {
+                        continue;
+                    }
+                    result.Add(new TournamentChallengeProgress(
+                        challenge.Id, challenge.Title, ChallengeSource.TorneioCatalogo, link.Goal!.Value, link.Unit!, BuildTeamProgress(challenge.Id)));
+                }
+            }
+
+            var ownChallengesWithGoal = (await _ownChallengeRepository.GetByTournamentAsync(tournamentId, cancellationToken))
+                .Where(c => c.Goal is not null)
+                .ToList();
+            foreach (var challenge in ownChallengesWithGoal) {
+                result.Add(new TournamentChallengeProgress(
+                    challenge.Id, challenge.Title, ChallengeSource.TorneioProprio, challenge.Goal!.Value, challenge.Unit!, BuildTeamProgress(challenge.Id)));
+            }
+
+            return result.OrderBy(p => p.ChallengeTitle).ToList();
         }
 
         private async Task<Dictionary<Guid, User>> LoadUsersAsync(IEnumerable<Guid> ids, CancellationToken cancellationToken) {
@@ -244,6 +328,29 @@ namespace Pyrra.Application.Desafios {
             }
 
             return normalizedTitle;
+        }
+
+        // Meta e unidade andam juntas (Fase 5c) — uma sem a outra não faz sentido. Nulas as duas =
+        // sem meta, desafio continua binário (sem progresso). Normaliza a unidade (trim) e garante
+        // meta > 0 quando informada.
+        private static decimal? ValidateGoal(decimal? goal, ref string? unit) {
+            var normalizedUnit = string.IsNullOrWhiteSpace(unit) ? null : unit.Trim();
+
+            if (goal is null && normalizedUnit is null) {
+                unit = null;
+                return null;
+            }
+
+            if (goal is null || normalizedUnit is null) {
+                throw new InvalidChallengeException("Meta e unidade devem ser preenchidas juntas.");
+            }
+
+            if (goal <= 0) {
+                throw new InvalidChallengeException("A meta precisa ser maior que zero.");
+            }
+
+            unit = normalizedUnit;
+            return goal;
         }
     }
 }
