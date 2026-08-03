@@ -614,6 +614,80 @@ namespace Pyrra.Application.Tests.Comunidade {
             Assert.Empty(details.ActiveTournaments);
         }
 
+        // ---- time com dono removido (conta excluída — soft delete) ----
+
+        // Variante que também devolve o FakeUserRepository — só usada pelos testes abaixo, que
+        // precisam marcar DeletedAt num usuário depois de criar o time. Mesmo padrão de
+        // TournamentServiceTests.BuildWithUsers.
+        private static (TeamService service, FakeTeamRepository teams, FakeUserRepository users) BuildWithUsers() {
+            var users = new FakeUserRepository(
+                MakeUser(Alice, "Alice", "alice"),
+                MakeUser(Bob, "Bob", "bob"),
+                MakeUser(Carol, "Carol", "carol"),
+                MakeUser(Dave, "Dave", "dave"));
+            var friendships = new FakeFriendshipRepository();
+            var members = new FakeTeamMemberRepository();
+            var teams = new FakeTeamRepository(members);
+            var invites = new FakeTeamInviteRepository();
+            var bannerStorage = new FakeTeamBannerStorageService();
+            var clock = new FakeClock();
+            var service = new TeamService(
+                teams, members, invites, friendships, users, bannerStorage, clock,
+                new FakeTournamentTeamRepository(), new FakeTournamentRepository());
+            return (service, teams, users);
+        }
+
+        [Fact]
+        public async Task GetPublicTeams_TimeComDonoRemovido_IgnoraOOrfaoMasListaOsDemais() {
+            var (service, _, users) = BuildWithUsers();
+            var normal = await service.CreateAsync(Bob, "Time Normal", null, 5, visibility: TeamVisibility.Publico);
+            var orphan = await service.CreateAsync(Alice, "Time Orfao", null, 5, visibility: TeamVisibility.Publico);
+
+            // Dono do time "órfão" exclui a própria conta — soft delete, mesmo critério de
+            // UserAccountService.DeleteAccountAsync (o usuário "some" de qualquer busca).
+            users.Users.Single(u => u.Id == Alice).DeletedAt = DateTime.UtcNow;
+
+            var publicTeams = await service.GetPublicTeamsAsync(Carol);
+
+            var single = Assert.Single(publicTeams);
+            Assert.Equal(normal.Id, single.Summary.Id);
+            Assert.DoesNotContain(publicTeams, t => t.Summary.Id == orphan.Id);
+        }
+
+        [Fact]
+        public async Task GetMyTeams_ComDonoRemovido_IgnoraOOrfao() {
+            var (service, teams, users) = BuildWithUsers();
+            var orphan = await service.CreateAsync(Alice, "Time Orfao", null, 5);
+            await service.JoinViaLinkAsync(Bob, teams.Teams.Single(t => t.Id == orphan.Id).InviteToken);
+            users.Users.Single(u => u.Id == Alice).DeletedAt = DateTime.UtcNow;
+
+            var mine = await service.GetMyTeamsAsync(Bob);
+
+            Assert.Empty(mine);
+        }
+
+        [Fact]
+        public async Task GetDetails_TimeComDonoRemovido_LancaComoNaoEncontrado() {
+            var (service, teams, users) = BuildWithUsers();
+            var orphan = await service.CreateAsync(Alice, "Time Orfao", null, 5);
+            await service.JoinViaLinkAsync(Bob, teams.Teams.Single(t => t.Id == orphan.Id).InviteToken);
+            users.Users.Single(u => u.Id == Alice).DeletedAt = DateTime.UtcNow;
+
+            await Assert.ThrowsAsync<NotFoundException>(() => service.GetDetailsAsync(Bob, orphan.Id));
+        }
+
+        [Fact]
+        public async Task SetBannerTheme_TimeComDonoRemovido_LancaComoNaoEncontrado() {
+            var (service, _, users) = BuildWithUsers();
+            var orphan = await service.CreateAsync(Alice, "Time Orfao", null, 5);
+            users.Users.Single(u => u.Id == Alice).DeletedAt = DateTime.UtcNow;
+
+            // Alice "é" a dona (OwnerId bate) mas a conta foi excluída — um token antigo ainda
+            // válido não pode conseguir mais nada além de um 404 coerente, nunca um 500.
+            await Assert.ThrowsAsync<NotFoundException>(() =>
+                service.SetBannerThemeAsync(Alice, orphan.Id, TeamBannerTheme.Roxo));
+        }
+
         // ---- ActiveTournaments (Fase 4d, listado a partir da Fase 5b) ----
 
         [Fact]

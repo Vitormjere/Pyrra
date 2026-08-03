@@ -80,16 +80,7 @@ namespace Pyrra.Application.Comunidade {
 
         public async Task<IReadOnlyList<TeamSummary>> GetMyTeamsAsync(Guid userId, CancellationToken cancellationToken = default) {
             var teams = await _teamRepository.GetForUserAsync(userId, cancellationToken);
-            if (teams.Count == 0) {
-                return Array.Empty<TeamSummary>();
-            }
-
-            var results = new List<TeamSummary>(teams.Count);
-            foreach (var team in teams) {
-                results.Add(await ToSummaryAsync(team, userId, cancellationToken));
-            }
-
-            return results.OrderBy(t => t.Name).ToList();
+            return await ToSummariesAsync(teams, userId, cancellationToken);
         }
 
         public async Task<IReadOnlyList<TeamSummary>> GetMyEligibleForTournamentAsync(Guid userId, CancellationToken cancellationToken = default) {
@@ -103,7 +94,10 @@ namespace Pyrra.Application.Comunidade {
             foreach (var team in owned) {
                 var activeEntries = await _tournamentTeamRepository.GetActiveEntriesForTeamAsync(team.Id, cancellationToken);
                 if (activeEntries.Count < TournamentTeam.MaxTournamentsPerTeam) {
-                    results.Add(await ToSummaryAsync(team, userId, cancellationToken));
+                    var summary = await TryToSummaryAsync(team, userId, cancellationToken);
+                    if (summary is not null) {
+                        results.Add(summary);
+                    }
                 }
             }
 
@@ -118,7 +112,12 @@ namespace Pyrra.Application.Comunidade {
 
             var results = new List<PublicTeamSummary>(teams.Count);
             foreach (var team in teams) {
-                results.Add(new PublicTeamSummary(await ToSummaryAsync(team, userId, cancellationToken), team.InviteToken));
+                // Dono removido (conta excluída, soft delete): ignora pra não quebrar a listagem
+                // pública inteira por causa de UM time órfão — mesmo critério de TournamentService.
+                var summary = await TryToSummaryAsync(team, userId, cancellationToken);
+                if (summary is not null) {
+                    results.Add(new PublicTeamSummary(summary, team.InviteToken));
+                }
             }
 
             return results;
@@ -266,7 +265,12 @@ namespace Pyrra.Application.Comunidade {
                     continue;
                 }
 
-                var summary = await ToSummaryAsync(team, userId, cancellationToken);
+                // dono do time removido (soft delete): ignora igual aos demais casos acima, em vez
+                // de derrubar a lista inteira de convites por causa de UM time órfão.
+                var summary = await TryToSummaryAsync(team, userId, cancellationToken);
+                if (summary is null) {
+                    continue;
+                }
                 results.Add(new TeamInviteSummary(invite.Id, summary, ToSummary(inviter), invite.CreatedAt));
             }
 
@@ -409,10 +413,30 @@ namespace Pyrra.Application.Comunidade {
 
         // ---- internos ----
 
-        private async Task<TeamSummary> ToSummaryAsync(Team team, Guid userId, CancellationToken cancellationToken) {
+        private async Task<IReadOnlyList<TeamSummary>> ToSummariesAsync(IReadOnlyList<Team> teams, Guid userId, CancellationToken cancellationToken) {
+            if (teams.Count == 0) {
+                return Array.Empty<TeamSummary>();
+            }
+
+            var results = new List<TeamSummary>(teams.Count);
+            foreach (var team in teams) {
+                // Dono removido (conta excluída, soft delete): ignora pra não quebrar a listagem
+                // inteira por causa de UM time órfão — mesmo critério de TournamentService.
+                var summary = await TryToSummaryAsync(team, userId, cancellationToken);
+                if (summary is not null) {
+                    results.Add(summary);
+                }
+            }
+
+            return results.OrderBy(t => t.Name).ToList();
+        }
+
+        // Versão que não lança: dono removido vira null em vez de exceção, pra quem lista vários
+        // times de uma vez poder simplesmente pular o órfão (ver ToSummariesAsync).
+        private async Task<TeamSummary?> TryToSummaryAsync(Team team, Guid userId, CancellationToken cancellationToken) {
             var owner = await _userRepository.GetByIdAsync(team.OwnerId, cancellationToken);
             if (owner is null) {
-                throw new NotFoundException("Usuário não encontrado.");
+                return null;
             }
 
             var memberCount = await _teamMemberRepository.CountByTeamAsync(team.Id, cancellationToken);
@@ -432,6 +456,17 @@ namespace Pyrra.Application.Comunidade {
                 team.Visibility,
                 team.BannerTheme,
                 team.BannerImageUrl);
+        }
+
+        // Dono removido (conta excluída): trata o time como inexistente — usado onde só existe UM
+        // time em jogo (não dá pra simplesmente pular como na listagem), ex.: CreateAsync,
+        // GetDetailsAsync, JoinViaLinkAsync e as ações de banner.
+        private async Task<TeamSummary> ToSummaryAsync(Team team, Guid userId, CancellationToken cancellationToken) {
+            var summary = await TryToSummaryAsync(team, userId, cancellationToken);
+            if (summary is null) {
+                throw new NotFoundException("Usuário não encontrado.");
+            }
+            return summary;
         }
 
         // Carrega o time garantindo acesso do usuário
