@@ -1,12 +1,17 @@
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
-import AppLayout from './components/AppLayout'
 import ProtectedRoute from './components/ProtectedRoute'
+import RequireAdmin from './components/RequireAdmin'
+import RequireNotAdmin from './components/RequireNotAdmin'
 import RequireOnboarding from './components/RequireOnboarding'
 import RequireUsername from './components/RequireUsername'
+import RootLayout from './components/RootLayout'
 import { AuthProvider } from './contexts/AuthContext'
 import { FriendRequestsProvider } from './contexts/FriendRequestsProvider'
 import { TeamInvitesProvider } from './contexts/TeamInvitesProvider'
 import Agenda from './pages/Agenda'
+import AdminContas from './pages/Admin/Contas'
+import AdminMensagens from './pages/Admin/Mensagens'
+import AdminSolicitacoes from './pages/Admin/Solicitacoes'
 import Amigos from './pages/Amigos'
 import Cadastro from './pages/Cadastro'
 import Configuracoes from './pages/Configuracoes'
@@ -76,22 +81,31 @@ function App() {
               <Route path="/username" element={<EscolherUsername />} />
 
               <Route element={<RequireUsername />}>
-                {/* Provider da contagem de pedidos ACIMA do AppLayout, para o badge do menu e a
+                {/* Provider da contagem de pedidos ACIMA do layout, para o badge do menu e a
                     tela de Amigos lerem a mesma contagem — e onde o convite pendente é consumido. */}
                 {/* TeamInvitesProvider aninhado ao FriendRequestsProvider: mesma posição acima do
-                    AppLayout, para o badge do menu e a tela de Times lerem a mesma contagem — e
+                    layout, para o badge do menu e a tela de Times lerem a mesma contagem — e
                     onde o convite de time pendente é consumido. */}
                 <Route element={<FriendRequestsProvider><TeamInvitesProvider><Outlet /></TeamInvitesProvider></FriendRequestsProvider>}>
-                  <Route element={<AppLayout />}>
-                    <Route path="/hoje" element={<Hoje />} />
-                    <Route path="/agenda" element={<Agenda />} />
-                    <Route path="/treino" element={<Treino />} />
-                    <Route path="/tarefas" element={<Tarefas />} />
-                    <Route path="/financas" element={<Financas />} />
-                    <Route path="/nutricao" element={<Nutricao />} />
-                    <Route path="/zelo" element={<Zelo />} />
-                    <Route path="/diario" element={<Diario />} />
-                    <Route path="/amigos" element={<Amigos />} />
+                  {/* RootLayout escolhe AppLayout ou AdminLayout conforme IsAdmin (Fase Admin-1) —
+                      monta uma vez por sessão, então nem ele nem os providers acima remontam ao
+                      navegar entre seções, admin ou não. */}
+                  <Route element={<RootLayout />}>
+                    {/* Seções operacionais do dia a dia — fora do alcance de contas admin, que não
+                        têm essas seções no menu (ver AdminLayout/RequireNotAdmin). */}
+                    <Route element={<RequireNotAdmin />}>
+                      <Route path="/hoje" element={<Hoje />} />
+                      <Route path="/agenda" element={<Agenda />} />
+                      <Route path="/treino" element={<Treino />} />
+                      <Route path="/tarefas" element={<Tarefas />} />
+                      <Route path="/financas" element={<Financas />} />
+                      <Route path="/nutricao" element={<Nutricao />} />
+                      <Route path="/zelo" element={<Zelo />} />
+                      <Route path="/diario" element={<Diario />} />
+                      <Route path="/amigos" element={<Amigos />} />
+                    </Route>
+
+                    {/* Compartilhadas entre app comum e admin — mesmas telas para os dois. */}
                     <Route path="/times" element={<Times />} />
                     <Route path="/times/novo" element={<CriarTime />} />
                     <Route path="/times/:id" element={<TimeDetalhe />} />
@@ -104,9 +118,18 @@ function App() {
                         árvore para não colidir com ela (react-router já resolveria certo mesmo
                         com a ordem trocada, mas a leitura fica mais clara assim). */}
                     <Route path="/perfil/:username" element={<PerfilPublico />} />
-                    {/* Não entra no menu principal (ALL_SECTIONS): é destino ocasional, alcançado
-                        pelo ícone de engrenagem no Perfil, não uma seção de uso diário. */}
+                    {/* Não entra no menu principal do app comum: é destino ocasional, alcançado
+                        pelo ícone de engrenagem no Perfil, não uma seção de uso diário. No admin,
+                        entra no menu como qualquer outra seção. */}
                     <Route path="/configuracoes" element={<Configuracoes />} />
+
+                    {/* Administrativas — fora do alcance de contas comuns (Fase Admin-1: só
+                        placeholders, funcionalidade real chega nas próximas etapas). */}
+                    <Route element={<RequireAdmin />}>
+                      <Route path="/admin/contas" element={<AdminContas />} />
+                      <Route path="/admin/solicitacoes" element={<AdminSolicitacoes />} />
+                      <Route path="/admin/mensagens" element={<AdminMensagens />} />
+                    </Route>
                   </Route>
                 </Route>
               </Route>
