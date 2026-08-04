@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Send } from 'lucide-react'
+import { useChatConnection } from '../hooks/useChatConnection'
 import { useChatUnread } from '../hooks/useChatUnread'
 import {
   getChatConversation,
@@ -40,15 +41,17 @@ function Bubble({ message, isMine }: { message: ChatMessage; isMine: boolean }) 
 }
 
 // Painel de conversa com UMA contraparte — reaproveitado pela tela do admin (Admin/Mensagens) e
-// pela do jogador (Suporte). Sem tempo real ainda (Fase Admin-4a): a mensagem enviada aparece na
-// hora (é a resposta do próprio POST), mas uma resposta da outra pessoa só aparece ao reabrir/
-// trocar de conversa — isso muda só na Fase Admin-4b, sem tocar neste componente por dentro.
+// pela do jogador (Suporte). A mensagem enviada aparece na hora (é a resposta do próprio POST); a
+// resposta da outra pessoa chega ao vivo via Hub (Fase Admin-4b) enquanto a conexão estiver de
+// pé — se cair ou a contraparte enviar enquanto esta tela está fechada, aparece normalmente ao
+// reabrir/trocar de conversa (mensagem já persistida via REST).
 //
 // Quem usa este componente precisa passar key={counterpart.id} — é isso que reseta o estado
 // (mensagens, erro, texto digitado) ao trocar de conversa, em vez de um efeito fazendo o reset na
 // mão a cada mudança de prop.
 export function ChatPanel({ counterpart }: { counterpart: UserSummary }) {
   const { refresh: refreshUnread } = useChatUnread()
+  const connection = useChatConnection()
 
   const [messages, setMessages] = useState<ChatMessage[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -83,6 +86,27 @@ export function ChatPanel({ counterpart }: { counterpart: UserSummary }) {
   useEffect(() => {
     listEndRef.current?.scrollIntoView({ block: 'end' })
   }, [messages])
+
+  // Tempo real (Fase Admin-4b): mensagem da contraparte chega via Hub e entra direto na lista,
+  // sem reabrir a conversa. Como a tela está aberta e visível, já marca como lida na hora — mesmo
+  // efeito de quando a conversa é aberta com mensagens não lidas, só que reativo em vez de na
+  // carga inicial.
+  useEffect(() => {
+    if (!connection) return
+
+    function handleReceiveMessage(message: ChatMessage) {
+      if (message.sender.id !== counterpart.id) return
+
+      setMessages((current) => [...(current ?? []), message])
+      void markChatConversationAsRead(counterpart.id).then(() => refreshUnread())
+    }
+
+    connection.on('ReceiveMessage', handleReceiveMessage)
+
+    return () => {
+      connection.off('ReceiveMessage', handleReceiveMessage)
+    }
+  }, [connection, counterpart.id, refreshUnread])
 
   async function handleSend(event: FormEvent) {
     event.preventDefault()

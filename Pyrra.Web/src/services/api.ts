@@ -6,7 +6,7 @@ const LOGIN_ROUTE = '/login'
 
 // O default cobre o dev que ainda não copiou o .env; qualquer outro ambiente
 // define VITE_API_URL no build (Vite injeta em tempo de compilação, não em runtime).
-const baseURL = import.meta.env.VITE_API_URL ?? 'https://localhost:7294'
+export const baseURL = import.meta.env.VITE_API_URL ?? 'https://localhost:7294'
 
 export const api = axios.create({ baseURL })
 

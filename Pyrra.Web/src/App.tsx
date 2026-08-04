@@ -6,6 +6,7 @@ import RequireOnboarding from './components/RequireOnboarding'
 import RequireUsername from './components/RequireUsername'
 import RootLayout from './components/RootLayout'
 import { AuthProvider } from './contexts/AuthContext'
+import { ChatConnectionProvider } from './contexts/ChatConnectionProvider'
 import { ChatUnreadProvider } from './contexts/ChatUnreadProvider'
 import { FriendRequestsProvider } from './contexts/FriendRequestsProvider'
 import { TeamInvitesProvider } from './contexts/TeamInvitesProvider'
@@ -87,10 +88,11 @@ function App() {
                     tela de Amigos lerem a mesma contagem — e onde o convite pendente é consumido. */}
                 {/* TeamInvitesProvider aninhado ao FriendRequestsProvider: mesma posição acima do
                     layout, para o badge do menu e a tela de Times lerem a mesma contagem — e
-                    onde o convite de time pendente é consumido. ChatUnreadProvider por cima dos
-                    dois, mesma posição — o badge de "Suporte"/"Mensagens" precisa da mesma
-                    contagem nos dois layouts (Fase Admin-4a). */}
-                <Route element={<FriendRequestsProvider><TeamInvitesProvider><ChatUnreadProvider><Outlet /></ChatUnreadProvider></TeamInvitesProvider></FriendRequestsProvider>}>
+                    onde o convite de time pendente é consumido. ChatConnectionProvider por cima
+                    dos dois, mesma posição — dono da conexão SignalR compartilhada (Fase
+                    Admin-4b); ChatUnreadProvider por cima dele, já que agora também escuta a
+                    conexão para atualizar o badge de "Suporte"/"Mensagens" em tempo real. */}
+                <Route element={<FriendRequestsProvider><TeamInvitesProvider><ChatConnectionProvider><ChatUnreadProvider><Outlet /></ChatUnreadProvider></ChatConnectionProvider></TeamInvitesProvider></FriendRequestsProvider>}>
                   {/* RootLayout escolhe AppLayout ou AdminLayout conforme IsAdmin (Fase Admin-1) —
                       monta uma vez por sessão, então nem ele nem os providers acima remontam ao
                       navegar entre seções, admin ou não. */}

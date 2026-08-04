@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Pyrra.Application.Auth;
@@ -21,6 +22,7 @@ using Pyrra.Application.Tarefas;
 using Pyrra.Application.Treinos;
 using Pyrra.Application.Zelo;
 using Pyrra.Domain.Users;
+using Pyrra.Api.Hubs;
 using Pyrra.Infrastructure.Auth;
 using Pyrra.Infrastructure.Common;
 using Pyrra.Infrastructure.Data;
@@ -95,9 +97,26 @@ builder.Services.AddAuthentication(options => {
         ValidAudience = jwtSettings.Audience,
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Key))
     };
+    // O navegador não permite header custom no handshake de WebSocket, então o cliente SignalR
+    // manda o JWT via query string (?access_token=...). Só aceita essa via alternativa para o
+    // path do Hub — em qualquer outro request, a validação continua exigindo o header
+    // Authorization normal. Padrão oficial do ASP.NET Core para SignalR + JWT (Fase Admin-4b).
+    options.Events = new JwtBearerEvents {
+        OnMessageReceived = context => {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/chat")) {
+                context.Token = accessToken;
+            }
+            return Task.CompletedTask;
+        }
+    };
 });
 
 builder.Services.AddAuthorization();
+
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<IUserIdProvider, NameIdentifierUserIdProvider>();
 
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ITokenService, JwtTokenService>();
@@ -148,7 +167,8 @@ builder.Services.AddScoped<INightlyMessageService, NightlyMessageService>();
 // do módulo administrativo) — gestão de contas da Fase Admin-2.
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
 
-// Chat entre admin e jogadores (Fase Admin-4a) — sem tempo real ainda (chega na 4b).
+// Chat entre admin e jogadores (Fase Admin-4a), com tempo real via ChatHub por cima (Fase
+// Admin-4b, sem mudar o modelo de dados).
 builder.Services.AddScoped<IChatMessageRepository, ChatMessageRepository>();
 builder.Services.AddScoped<IChatService, ChatService>();
 
@@ -234,5 +254,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<ChatHub>("/hubs/chat");
 
 app.Run();

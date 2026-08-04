@@ -6,8 +6,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Pyrra.Api.Dtos.Chat;
 using Pyrra.Api.Dtos.Comunidade;
+using Pyrra.Api.Hubs;
 using Pyrra.Application.Chat;
 using Pyrra.Application.Common.Exceptions;
 
@@ -20,9 +22,11 @@ namespace Pyrra.Api.Controllers {
     [Route("api/chat")]
     public class ChatController : ControllerBase {
         private readonly IChatService _chatService;
+        private readonly IHubContext<ChatHub> _hubContext;
 
-        public ChatController(IChatService chatService) {
+        public ChatController(IChatService chatService, IHubContext<ChatHub> hubContext) {
             _chatService = chatService;
+            _hubContext = hubContext;
         }
 
         // Admins ativos — o jogador usa isso pra saber com quem pode começar uma conversa.
@@ -64,7 +68,14 @@ namespace Pyrra.Api.Controllers {
 
             try {
                 var message = await _chatService.SendMessageAsync(userId, counterpartId, request.Content, cancellationToken);
-                return Created($"/api/chat/conversas/{counterpartId}/mensagens", ChatMessageResponse.FromSummary(message));
+                var response = ChatMessageResponse.FromSummary(message);
+
+                // Push em tempo real (Fase Admin-4b) — Clients.User entrega só se o destinatário
+                // tiver alguma conexão de Hub ativa; se estiver offline, a mensagem já persistida
+                // (linha acima) é vista normalmente ao abrir a conversa depois.
+                await _hubContext.Clients.User(counterpartId.ToString()).SendAsync("ReceiveMessage", response, cancellationToken);
+
+                return Created($"/api/chat/conversas/{counterpartId}/mensagens", response);
             } catch (InvalidChatMessageException ex) {
                 return BadRequest(new { message = ex.Message });
             } catch (NotFoundException ex) {
