@@ -5,9 +5,7 @@ import { getPendingTeamInvitesCount, joinTeamViaLink } from '../services/teamSer
 import { useAuth } from '../hooks/useAuth'
 import { PENDING_TEAM_INVITE_KEY, TeamInvitesContext } from './team-invites-context'
 
-// Provider da contagem de convites de time pendentes. Mesmo papel do FriendRequestsProvider, só
-// que para convites de time: fica ACIMA do AppLayout, para o badge do menu e a tela de Times
-// lerem a mesma contagem, e consome aqui o convite guardado antes do login.
+// mesmo papel do FriendRequestsProvider, só que pra convites de time
 export function TeamInvitesProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()
   const navigate = useNavigate()
@@ -17,7 +15,7 @@ export function TeamInvitesProvider({ children }: { children: ReactNode }) {
     try {
       setCount(await getPendingTeamInvitesCount())
     } catch {
-      // Silencioso: o badge é secundário, um erro aqui não deve estourar na tela.
+      // badge é secundário, erro aqui não deve estourar na tela
     }
   }, [])
 
@@ -30,7 +28,7 @@ export function TeamInvitesProvider({ children }: { children: ReactNode }) {
         const result = await getPendingTeamInvitesCount()
         if (active) setCount(result)
       } catch {
-        // Silencioso, mesmo critério do refresh manual.
+        // mesmo critério do refresh manual, falha aqui não aparece pro usuário
       }
     }
 
@@ -46,14 +44,14 @@ export function TeamInvitesProvider({ children }: { children: ReactNode }) {
     const token = localStorage.getItem(PENDING_TEAM_INVITE_KEY)
     if (!token) return
 
-    // Remove ANTES de enviar: se falhar, não fica retentando a cada carga.
+    // remove antes de enviar pra não ficar retentando a cada carga se falhar
     localStorage.removeItem(PENDING_TEAM_INVITE_KEY)
 
     void (async () => {
       try {
         await joinTeamViaLink(token)
       } catch {
-        // Convite inválido/expirado ou erro de rede: ignora, o usuário pode tentar de novo.
+        // convite inválido/expirado ou erro de rede, ignora e deixa o usuário tentar de novo
       }
       navigate('/times', { replace: true })
     })()

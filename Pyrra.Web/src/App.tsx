@@ -42,8 +42,7 @@ import Torneios from './pages/Torneios'
 import Treino from './pages/Treino'
 import Zelo from './pages/Zelo'
 
-// AuthProvider fica DENTRO do BrowserRouter para poder usar hooks do router
-// (useNavigate, useLocation) quando o fluxo de autenticação crescer.
+// AuthProvider fica dentro do BrowserRouter pra poder usar hooks do router (useNavigate, useLocation) no futuro
 function App() {
   return (
     <BrowserRouter>

@@ -27,7 +27,7 @@ namespace Pyrra.Application.Zelo {
             [MealType.Jantar]      = "Jantar",
         };
 
-        private readonly IStreakService              _streakService;
+        private readonly IStreakService               _streakService;
         private readonly IDailyFocusRepository        _focusRepository;
         private readonly IFocusLogRepository          _focusLogRepository;
         private readonly IDailyScoreRepository        _scoreRepository;
@@ -37,7 +37,7 @@ namespace Pyrra.Application.Zelo {
         private readonly IClockService                _clock;
 
         public ZeloContextBuilder(
-            IStreakService              streakService,
+            IStreakService               streakService,
             IDailyFocusRepository        focusRepository,
             IFocusLogRepository          focusLogRepository,
             IDailyScoreRepository        scoreRepository,

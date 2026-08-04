@@ -19,7 +19,7 @@ namespace Pyrra.Api.Controllers {
             _nightlyMessageService = nightlyMessageService;
         }
 
-        // Retorna a mensagem que seria enviada ao usuário, sem aguardar o horário configurado
+        // retorna a mensagem que seria enviada, sem esperar o horário configurado
         [HttpGet("preview")]
         public async Task<ActionResult<NightlyMessagePreviewResponse>> Preview(CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {

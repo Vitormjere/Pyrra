@@ -24,7 +24,7 @@ import type { TaskPriority, TaskResponse } from '../../types/task'
 
 const PRIORITIES: TaskPriority[] = ['Baixa', 'Media', 'Alta', 'Urgente']
 
-// Rótulo com acento, separado do valor que trafega na API.
+// rótulo com acento, separado do valor que trafega na API
 const PRIORITY_LABELS: Record<TaskPriority, string> = {
   Baixa: 'Baixa',
   Media: 'Média',
@@ -32,9 +32,7 @@ const PRIORITY_LABELS: Record<TaskPriority, string> = {
   Urgente: 'Urgente',
 }
 
-// Cores semânticas de urgência — frias para o que pode esperar, quentes para o
-// que não pode. Nenhuma usa brand-green de propósito: o verde continua reservado
-// a ação e conquista, e prioridade alta não é nem uma coisa nem outra.
+// cores semânticas de urgência — frias pro que pode esperar, quentes pro que não pode; nunca usa o brand-green, reservado pra ação e conquista
 const PRIORITY_COLORS: Record<TaskPriority, string> = {
   Baixa: 'text-slate-400',
   Media: 'text-sky-400',
@@ -49,11 +47,7 @@ const PRIORITY_DOTS: Record<TaskPriority, string> = {
   Urgente: 'bg-red-400',
 }
 
-// Espelha a ordenação do PriorityTaskRepository.GetByUserAndDateAsync:
-// prioridade DESC e, dentro da mesma faixa, CreatedAt ASCENDENTE — ou seja, na
-// ordem em que o usuário escreveu, não do mais recente para o mais antigo.
-// Reproduzir a regra aqui é o que permite inserir uma tarefa nova na posição
-// certa sem refazer a consulta.
+// espelha a ordenação do PriorityTaskRepository.GetByUserAndDateAsync (prioridade DESC, depois CreatedAt ASC), pra poder inserir uma tarefa nova na posição certa sem refazer a consulta
 const PRIORITY_RANK: Record<TaskPriority, number> = {
   Baixa: 0,
   Media: 1,
@@ -64,17 +58,14 @@ const PRIORITY_RANK: Record<TaskPriority, number> = {
 function compareTasks(a: TaskResponse, b: TaskResponse): number {
   const byPriority = PRIORITY_RANK[b.priority] - PRIORITY_RANK[a.priority]
   if (byPriority !== 0) return byPriority
-  // createdAt é ISO 8601, então a comparação textual já respeita a cronologia.
+  // createdAt é ISO 8601, então a comparação textual já respeita a cronologia
   return a.createdAt.localeCompare(b.createdAt)
 }
 
 const inputClasses =
   'w-full rounded-md bg-surface px-4 py-3 text-ink ring-1 ring-line transition outline-none placeholder:text-slate-500 focus:ring-2 focus:ring-brand-green'
 
-// Edição inline: a linha vira este formulário compacto. Reaproveita os mesmos
-// controles do cadastro (título + prioridade segmentada), com botão "Salvar".
-// Fica na própria linha, então funciona igual nas abas Hoje e Atrasadas — sem
-// depender de onde o formulário de criação está montado.
+// edição inline vira este formulário compacto na própria linha — reaproveita os controles do cadastro e funciona igual nas abas Hoje e Atrasadas
 interface TaskEditFormProps {
   task: TaskResponse
   saving: boolean
@@ -188,9 +179,7 @@ function TaskRow({
   }
 
   return (
-    // A linha deixou de ser um único <button> porque agora tem ações irmãs
-    // (editar/remover) — botão dentro de botão é HTML inválido. O toggle vira
-    // um botão que cobre o conteúdo; as ações ficam ao lado.
+    // não é mais um único <button> porque agora tem ações irmãs, e botão dentro de botão é html inválido — o toggle vira um botão que cobre o conteúdo, as ações ficam ao lado
     <div className="flex items-center gap-1 pr-2 transition hover:bg-surface-hi">
       <button
         type="button"
@@ -256,28 +245,25 @@ type Tab = 'hoje' | 'atrasadas'
 export function Tarefas() {
   const [todayTasks, setTodayTasks] = useState<TaskResponse[]>([])
   const [overdueTasks, setOverdueTasks] = useState<TaskResponse[]>([])
-  // Segunda-feira da semana consultada, vinda do backend — é ele quem normaliza
-  // a data para o início da semana no fuso do usuário.
+  // segunda-feira da semana consultada, vinda do backend — é ele quem normaliza a data pro fuso do usuário
   const [weekStart, setWeekStart] = useState<string | null>(null)
   const [weekEnd, setWeekEnd] = useState<string | null>(null)
-  // Segunda-feira da semana ATUAL, fixada na primeira carga (que sempre vem sem
-  // ?inicio=). É o teto da navegação: não se consulta "pendentes" do futuro.
+  // segunda-feira da semana atual, fixada na primeira carga — é o teto da navegação, não se consulta pendentes do futuro
   const [currentWeekStart, setCurrentWeekStart] = useState<string | null>(null)
   const [weekNavBusy, setWeekNavBusy] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('hoje')
   const [pendingTaskId, setPendingTaskId] = useState<string | null>(null)
-  // Linha em edição e travas de linha em voo (edição salvando / remoção).
+  // linha em edição e travas de linha em voo (edição salvando / remoção)
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
   const [savingEditId, setSavingEditId] = useState<string | null>(null)
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null)
 
-  // ?data= vem da Agenda: abre já com o formulário pronto naquela data.
+  // ?data= vem da Agenda: abre já com o formulário pronto naquela data
   const [searchParams] = useSearchParams()
   const prefillDate = searchParams.get('data')
-  // ?from=agenda marca que o usuário partiu da Agenda; ao fechar o formulário
-  // sem salvar ele volta para lá, em vez de ficar preso nesta tela.
+  // ?from=agenda marca que o usuário veio da Agenda — fechar sem salvar volta pra lá em vez de ficar preso aqui
   const navigate = useNavigate()
   const cameFromAgenda = searchParams.get('from') === 'agenda'
   const { confirm, dialog } = useConfirm()
@@ -285,15 +271,13 @@ export function Tarefas() {
   const [formOpen, setFormOpen] = useState(prefillDate !== null)
   const [title, setTitle] = useState('')
   const [priority, setPriority] = useState<TaskPriority>('Media')
-  // Campo de data acrescentado junto com a Agenda: antes a tarefa nascia sempre
-  // no dia corrente, o que impedia agendar para outro dia.
+  // campo de data veio junto com a Agenda — antes a tarefa nascia sempre no dia corrente, sem poder agendar pra outro dia
   const [taskDate, setTaskDate] = useState(prefillDate ?? todayIso())
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
 
-  // Só busca, não mexe em estado: mantém todo setState depois do await, como a
-  // regra react-hooks/set-state-in-effect exige.
+  // só busca, não mexe em estado — todo setState fica depois do await, como a regra react-hooks/set-state-in-effect exige
   const fetchTasks = useCallback(async () => {
     const [today, week] = await Promise.all([
       getTasksForDay(),
@@ -318,7 +302,7 @@ export function Tarefas() {
         setOverdueTasks(result.overdue)
         setWeekStart(result.weekStart)
         setWeekEnd(result.weekEnd)
-        // A primeira carga é sempre a semana atual (sem ?inicio=): fixa o teto.
+        // a primeira carga é sempre a semana atual (sem ?inicio=), então fixa o teto
         setCurrentWeekStart(result.weekStart)
       } catch (err) {
         if (!active) return
@@ -357,9 +341,7 @@ export function Tarefas() {
     }
   }
 
-  // Troca a semana da aba "atrasadas" sem tocar nas tarefas de hoje: só a lista
-  // da semana muda. Mantém a lista anterior na tela enquanto busca — trocar por
-  // um vazio piscaria a cada clique.
+  // troca só a semana da aba atrasadas, sem tocar nas tarefas de hoje — mantém a lista anterior na tela enquanto busca, pra não piscar vazio a cada clique
   async function goToWeek(newWeekStart: string) {
     setWeekNavBusy(true)
     setError(null)
@@ -385,16 +367,12 @@ export function Tarefas() {
     try {
       const updated = await toggleTaskCompleted(taskId)
 
-      // Troca só o item afetado nas duas listas. Diferente do check-in de foco,
-      // nada aqui é derivado (não há score nem meta), então a resposta do PATCH
-      // basta — sem segunda consulta.
+      // troca só o item afetado nas duas listas — nada aqui é derivado, então a resposta do PATCH já basta, sem segunda consulta
       const replace = (tasks: TaskResponse[]) =>
         tasks.map((task) => (task.id === updated.id ? updated : task))
 
       setTodayTasks(replace)
-      // A atrasada concluída CONTINUA na lista, riscada, até a próxima carga:
-      // some-la na hora tornaria impossível desfazer um toque errado, e o
-      // servidor já não a devolve no próximo GET.
+      // a atrasada concluída continua na lista, riscada, até a próxima carga — sumir na hora impediria desfazer um toque errado
       setOverdueTasks(replace)
     } catch (err) {
       setError(
@@ -416,9 +394,7 @@ export function Tarefas() {
     try {
       const updated = await updateTask(taskId, newTitle, newPriority)
 
-      // Prioridade pode ter mudado, então reordena as duas listas em vez de só
-      // trocar no lugar. Nada aqui é derivado (sem score), então a resposta do
-      // PUT basta — sem segunda consulta.
+      // prioridade pode ter mudado, então reordena as duas listas em vez de só trocar no lugar — a resposta do PUT já basta, sem segunda consulta
       const replace = (tasks: TaskResponse[]) =>
         tasks
           .map((task) => (task.id === updated.id ? updated : task))
@@ -437,7 +413,7 @@ export function Tarefas() {
   }
 
   async function handleDelete(task: TaskResponse) {
-    // Remoção é real, sem lixeira — daí a confirmação.
+    // remoção é real, sem lixeira — daí a confirmação
     const ok = await confirm({
       title: 'Remover tarefa',
       message: `Remover a tarefa "${task.title}"?`,
@@ -479,18 +455,14 @@ export function Tarefas() {
     try {
       const created = await createTask(trimmedTitle, priority, taskDate)
 
-      // Só entra na lista visível se for do dia mostrado. Uma tarefa agendada
-      // para outra data existe, mas não pertence a esta lista — aparecer aqui
-      // sugeriria que é de hoje.
+      // só entra na lista visível se for do dia mostrado — uma tarefa agendada pra outra data existe, mas não pertence a esta lista
       if (created.date === todayIso()) {
-        // Insere na posição correta em vez de anexar no fim: com prioridade DESC,
-        // uma tarefa Urgente criada agora pertence ao topo, não ao rodapé.
+        // insere na posição correta em vez de anexar no fim — com prioridade DESC, uma Urgente criada agora vai pro topo, não pro rodapé
         setTodayTasks((tasks) => [...tasks, created].sort(compareTasks))
       }
 
       setTitle('')
-      // Prioridade permanece escolhida: quem cadastra várias de uma vez costuma
-      // repetir a faixa, e reescolher a cada item seria atrito à toa.
+      // prioridade permanece escolhida — quem cadastra várias de uma vez costuma repetir a faixa, reescolher a cada item seria atrito à toa
       titleInputRef.current?.focus()
     } catch (err) {
       setCreateError(
@@ -502,7 +474,7 @@ export function Tarefas() {
   }
 
   function closeForm() {
-    // Veio da Agenda: fechar sem salvar devolve para lá (o contexto de origem).
+    // veio da Agenda: fechar sem salvar devolve pra lá
     if (cameFromAgenda) {
       navigate('/agenda')
       return
@@ -522,11 +494,7 @@ export function Tarefas() {
 
   const overdueCount = overdueTasks.filter((task) => !task.completed).length
 
-  // Na segunda-feira a lista vem vazia porque a semana ainda não tem dia
-  // passado, não porque o usuário deu conta de tudo — a mensagem de elogio
-  // seria falsa. Comparar com weekStart expressa exatamente essa causa: hoje É
-  // o primeiro dia da semana. O limite da semana vem do backend; só "hoje" sai
-  // do navegador, e num fuso divergente o pior caso é exibir a outra mensagem.
+  // na segunda-feira a lista vem vazia porque a semana ainda não teve dia passado, não porque o usuário deu conta de tudo — comparar com weekStart é o que expressa essa causa
   const isFirstDayOfWeek = weekStart !== null && weekStart === todayIso()
 
   return (
@@ -581,8 +549,7 @@ export function Tarefas() {
           <SectionHeader>Tarefas de hoje</SectionHeader>
 
           {todayTasks.length > 0 ? (
-            // Uma superfície para a lista inteira; divide-y desenha as
-            // divisórias entre os itens sem precisar de borda em cada um.
+            // uma superfície pra lista inteira — divide-y já desenha as divisórias entre os itens sem precisar de borda em cada um
             <ul className="divide-y divide-line overflow-hidden rounded-md bg-surface ring-1 ring-line">
               {todayTasks.map((task) => (
                 <li key={task.id}>
@@ -749,15 +716,14 @@ export function Tarefas() {
               ))}
             </ul>
           ) : isFirstDayOfWeek ? (
-            // Neutro, e sem o verde: não houve conquista a celebrar, a semana
-            // apenas começou.
+            // neutro, sem o verde — não houve conquista pra celebrar, a semana só começou
             <EmptyState
               icon={CalendarDays}
               title="Comece a semana zerado."
               description="Ainda não há dias anteriores nesta semana para cobrar."
             />
           ) : (
-            // Verde: aqui houve conquista — nada ficou para trás.
+            // verde: aqui houve conquista, nada ficou pra trás
             <EmptyState
               icon={Check}
               iconClassName="text-brand-green"

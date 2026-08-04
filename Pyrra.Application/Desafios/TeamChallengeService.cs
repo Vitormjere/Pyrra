@@ -209,9 +209,6 @@ namespace Pyrra.Application.Desafios {
         }
 
         public async Task<IReadOnlyList<PendingSubmission>> GetPendingSubmissionsAsync(Guid callerId, Guid teamId, CancellationToken cancellationToken = default) {
-            // Fase 5b: desafios de time são sempre aprovados pelo dono do time, mesmo com o time
-            // em algum torneio — desafios DAQUELE torneio têm fila e aprovador próprios agora, ver
-            // GetPendingTournamentSubmissionsAsync.
             await GetOwnedTeamAsync(callerId, teamId, cancellationToken);
 
             var pending = (await _submissionRepository.GetPendingForTeamAsync(teamId, cancellationToken))
@@ -238,8 +235,6 @@ namespace Pyrra.Application.Desafios {
         }
 
         public async Task ApproveSubmissionAsync(Guid callerId, Guid teamId, Guid submissionId, CancellationToken cancellationToken = default) {
-            // Fase 5b: só o dono do time aprova desafios de time — sem delegar mais pro dono de
-            // torneio nenhum, mesma observação de GetPendingSubmissionsAsync.
             var team = await GetOwnedTeamAsync(callerId, teamId, cancellationToken);
             var submission = await GetPendingSubmissionForTeamAsync(teamId, submissionId, cancellationToken);
 
@@ -323,19 +318,10 @@ namespace Pyrra.Application.Desafios {
                 .ToList();
         }
 
-        // ---- Desafios de torneio (Fase 5b) — caminho separado do de desafios de time acima:
-        // nenhum dos métodos daqui em diante toca em team.TotalPoints ou TeamMemberScore. ----
-
         public async Task<IReadOnlyList<AvailableTournamentChallenge>> GetAvailableTournamentChallengesAsync(
             Guid userId, Guid teamId, Guid tournamentId, CancellationToken cancellationToken = default) {
             await GetOwnedOrMemberTeamAsync(userId, teamId, cancellationToken);
             await GetApprovedEntryAsync(teamId, tournamentId, cancellationToken);
-
-            // TODAS as submissões do TIME nesse torneio (qualquer usuário) — escopado por
-            // TournamentId porque o mesmo ChallengeId de catálogo pode estar vinculado a mais de um
-            // torneio em que o time participa. Usadas tanto pro status do chamador (só as dele)
-            // quanto pro progresso agregado do time inteiro (Fase 5c: times diferentes perseguem a
-            // mesma meta de forma independente, mas dentro do MESMO time todo mundo soma junto).
             var teamSubmissions = (await _submissionRepository.GetForTeamAsync(teamId, cancellationToken))
                 .Where(s => s.TournamentId == tournamentId)
                 .ToList();
@@ -356,8 +342,6 @@ namespace Pyrra.Application.Desafios {
             var linksByChallenge = (await _tournamentChallengeRepository.GetByTournamentAsync(tournamentId, cancellationToken))
                 .ToDictionary(l => l.ChallengeId);
             if (linksByChallenge.Count > 0) {
-                // catálogo pequeno, busca completa em memória simplifica o filtro (mesmo critério
-                // de GetAvailableChallengesAsync)
                 var catalogChallenges = await _challengeRepository.GetAllAsync(cancellationToken);
                 result.AddRange(catalogChallenges
                     .Where(c => linksByChallenge.ContainsKey(c.Id) && (c.Deadline is null || c.Deadline > now))
@@ -400,10 +384,6 @@ namespace Pyrra.Application.Desafios {
             }
 
             var normalizedQuantity = ValidateQuantity(link.Goal, quantity);
-
-            // Com meta (Fase 5c): aceita quantas contribuições a pessoa quiser, mesmo com uma
-            // anterior já aprovada — é assim que o progresso acumula, sem limite de envios (nunca
-            // fecha sozinho). Sem meta: continua binário, só uma pendente/aprovada por vez.
             if (link.Goal is null) {
                 await EnsureNoActiveTournamentSubmissionAsync(userId, teamId, tournamentId, challengeId, ChallengeSource.TorneioCatalogo, cancellationToken);
             }
@@ -492,9 +472,6 @@ namespace Pyrra.Application.Desafios {
             submission.ReviewedAt       = _clock.UtcNow;
             submission.ReviewedByUserId = callerId;
             await _submissionRepository.UpdateAsync(submission, cancellationToken);
-
-            // pontos vão só pro placar DESSE torneio — nunca pro team.TotalPoints nem pro
-            // TeamMemberScore (ranking individual do time fica isolado de desafios de torneio)
             var entries = await _tournamentTeamRepository.GetActiveEntriesForTeamAsync(teamId, cancellationToken);
             var entry = entries.FirstOrDefault(e => e.TournamentId == tournamentId && e.Status == TournamentTeamStatus.Aprovado);
             if (entry is not null) {
@@ -512,9 +489,6 @@ namespace Pyrra.Application.Desafios {
             submission.ReviewedByUserId = callerId;
             await _submissionRepository.UpdateAsync(submission, cancellationToken);
         }
-
-        // busca submissão pendente do time para avaliar uma vez — só desafios de time (Source
-        // Time); desafios de torneio têm fila própria, ver GetPendingTournamentSubmissionForTeamAsync
         private async Task<ChallengeSubmission> GetPendingSubmissionForTeamAsync(Guid teamId, Guid submissionId, CancellationToken cancellationToken) {
             var submission = await _submissionRepository.GetByIdAsync(submissionId, cancellationToken);
             if (submission is null || submission.TeamId != teamId || submission.Source != ChallengeSource.Time) {
@@ -545,8 +519,6 @@ namespace Pyrra.Application.Desafios {
             return team;
         }
 
-        // Garante que o time está Aprovado NAQUELE torneio específico — cada torneio tem sua
-        // própria fila/aprovador agora (Fase 5b), sem mais "o" torneio ativo do time.
         private async Task<TournamentTeam> GetApprovedEntryAsync(Guid teamId, Guid tournamentId, CancellationToken cancellationToken) {
             var entries = await _tournamentTeamRepository.GetActiveEntriesForTeamAsync(teamId, cancellationToken);
             var entry = entries.FirstOrDefault(e => e.TournamentId == tournamentId && e.Status == TournamentTeamStatus.Aprovado);
@@ -555,18 +527,12 @@ namespace Pyrra.Application.Desafios {
             }
             return entry;
         }
-
-        // valida dono do torneio — mesmo critério de TournamentService.GetOwnedTournamentAsync
         private async Task EnsureTournamentOwnerAsync(Guid ownerId, Guid tournamentId, CancellationToken cancellationToken) {
             var tournament = await _tournamentRepository.GetByIdAsync(tournamentId, cancellationToken);
             if (tournament is null || tournament.OwnerId != ownerId) {
                 throw new NotFoundException("Torneio não encontrado.");
             }
         }
-
-        // apenas pendente ou aprovado bloqueiam novo envio — escopado por torneio+origem porque o
-        // mesmo ChallengeId de catálogo pode ser desafio de time (Source Time) em paralelo a
-        // desafio de um ou mais torneios (Source TorneioCatalogo), sem se misturar
         private async Task EnsureNoActiveTournamentSubmissionAsync(
             Guid userId, Guid teamId, Guid tournamentId, Guid challengeId, ChallengeSource source, CancellationToken cancellationToken) {
             var hasActive = (await _submissionRepository.GetForUserAndTeamAsync(userId, teamId, cancellationToken))
@@ -586,9 +552,6 @@ namespace Pyrra.Application.Desafios {
                 throw new InvalidChallengeException("A imagem deve ter até 3MB.");
             }
         }
-
-        // Quantidade só é exigida quando o desafio tem meta configurada (Fase 5c) — sem meta,
-        // continua binário e a quantidade informada é ignorada (fica nula na submissão).
         private static decimal? ValidateQuantity(decimal? goal, decimal? quantity) {
             if (goal is null) {
                 return null;
@@ -624,9 +587,6 @@ namespace Pyrra.Application.Desafios {
             return submission;
         }
 
-        // busca submissão pendente do torneio pertencente ao time para avaliar uma vez — só
-        // desafios de torneio (Source TorneioCatalogo ou TorneioProprio), o par oposto de
-        // GetPendingSubmissionForTeamAsync
         private async Task<ChallengeSubmission> GetPendingTournamentSubmissionForTeamAsync(
             Guid teamId, Guid tournamentId, Guid submissionId, CancellationToken cancellationToken) {
             var submission = await _submissionRepository.GetByIdAsync(submissionId, cancellationToken);

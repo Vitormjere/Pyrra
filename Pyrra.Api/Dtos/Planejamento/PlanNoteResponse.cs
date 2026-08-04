@@ -11,7 +11,7 @@ namespace Pyrra.Api.Dtos.Planejamento {
         public static PlanNoteResponse FromEntity(DailyPlanNote note) =>
         new(note.Date, note.Content, note.UpdatedAt);
 
-        // Quando não tem nota, retorna uma resposta vazia para manter o mesmo format
+        // quando não tem nota, retorna uma resposta vazia pra manter o mesmo formato
         public static PlanNoteResponse Empty(DateOnly date) =>
             new(date, string.Empty, null);
     }

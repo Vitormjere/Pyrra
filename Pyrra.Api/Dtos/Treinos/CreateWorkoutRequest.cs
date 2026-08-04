@@ -4,7 +4,7 @@ using Pyrra.Application.Treinos;
 using Pyrra.Domain.Treinos;
 
 namespace Pyrra.Api.Dtos.Treinos {
-    // Valida apenas regras comuns. As específicas de cada tipo ficam no service
+    // valida só as regras comuns, as específicas de cada tipo ficam no service
     public record CreateWorkoutRequest(
         [Required] WorkoutType? Type,
         DateOnly? Date = null,

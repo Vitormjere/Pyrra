@@ -11,8 +11,7 @@ using Pyrra.Application.Common.Exceptions;
 using Pyrra.Application.Desafios;
 
 namespace Pyrra.Api.Controllers {
-    // Gerencia os desafios de um torneio específico: vínculo com o catálogo geral e desafios
-    // próprios — restrito ao dono do torneio (Fase 5b)
+    // gerencia os desafios de um torneio: vínculo com o catálogo geral e desafios próprios — só o dono do torneio acessa
     [ApiController]
     [Authorize]
     [Route("api/torneios/{tournamentId:guid}/desafios")]
@@ -38,8 +37,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // vincula um desafio do catálogo geral ao torneio (ou atualiza a meta/unidade se já
-        // estiver vinculado)
+        // vincula um desafio do catálogo geral ao torneio, ou atualiza a meta/unidade se já estiver vinculado
         [HttpPost("catalogo/{challengeId:guid}")]
         public async Task<IActionResult> LinkCatalogChallenge(
             Guid tournamentId, Guid challengeId, LinkTournamentCatalogChallengeRequest? request, CancellationToken cancellationToken) {
@@ -138,9 +136,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Submissões pendentes de TODOS os times participantes do torneio — a fila do dono do
-        // torneio. Aprovar/recusar continua nos endpoints de time (TeamChallengeController),
-        // já que cada submissão pertence a um time específico.
+        // submissões pendentes de todos os times do torneio, a fila do dono — aprovar/recusar continua nos endpoints de time (TeamChallengeController), já que cada submissão é de um time específico
         [HttpGet("submissoes")]
         public async Task<ActionResult<IEnumerable<PendingTournamentSubmissionWithTeamResponse>>> GetPendingSubmissions(Guid tournamentId, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -155,8 +151,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Progresso agregado de cada desafio COM META, cruzando todos os times Aprovados no
-        // torneio — só o dono vê (Fase 5c).
+        // progresso agregado de cada desafio com meta, cruzando todos os times Aprovados no torneio (só o dono vê)
         [HttpGet("progresso")]
         public async Task<ActionResult<IEnumerable<TournamentChallengeProgressResponse>>> GetChallengeProgress(Guid tournamentId, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {

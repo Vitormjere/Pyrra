@@ -12,9 +12,9 @@ namespace Pyrra.Infrastructure.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<DateTime>(
-                name: "DeletedAt",
+                name:  "DeletedAt",
                 table: "Users",
-                type: "datetime2",
+                type:  "datetime2",
                 nullable: true);
         }
 
@@ -22,7 +22,7 @@ namespace Pyrra.Infrastructure.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
-                name: "DeletedAt",
+                name:  "DeletedAt",
                 table: "Users");
         }
     }

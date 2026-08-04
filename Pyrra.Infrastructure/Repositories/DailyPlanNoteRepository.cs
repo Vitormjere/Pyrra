@@ -24,10 +24,6 @@ namespace Pyrra.Infrastructure.Repositories {
                 .Where(n => n.UserId == userId && n.Date >= fromDate)
                 .OrderByDescending(n => n.Date)
                 .ToListAsync(cancellationToken);
-
-        // Mesmo desenho do DailyScoreRepository.UpsertAsync: atualiza a instância já rastreada
-        // pelo contexto, preservando o Id original, para o upsert nunca duplicar a linha do
-        // par usuário+data.
         public async Task<DailyPlanNote> UpsertAsync(DailyPlanNote note, CancellationToken cancellationToken = default) {
             var existing = await GetByUserAndDateAsync(note.UserId, note.Date, cancellationToken);
 

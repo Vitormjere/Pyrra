@@ -158,9 +158,7 @@ namespace Pyrra.Application.Financas {
             return await _entryRepository.GetEntriesByUserAndDateRangeAsync(userId, startDate, endDate, cancellationToken);
         }
 
-        /// <summary>
-        /// calcula a série diária com uma consulta de abertura e outra de lançamentos
-        /// </summary>
+        // calcula a série diária com uma consulta de abertura e outra de lançamentos
         public async Task<IReadOnlyList<DailyBalance>> GetBalanceHistoryAsync(Guid userId, int days = 30, CancellationToken cancellationToken = default) {
             // garante uma janela válida de dias
             var window = Math.Max(1, days);

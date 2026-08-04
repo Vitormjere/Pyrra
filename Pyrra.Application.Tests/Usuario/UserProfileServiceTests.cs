@@ -21,10 +21,10 @@ namespace Pyrra.Application.Tests.Usuario {
 
         private static (UserProfileService service, FakeFriendshipRepository friendships, FakeStreakService streaks)
             Build(params User[] users) {
-            var userRepo = new FakeUserRepository(users);
+            var userRepo       = new FakeUserRepository(users);
             var friendshipRepo = new FakeFriendshipRepository();
-            var streakService = new FakeStreakService();
-            var service = new UserProfileService(userRepo, friendshipRepo, streakService);
+            var streakService  = new FakeStreakService();
+            var service        = new UserProfileService(userRepo, friendshipRepo, streakService);
             return (service, friendshipRepo, streakService);
         }
 
@@ -50,7 +50,7 @@ namespace Pyrra.Application.Tests.Usuario {
             var bob   = MakeUser(Bob, "Bob", "bob", ProfileVisibility.Publico);
             var (service, _, _) = Build(alice, bob);
 
-            // Bob (sem nenhum vínculo com Alice) vê o perfil público dela.
+            // Bob (sem nenhum vínculo com Alice) vê o perfil público dela
             var profile = await service.GetPublicProfileAsync(Bob, "alice");
 
             Assert.Equal(Alice, profile.Id);
@@ -83,7 +83,7 @@ namespace Pyrra.Application.Tests.Usuario {
             var bob   = MakeUser(Bob, "Bob", "bob", ProfileVisibility.Publico);
             var (service, friendships, _) = Build(alice, bob);
 
-            // Pedido enviado mas ainda não aceito.
+            // pedido enviado mas ainda não aceito
             friendships.Friendships.Add(new Friendship {
                 Id = Guid.NewGuid(), RequesterId = Bob, AddresseeId = Alice,
                 Status = FriendshipStatus.Pendente, CreatedAt = DateTime.UtcNow
@@ -142,10 +142,7 @@ namespace Pyrra.Application.Tests.Usuario {
 
         [Fact]
         public async Task NaoRetornaDadosPessoais() {
-            // PublicProfileResult não tem campo de email/preferências — a garantia é de
-            // compilação (o record não expõe esses campos), este teste apenas documenta a
-            // intenção e falharia ao compilar se alguém adicionasse Email por engano sem
-            // atualizar este comentário.
+            // PublicProfileResult não expõe email/preferências — a garantia é de compilação, esse teste só documenta a intenção
             var alice = MakeUser(Alice, "Alice", "alice", ProfileVisibility.Publico);
             var (service, _, _) = Build(alice);
 

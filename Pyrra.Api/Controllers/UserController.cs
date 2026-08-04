@@ -16,9 +16,9 @@ namespace Pyrra.Api.Controllers {
     [Route("api/usuario")]
     public class UserController : ControllerBase {
         private readonly IUserPreferencesService _preferencesService;
-        private readonly IUsernameService _usernameService;
-        private readonly IUserAccountService _accountService;
-        private readonly IUserProfileService _profileService;
+        private readonly IUsernameService        _usernameService;
+        private readonly IUserAccountService     _accountService;
+        private readonly IUserProfileService     _profileService;
 
         public UserController(
             IUserPreferencesService preferencesService,
@@ -31,7 +31,7 @@ namespace Pyrra.Api.Controllers {
             _profileService     = profileService;
         }
 
-        // Métodos de edição da conta, seguindo a ordem da tela de config
+        // métodos de edição da conta, na mesma ordem da tela de config
 
         [HttpPatch("nome")]
         public async Task<ActionResult<UserResponse>> UpdateName(UpdateNameRequest request, CancellationToken cancellationToken) {
@@ -113,9 +113,7 @@ namespace Pyrra.Api.Controllers {
             return Ok(UserResponse.FromEntity(user));
         }
 
-        // Perfil PÚBLICO de terceiro, por username — a única rota deste controller em que o alvo
-        // vem da URL, não do token. O token ainda identifica QUEM está pedindo (viewerId), usado
-        // para a regra de visibilidade: dono sempre vê; SomenteAmigos exige amizade confirmada.
+        // perfil público de terceiro por username — única rota daqui em que o alvo vem da URL, não do token; o token só identifica quem pede, pra regra de visibilidade
         [HttpGet("{username}/perfil")]
         public async Task<ActionResult<PublicProfileResponse>> GetPublicProfile(string username, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var viewerId)) {
@@ -132,7 +130,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Marca o usuário como excluído, bloqueando o acesso nas próximas requisições
+        // soft delete — marca como excluído e bloqueia o acesso nas próximas requisições
         [HttpDelete]
         public async Task<IActionResult> DeleteAccount(DeleteAccountRequest request, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -149,7 +147,6 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Define ou altera o username e retorna o usuário atualizado
         [HttpPut("username")]
         public async Task<ActionResult<UserResponse>> SetUsername(SetUsernameRequest request, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -168,7 +165,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Verifica a disponibilidade do username sem salvar nenhuma alteração
+        // só verifica, não salva nada
         [HttpGet("username/disponivel")]
         public async Task<ActionResult<UsernameAvailabilityResponse>> CheckUsername([FromQuery] string username, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -192,7 +189,7 @@ namespace Pyrra.Api.Controllers {
                     request.EveningNotificationTime!.Value,
                     cancellationToken);
 
-                // Devolve o usuário atualizado pela mesma projeção do /auth/me — sem senha.
+                // mesma projeção do /auth/me, sem senha
                 return Ok(UserResponse.FromEntity(user));
             } catch (InvalidPreferencesException ex) {
                 return BadRequest(new { message = ex.Message });

@@ -22,8 +22,6 @@ namespace Pyrra.Infrastructure.Repositories {
         public Task<Team?> GetByInviteTokenAsync(string inviteToken, CancellationToken cancellationToken = default) =>
             _context.Teams.FirstOrDefaultAsync(t => t.InviteToken == inviteToken, cancellationToken);
 
-        // Times onde o usuário é dono OU tem uma linha em TeamMember — sem navigation property
-        // (convenção do projeto), então o vínculo com TeamMembers é feito via Any() dentro do Where.
         public async Task<IReadOnlyList<Team>> GetForUserAsync(Guid userId, CancellationToken cancellationToken = default) =>
             await _context.Teams
                 .Where(t => t.OwnerId == userId
@@ -36,7 +34,6 @@ namespace Pyrra.Infrastructure.Repositories {
                 .OrderBy(t => t.Name)
                 .ToListAsync(cancellationToken);
 
-        // Sem filtro de visibilidade ou dono — só a listagem administrativa usa isso.
         public async Task<IReadOnlyList<Team>> GetAllAsync(CancellationToken cancellationToken = default) =>
             await _context.Teams
                 .OrderBy(t => t.Name)

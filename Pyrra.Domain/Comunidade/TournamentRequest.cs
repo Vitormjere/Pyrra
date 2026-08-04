@@ -1,13 +1,7 @@
 using System;
 
 namespace Pyrra.Domain.Comunidade {
-    /// <summary>
-    /// Solicitação de qualquer usuário pra criar um torneio novo — avaliada por um admin. Ao
-    /// aprovar, o Tournament é criado de fato com o solicitante como dono, e CreatedTournamentId
-    /// aponta pra ele. Diferente de TeamInvite, uma solicitação Recusada NÃO é reaproveitada —
-    /// cada tentativa vira uma linha nova, já que não há par único (usuário, nome) fazendo sentido
-    /// travar (a pessoa pode propor nomes diferentes, ou tentar de novo com o mesmo).
-    /// </summary>
+
     public class TournamentRequest {
         public Guid Id { get; set; }
         public Guid RequesterId { get; set; }
@@ -16,11 +10,11 @@ namespace Pyrra.Domain.Comunidade {
         public TournamentRequestStatus Status { get; set; } = TournamentRequestStatus.Pendente;
         public DateTime CreatedAt { get; set; }
 
-        // Nulo enquanto Pendente. Preenchido ao aprovar/recusar.
+        // nulo enquanto pendente, preenchido ao aprovar ou recusar
         public DateTime? ReviewedAt { get; set; }
         public Guid? ReviewedByUserId { get; set; }
 
-        // Preenchido só quando Aprovado — aponta pro Tournament criado a partir desta solicitação.
+        // preenchido só quando aprovado
         public Guid? CreatedTournamentId { get; set; }
     }
 

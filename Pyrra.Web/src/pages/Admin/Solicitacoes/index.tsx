@@ -36,8 +36,7 @@ function StatusBadge({ status }: { status: TournamentRequest['status'] }) {
   return null
 }
 
-// Linha de solicitação — compartilhada entre Pendentes (com ações) e Histórico (sem ações,
-// onApprove/onReject ausentes).
+// compartilhada entre Pendentes (com ações) e Histórico (sem onApprove/onReject)
 function RequestRow({
   request,
   busy,
@@ -90,8 +89,7 @@ function RequestRow({
   )
 }
 
-// Fila de solicitações de torneio (Fase Admin-3) — aprova/recusa direto pela tela, sem API
-// manual. Histórico simples logo abaixo, só pra não perder o controle do que já foi decidido.
+// aprova/recusa direto pela tela, com histórico simples abaixo pra não perder o controle do que já foi decidido
 export function AdminSolicitacoes() {
   const { confirm, dialog } = useConfirm()
 

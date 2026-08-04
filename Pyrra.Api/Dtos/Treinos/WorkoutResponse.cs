@@ -15,7 +15,6 @@ namespace Pyrra.Api.Dtos.Treinos {
         decimal? PaceMinPerKm,
         string?  Notes,
         DateTime CreatedAt) {
-        // Retorna o tipo em formato de texto
         public static WorkoutResponse FromEntity(WorkoutLog log) =>
             new(log.Id,
                 log.Type.ToString(),

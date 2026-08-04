@@ -9,10 +9,10 @@ import {
 } from '../../services/userService'
 import { getApiErrorMessage } from '../../services/apiError'
 
-// Mesma regra do backend (UsernameService): 3–20, letras minúsculas, números e underscore.
+// mesma regra do backend (UsernameService): 3-20, letras minúsculas, números e underscore
 const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/
 
-// Tira "@" e espaços e baixa para minúsculas — o que será de fato gravado.
+// tira "@" e espaços e baixa pra minúsculas — o que será de fato gravado
 function normalize(raw: string): string {
   return raw.trim().replace(/^@+/, '').toLowerCase()
 }
@@ -26,9 +26,7 @@ type Availability =
 const inputClasses =
   'w-full rounded-md bg-surface px-4 py-3 pl-9 text-ink ring-1 ring-line transition outline-none placeholder:text-slate-500 focus:ring-2 focus:ring-brand-green'
 
-// Tela de escolha de username: primeiro acesso de quem ainda não tem um (novos e usuários
-// antigos). Checa disponibilidade enquanto digita e só libera o envio quando o nome é válido e
-// livre. Mesmo visual das telas de auth (cartão centralizado, verde neon).
+// primeiro acesso de quem ainda não tem username, checa disponibilidade enquanto digita
 export function EscolherUsername() {
   const { user, applyUser } = useAuth()
   const navigate = useNavigate()
@@ -41,11 +39,7 @@ export function EscolherUsername() {
   const normalized = normalize(value)
   const formatValid = USERNAME_PATTERN.test(normalized)
 
-  // Checagem de disponibilidade com debounce: espera o usuário parar de digitar para não bater no
-  // servidor a cada tecla. Só consulta quando o formato já é válido — o formato inválido não zera
-  // `availability` aqui (setState síncrono no corpo do efeito, que a regra
-  // react-hooks/set-state-in-effect não permite); a renderização abaixo ignora `availability`
-  // sempre que !formatValid, então o valor desatualizado nunca chega a aparecer.
+  // debounce pra não bater no servidor a cada tecla, só consulta quando o formato já é válido
   useEffect(() => {
     if (!formatValid) {
       return
@@ -53,8 +47,7 @@ export function EscolherUsername() {
 
     let active = true
     const timer = setTimeout(async () => {
-      // Dentro do callback do timer (função aninhada, não o corpo do efeito): "verificando" só
-      // aparece quando a checagem de fato começa, depois do debounce.
+      // "verificando" só aparece quando a checagem de fato começa, depois do debounce
       setAvailability({ status: 'checking' })
       try {
         const result = await checkUsernameAvailability(normalized)
@@ -75,7 +68,7 @@ export function EscolherUsername() {
     }
   }, [normalized, formatValid])
 
-  // Quem já tem username não precisa desta tela (ex.: voltou pela URL).
+  // quem já tem username não precisa desta tela (ex.: voltou pela URL)
   if (user?.username) {
     return <Navigate to="/hoje" replace />
   }
@@ -89,7 +82,7 @@ export function EscolherUsername() {
 
     try {
       const updated = await setUsernameApi(normalized)
-      // Aplica direto no contexto: o gate de username passa a liberar sem um GET a mais.
+      // aplica direto no contexto, o gate de username libera sem precisar de um GET a mais
       applyUser(updated)
       navigate('/hoje', { replace: true })
     } catch (err) {
@@ -152,6 +145,7 @@ export function EscolherUsername() {
             )}
             {/* formatValid && guarda contra um availability desatualizado de antes do usuário
                 digitar um formato inválido — ver comentário no efeito acima. */}
+
             {formatValid && availability.status === 'checking' && (
               <p className="text-xs text-slate-500">Verificando…</p>
             )}

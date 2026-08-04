@@ -11,7 +11,7 @@ using Pyrra.Domain.Users;
 
 namespace Pyrra.Application.Comunidade {
     public class TournamentService : ITournamentService {
-        // Mesmas regras do banner de time (mantém o padrão de validação entre os dois recursos)
+        // mesmas regras do banner de time, pra manter a validação consistente entre os dois recursos
         private static readonly HashSet<string> AllowedBannerContentTypes =
             new(StringComparer.OrdinalIgnoreCase) { "image/jpeg", "image/png", "image/webp" };
 
@@ -95,7 +95,7 @@ namespace Pyrra.Application.Comunidade {
 
             var result = new List<TournamentRequestSummary>(pending.Count);
             foreach (var request in pending) {
-                // Solicitante removido: ignora para não quebrar a listagem
+                // solicitante removido: ignora pra não quebrar a listagem
                 if (!requesters.TryGetValue(request.RequesterId, out var requester)) {
                     continue;
                 }
@@ -135,11 +135,7 @@ namespace Pyrra.Application.Comunidade {
             await _requestRepository.UpdateAsync(request, cancellationToken);
         }
 
-        // TODAS as solicitações, qualquer status — a tela administrativa (Fase Admin-3) usa isso
-        // pra montar Pendentes + Histórico de uma vez só, em vez de duas chamadas. Diferente de
-        // GetPendingRequestsAsync acima (que continua existindo, sem uso duplicado): aqui não há
-        // filtro de status na query, e a ordenação é mais recente primeiro — faz mais sentido pra
-        // quem está olhando o histórico do que o "mais antigo primeiro" da fila de pendentes.
+        // todas as solicitações, qualquer status — pra tela admin montar pendentes e histórico numa chamada só, sem filtro de status e ordenada mais recente primeiro, que faz mais sentido pro histórico
         public async Task<IReadOnlyList<TournamentRequestSummary>> GetAllRequestsAsync(Guid adminUserId, CancellationToken cancellationToken = default) {
             await _adminAuth.EnsureAdminAsync(adminUserId, cancellationToken);
 
@@ -152,7 +148,7 @@ namespace Pyrra.Application.Comunidade {
 
             var result = new List<TournamentRequestSummary>(all.Count);
             foreach (var request in all) {
-                // Solicitante removido: ignora para não quebrar a listagem
+                // solicitante removido: ignora pra não quebrar a listagem
                 if (!requesters.TryGetValue(request.RequesterId, out var requester)) {
                     continue;
                 }
@@ -275,7 +271,7 @@ namespace Pyrra.Application.Comunidade {
                 .ToList();
         }
 
-        // ---- internos ----
+        // internos
 
         private async Task<Tournament> CreateTournamentAsync(
             Guid ownerId, string name, string? description, TeamBannerTheme bannerTheme, CancellationToken cancellationToken) {
@@ -306,9 +302,7 @@ namespace Pyrra.Application.Comunidade {
 
             var results = new List<TournamentSummary>(tournaments.Count);
             foreach (var tournament in tournaments) {
-                // Dono removido (conta excluída, soft delete): ignora para não quebrar a
-                // listagem inteira por causa de UM torneio órfão — mesmo critério de
-                // GetPendingRequestsAsync com solicitante removido.
+                // dono removido (soft delete): ignora pra não quebrar a listagem toda por causa de um torneio órfão — mesmo critério de GetPendingRequestsAsync com solicitante removido
                 var summary = await TryToSummaryAsync(tournament, userId, cancellationToken);
                 if (summary is not null) {
                     results.Add(summary);
@@ -318,8 +312,7 @@ namespace Pyrra.Application.Comunidade {
             return results.OrderBy(t => t.Name).ToList();
         }
 
-        // Versão que não lança: dono removido vira null em vez de exceção, pra quem lista vários
-        // torneios de uma vez poder simplesmente pular o órfão (ver ToSummariesAsync).
+        // versão que não lança: dono removido vira null em vez de exceção, pra quem lista vários torneios poder pular o órfão (ver ToSummariesAsync)
         private async Task<TournamentSummary?> TryToSummaryAsync(Tournament tournament, Guid userId, CancellationToken cancellationToken) {
             var owner = await _userRepository.GetByIdAsync(tournament.OwnerId, cancellationToken);
             if (owner is null) {
@@ -336,10 +329,7 @@ namespace Pyrra.Application.Comunidade {
                 tournament.BannerImageUrl);
         }
 
-        // Dono removido (conta excluída): trata o torneio como inexistente — mesmo critério de
-        // GetTournamentAsync/GetOwnedTournamentAsync. Usado por GetDetailsAsync e pelas ações de
-        // banner, onde só existe UM torneio em jogo (não dá pra simplesmente pular como na
-        // listagem) — a resposta correta é 404, igual a acessar um torneio que nunca existiu.
+        // dono removido: trata o torneio como inexistente, mesmo critério de GetTournamentAsync/GetOwnedTournamentAsync — usado onde só existe um torneio em jogo (GetDetailsAsync, ações de banner), então a resposta certa é 404 em vez de simplesmente pular
         private async Task<TournamentSummary> ToSummaryAsync(Tournament tournament, Guid userId, CancellationToken cancellationToken) {
             var summary = await TryToSummaryAsync(tournament, userId, cancellationToken);
             if (summary is null) {
@@ -356,7 +346,7 @@ namespace Pyrra.Application.Comunidade {
             return tournament;
         }
 
-        // Garante que o usuário é dono. Quem não for recebe NotFound genérico
+        // garante que o usuário é dono — quem não for recebe NotFound genérico
         private async Task<Tournament> GetOwnedTournamentAsync(Guid ownerId, Guid tournamentId, CancellationToken cancellationToken) {
             var tournament = await _tournamentRepository.GetByIdAsync(tournamentId, cancellationToken);
             if (tournament is null || tournament.OwnerId != ownerId) {
@@ -378,14 +368,14 @@ namespace Pyrra.Application.Comunidade {
             return request;
         }
 
-        // Lógica compartilhada: só muda como o torneio é encontrado antes de chegar aqui
+        // lógica compartilhada — só muda como o torneio foi encontrado antes de chegar aqui
         private async Task<TournamentTeamSummary> RequestEntryCoreAsync(Guid teamOwnerId, Guid teamId, Tournament tournament, CancellationToken cancellationToken) {
             var team = await _teamRepository.GetByIdAsync(teamId, cancellationToken);
             if (team is null || team.OwnerId != teamOwnerId) {
                 throw new NotFoundException("Time não encontrado.");
             }
 
-            // Recusados não contam nem aqui nem no limite abaixo — podem tentar de novo livremente
+            // recusados não contam aqui nem no limite abaixo — podem tentar de novo livremente
             var activeEntries = await _tournamentTeamRepository.GetActiveEntriesForTeamAsync(teamId, cancellationToken);
 
             if (activeEntries.Any(e => e.TournamentId == tournament.Id)) {
@@ -409,14 +399,14 @@ namespace Pyrra.Application.Comunidade {
             return ToTournamentTeamSummary(entry, team);
         }
 
-        // Garante que a entrada é pendente e pertence ao torneio antes de aprovar ou recusar
+        // garante que a entrada é pendente e pertence a esse torneio antes de aprovar ou recusar
         private async Task<TournamentTeam> GetPendingEntryForOwnerAsync(Guid tournamentOwnerId, Guid tournamentId, Guid tournamentTeamId, CancellationToken cancellationToken) {
             var entry = await _tournamentTeamRepository.GetByIdAsync(tournamentTeamId, cancellationToken);
             if (entry is null || entry.TournamentId != tournamentId) {
                 throw new NotFoundException($"Solicitação de entrada '{tournamentTeamId}' não encontrada.");
             }
 
-            // Torneio inexistente ou de outro dono retorna NotFound genérico
+            // torneio inexistente ou de outro dono retorna NotFound genérico
             await GetOwnedTournamentAsync(tournamentOwnerId, tournamentId, cancellationToken);
 
             if (entry.Status != TournamentTeamStatus.Pendente) {
@@ -433,7 +423,7 @@ namespace Pyrra.Application.Comunidade {
 
             var result = new List<TournamentTeamSummary>(entries.Count);
             foreach (var entry in entries) {
-                // Time removido: ignora para manter a listagem
+                // time removido: ignora pra manter a listagem
                 var team = await _teamRepository.GetByIdAsync(entry.TeamId, cancellationToken);
                 if (team is null) {
                     continue;

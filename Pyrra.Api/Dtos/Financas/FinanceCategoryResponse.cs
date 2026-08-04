@@ -2,7 +2,7 @@ using System;
 using Pyrra.Domain.Financas;
 
 namespace Pyrra.Api.Dtos.Financas {
-    // Retorna apenas os dados necessários da categoria, sem expor o ID do usuário
+    // só os dados necessários da categoria, sem expor o id do usuário
     public record FinanceCategoryResponse(
         Guid   Id,
         string Name,

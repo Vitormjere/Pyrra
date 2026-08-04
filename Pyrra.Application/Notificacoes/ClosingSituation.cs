@@ -4,16 +4,16 @@ namespace Pyrra.Application.Notificacoes {
         // sem focos ativos, não há metas para concluir
         SemFocos,
 
-        // Tem focos, mas nenhum concluído ainda hoje
+        // tem focos, mas nenhum concluído ainda hoje
         Nada,
 
-        // Fez algo, mas abaixo de 50%
+        // fez algo, mas abaixo de 50%
         Longe,
 
         // faixa entre 50% e a meta sem incluir a meta
         Perto,
 
-        // Meta batida (>= 70%)
+        // meta batida (>= 70%)
         MetaBatida
     }
 }

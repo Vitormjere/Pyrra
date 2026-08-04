@@ -9,7 +9,7 @@ namespace Pyrra.Application.Common.Interfaces {
         Task<IReadOnlyList<PendingFreezeUse>> GetPendingByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
         Task AddRangeAsync(IReadOnlyCollection<PendingFreezeUse> freezeUses, CancellationToken cancellationToken = default);
 
-        // Confirma apenas os avisos pendentes do próprio usuário
+        // confirma só os avisos pendentes do próprio usuário
         Task<int> AcknowledgeAsync(Guid userId, IReadOnlyCollection<Guid>? ids, DateTime acknowledgedAt, CancellationToken cancellationToken = default);
     }
 }

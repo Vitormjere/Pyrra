@@ -10,8 +10,8 @@ using Xunit;
 
 namespace Pyrra.Application.Tests.Desafios {
     public class TournamentChallengeServiceTests {
-        private static readonly Guid OwnerId    = Guid.Parse("11111111-1111-1111-1111-111111111111");
-        private static readonly Guid OutsiderId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+        private static readonly Guid OwnerId      = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        private static readonly Guid OutsiderId   = Guid.Parse("22222222-2222-2222-2222-222222222222");
         private static readonly Guid TournamentId = Guid.Parse("33333333-3333-3333-3333-333333333333");
 
         private static (TournamentChallengeService service, FakeTournamentRepository tournaments,
@@ -26,24 +26,22 @@ namespace Pyrra.Application.Tests.Desafios {
                 CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
             });
 
-            var challenges  = new FakeChallengeRepository();
-            var categories  = new FakeChallengeCategoryRepository();
-            var links        = new FakeTournamentChallengeRepository();
-            var ownChallenges = new FakeTournamentOwnChallengeRepository();
-            var submissions  = new FakeChallengeSubmissionRepository();
-            var members      = new FakeTeamMemberRepository();
-            var teams        = new FakeTeamRepository(members);
-            var users        = new FakeUserRepository();
+            var challenges        = new FakeChallengeRepository();
+            var categories        = new FakeChallengeCategoryRepository();
+            var links             = new FakeTournamentChallengeRepository();
+            var ownChallenges     = new FakeTournamentOwnChallengeRepository();
+            var submissions       = new FakeChallengeSubmissionRepository();
+            var members           = new FakeTeamMemberRepository();
+            var teams             = new FakeTeamRepository(members);
+            var users             = new FakeUserRepository();
             var tournamentEntries = new FakeTournamentTeamRepository();
-            var clock        = new FakeClock();
+            var clock             = new FakeClock();
 
             var service = new TournamentChallengeService(tournaments, challenges, categories, links, ownChallenges, submissions, teams, tournamentEntries, users, clock);
             return (service, tournaments, challenges, categories, links, ownChallenges, clock, submissions, teams, users, tournamentEntries);
         }
 
-        // Cria uma entrada Aprovada de um time no torneio compartilhado (TournamentId) — base pro
-        // progresso agregado que o dono vê (Fase 5c). Cada teste que precisa de mais de um time
-        // passa um teamId diferente.
+        // cria uma entrada aprovada de um time no torneio compartilhado — base pro progresso agregado que o dono vê; cada teste passa um teamId diferente
         private static void ApproveTeamInTournament(FakeTournamentTeamRepository entries, Guid teamId) =>
             entries.Entries.Add(new TournamentTeam {
                 Id = Guid.NewGuid(), TournamentId = TournamentId, TeamId = teamId,
@@ -136,7 +134,7 @@ namespace Pyrra.Application.Tests.Desafios {
             await Assert.ThrowsAsync<NotFoundException>(() => service.LinkCatalogChallengeAsync(OwnerId, TournamentId, Guid.NewGuid(), null, null));
         }
 
-        // ---- meta/unidade do vínculo com o catálogo (Fase 5c) ----
+        // ---- meta/unidade do vínculo com o catálogo ----
 
         [Fact]
         public async Task LinkCatalogChallenge_ComMetaEUnidade_Salva() {
@@ -312,7 +310,7 @@ namespace Pyrra.Application.Tests.Desafios {
                 service.CreateOwnChallengeAsync(OwnerId, TournamentId, "Título", null, 0, null, null));
         }
 
-        // ---- meta/unidade do desafio próprio (Fase 5c) ----
+        // ---- meta/unidade do desafio próprio ----
 
         [Fact]
         public async Task CreateOwnChallenge_ComMetaEUnidade_Salva() {
@@ -523,7 +521,7 @@ namespace Pyrra.Application.Tests.Desafios {
             await Assert.ThrowsAsync<NotFoundException>(() => service.GetPendingSubmissionsAsync(OutsiderId, TournamentId));
         }
 
-        // ---- progresso agregado por time, desafios com meta (Fase 5c) ----
+        // ---- progresso agregado por time, desafios com meta ----
 
         [Fact]
         public async Task GetChallengeProgress_SomaAprovadasPorTimeESoIncluiDesafiosComMeta() {

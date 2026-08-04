@@ -181,7 +181,7 @@ namespace Pyrra.Application.Tests.Chat {
             await service.SendMessageAsync(PlayerId, AdminId, "1");
             clock.UtcNow = clock.UtcNow.AddMinutes(1);
             await service.SendMessageAsync(AdminId, PlayerId, "2");
-            // Ruído: conversa de outro par, não deve aparecer.
+            // conversa de outro par, é só ruído e não deveria aparecer
             await service.SendMessageAsync(OtherPlayerId, AdminId, "outra conversa");
 
             var conversation = await service.GetConversationAsync(AdminId, PlayerId);
@@ -197,8 +197,7 @@ namespace Pyrra.Application.Tests.Chat {
             await service.SendMessageAsync(PlayerId, AdminId, "conversa de player com admin");
             await service.SendMessageAsync(OtherPlayerId, AdminId, "conversa de other player com admin");
 
-            // OtherPlayerId consultando a conversa dele com Player (que nunca existiu) não enxerga a
-            // conversa de Player com Admin, mesmo que Admin apareça nos dois pares.
+            // otherplayer consultando a conversa com player (que nunca existiu) não vaza a conversa dele com admin
             var conversation = await service.GetConversationAsync(OtherPlayerId, PlayerId);
 
             Assert.Empty(conversation);

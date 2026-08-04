@@ -41,7 +41,7 @@ const TONE_HINTS: Record<CommunicationTone, string> = {
   Desafiador: 'Provocador, te cutuca a ir além.',
 }
 
-// Mesma regra do backend (UsernameService): 3–20, minúsculas, números e underscore.
+// mesma regra do backend (UsernameService): 3-20, minúsculas, números e underscore
 const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/
 
 function normalizeUsername(raw: string): string {
@@ -62,9 +62,7 @@ type UsernameAvailability =
   | { status: 'available' }
   | { status: 'unavailable'; reason: string }
 
-// Tela de Configurações: tudo que é edição/administração da conta, separado do Perfil (que é só
-// leitura + identidade social). Cada seção é seu próprio form com seu próprio save — nada aqui
-// depende de outra seção, então salvar uma não arrisca perder o que está sendo digitado nas outras.
+// edição/administração da conta (separado do Perfil, que é só leitura) — cada seção tem seu próprio form e save, independentes entre si
 export function Configuracoes() {
   const { user, refreshUser, applyUser, logout } = useAuth()
   const navigate = useNavigate()
@@ -265,7 +263,7 @@ function PasswordSection() {
   const [error, setError] = useState<string | null>(null)
 
   const newPasswordValid = newPassword.length >= 8
-  // Confirmação é só client-side, mesmo critério do Cadastro: o backend não conhece esse campo.
+  // confirmação é só client-side, mesmo critério do Cadastro
   const confirmMatches = confirmPassword.length > 0 && confirmPassword === newPassword
   const canSubmit = currentPassword.length > 0 && newPasswordValid && confirmMatches
 
@@ -382,8 +380,7 @@ function PreferencesSection({
     setSaving(true)
     setError(null)
     try {
-      // Dois endpoints (o backend mantém tom/horário e fuso decoupled), uma única ação de salvar
-      // na tela: o usuário vê isso como "minhas preferências", não como dois recursos distintos.
+      // dois endpoints no backend (tom/horário e fuso são desacoplados), mas uma única ação de salvar aqui
       await Promise.all([
         updatePreferences(tone, notificationTime),
         updateTimezone(timezone),
@@ -486,10 +483,7 @@ function UsernameSection({
   const formatValid = USERNAME_PATTERN.test(normalized)
   const changed = normalized !== currentUsername
 
-  // Checagem de disponibilidade com debounce, só quando o formato é válido E mudou em relação ao
-  // atual. Formato inválido/sem mudança não zera `availability` aqui (setState síncrono no corpo
-  // do efeito, que a regra react-hooks/set-state-in-effect não permite); a renderização abaixo
-  // ignora `availability` sempre que uma das duas condições falha.
+  // checagem de disponibilidade com debounce, só quando o formato é válido e mudou do atual
   useEffect(() => {
     if (!formatValid || !changed) {
       return
@@ -609,8 +603,7 @@ function PrivacySection({
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Salva assim que o usuário escolhe outra opção — igual ao tom em Preferências, mas aqui é a
-  // ÚNICA coisa da seção, então um toggle que já persiste é mais direto que exigir outro clique.
+  // salva assim que o usuário escolhe outra opção, igual ao tom em Preferências — é a única coisa da seção
   async function handleChange(next: ProfileVisibility) {
     if (next === visibility || saving) return
 

@@ -85,8 +85,7 @@ namespace Pyrra.Application.Desafios {
 
             var normalizedGoal = ValidateGoal(goal, ref unit);
 
-            // Já vinculado: atualiza a meta/unidade em vez de não fazer nada — evita ter que
-            // desvincular e vincular de novo só pra editar (Fase 5c).
+            // já vinculado: atualiza a meta/unidade em vez de não fazer nada — evita ter que desvincular e vincular de novo só pra editar
             var existing = await _tournamentChallengeRepository.GetAsync(tournamentId, challengeId, cancellationToken);
             if (existing is not null) {
                 existing.Goal = normalizedGoal;
@@ -190,9 +189,7 @@ namespace Pyrra.Application.Desafios {
             var ownById     = (await _ownChallengeRepository.GetByTournamentAsync(tournamentId, cancellationToken)).ToDictionary(c => c.Id);
             var submitters  = await LoadUsersAsync(pending.Select(s => s.UserId), cancellationToken);
 
-            // catálogo pequeno de times por torneio, busca individual em vez de bulk (mesmo
-            // critério de outros pontos do projeto que evitam adicionar um GetByIdsAsync só pra
-            // uma coleção que na prática é pequena)
+            // times por torneio são poucos, então busca individual em vez de bulk — mesmo critério usado em outros pontos do projeto pra não criar um GetByIdsAsync só pra uma coleção pequena
             var teamsById = new Dictionary<Guid, string>();
             foreach (var teamId in pending.Select(s => s.TeamId).Distinct()) {
                 var team = await _teamRepository.GetByIdAsync(teamId, cancellationToken);
@@ -238,8 +235,6 @@ namespace Pyrra.Application.Desafios {
                 return Array.Empty<TournamentChallengeProgress>();
             }
 
-            // catálogo pequeno de times por torneio, busca individual (mesmo critério de
-            // GetPendingSubmissionsAsync acima)
             var teamNamesById = new Dictionary<Guid, string>();
             foreach (var entry in approvedEntries) {
                 var team = await _teamRepository.GetByIdAsync(entry.TeamId, cancellationToken);
@@ -248,7 +243,6 @@ namespace Pyrra.Application.Desafios {
                 }
             }
 
-            // soma das Aprovadas por (desafio, time) — base do progresso de cada linha abaixo
             var sumsByChallengeAndTeam = (await _submissionRepository.GetApprovedForTournamentAsync(tournamentId, cancellationToken))
                 .Where(s => s.Quantity.HasValue)
                 .GroupBy(s => s.ChallengeId)
@@ -300,8 +294,6 @@ namespace Pyrra.Application.Desafios {
 
         private static UserSummary ToSummary(User user) => new(user.Id, user.Name, user.Username);
 
-        // Garante que o usuário é dono do torneio. Quem não for recebe NotFound genérico — mesmo
-        // critério de TournamentService.GetOwnedTournamentAsync.
         private async Task EnsureOwnerAsync(Guid ownerId, Guid tournamentId, CancellationToken cancellationToken) {
             var tournament = await _tournamentRepository.GetByIdAsync(tournamentId, cancellationToken);
             if (tournament is null || tournament.OwnerId != ownerId) {
@@ -330,9 +322,6 @@ namespace Pyrra.Application.Desafios {
             return normalizedTitle;
         }
 
-        // Meta e unidade andam juntas (Fase 5c) — uma sem a outra não faz sentido. Nulas as duas =
-        // sem meta, desafio continua binário (sem progresso). Normaliza a unidade (trim) e garante
-        // meta > 0 quando informada.
         private static decimal? ValidateGoal(decimal? goal, ref string? unit) {
             var normalizedUnit = string.IsNullOrWhiteSpace(unit) ? null : unit.Trim();
 

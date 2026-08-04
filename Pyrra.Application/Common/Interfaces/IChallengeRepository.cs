@@ -10,7 +10,7 @@ namespace Pyrra.Application.Common.Interfaces {
         Task<IReadOnlyList<Challenge>> GetByCategoryAsync(Guid categoryId, CancellationToken cancellationToken = default);
         Task<Challenge?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
-        // Verifica se a categoria pode ser removida
+        // verifica se a categoria pode ser removida
         Task<bool> AnyByCategoryAsync(Guid categoryId, CancellationToken cancellationToken = default);
 
         Task AddAsync(Challenge challenge, CancellationToken cancellationToken = default);

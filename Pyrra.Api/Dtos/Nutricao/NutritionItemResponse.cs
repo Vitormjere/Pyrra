@@ -2,7 +2,7 @@ using System;
 using Pyrra.Domain.Nutricao;
 
 namespace Pyrra.Api.Dtos.Nutricao {
-    // A refeição não é retornada, pois já é definida pelo grupo correspondente
+    // refeição não vem aqui, já tá definida no grupo correspondente
     public record NutritionItemResponse(
         Guid     Id,
         string   ItemName,

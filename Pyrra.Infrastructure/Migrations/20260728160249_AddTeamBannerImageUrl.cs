@@ -11,9 +11,9 @@ namespace Pyrra.Infrastructure.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<string>(
-                name: "BannerImageUrl",
+                name:  "BannerImageUrl",
                 table: "Teams",
-                type: "nvarchar(500)",
+                type:  "nvarchar(500)",
                 maxLength: 500,
                 nullable: true);
         }
@@ -22,7 +22,7 @@ namespace Pyrra.Infrastructure.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
-                name: "BannerImageUrl",
+                name:  "BannerImageUrl",
                 table: "Teams");
         }
     }

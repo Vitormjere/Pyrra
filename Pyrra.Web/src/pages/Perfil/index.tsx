@@ -13,9 +13,7 @@ const TONE_LABELS: Record<CommunicationTone, string> = {
   Desafiador: 'Desafiador',
 }
 
-// Tela pública/social: identidade (nome, @username, avatar), números que valem a pena mostrar
-// (amigos, streak) e um resumo SÓ LEITURA das preferências — editar qualquer coisa daqui em
-// diante é em /configuracoes, que concentra os formulários. Perfil não tem form nenhum.
+// identidade, números que valem a pena mostrar e um resumo só leitura das preferências — editar é tudo em /configuracoes, aqui não tem form nenhum
 export function Perfil() {
   const { user } = useAuth()
 
@@ -30,14 +28,14 @@ export function Perfil() {
         const count = await getFriendsCount()
         if (active) setFriendCount(count)
       } catch {
-        // Silencioso: um número a menos não deve derrubar a tela.
+        // silencioso: um número a menos não deve derrubar a tela
       }
 
       try {
         const status = await getStreakStatus()
         if (active) setStreak({ current: status.displayCount, best: status.bestCount })
       } catch {
-        // Idem — o streak é um extra, não o núcleo da tela.
+        // idem — o streak é um extra, não o núcleo da tela
       }
     }
 

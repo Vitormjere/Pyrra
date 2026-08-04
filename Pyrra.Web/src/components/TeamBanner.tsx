@@ -1,15 +1,8 @@
 import { TEAM_BANNER_GRADIENTS } from '../utils/teamBanners'
 import type { TeamBannerTheme } from '../types/teams'
 
-// Banner — imagem customizada (quando existe) tem prioridade sobre o gradiente temático,
-// reaproveitado na lista "Meus Times", no header de Detalhe e nos cards de Explorar. Proporção
-// 4:3 fixa nos dois casos (imagem ou cor), pra não ficar a faixa larga/baixa de antes, que
-// cortava fotos de forma agressiva.
-//
-// `title`, quando passado, é sobreposto na base do banner com um degradê escuro por trás — só
-// faz sentido pra imagem (dar legibilidade ao texto sobre a foto); no caso de cor sólida não há
-// nada "cortando", então o gradiente de cor continua exatamente como antes, sem overlay de texto
-// (quem chama continua exibindo o nome por fora, como já fazia).
+// imagem customizada tem prioridade sobre o gradiente temático, proporção 4:3 fixa nos dois casos
+// title só se aplica com imagem — sobrepõe um degradê escuro pra dar legibilidade ao texto
 export function TeamBanner({
   theme,
   imageUrl,
@@ -27,8 +20,7 @@ export function TeamBanner({
     return (
       <div className={classes}>
         <img src={imageUrl} alt="" aria-hidden="true" className="absolute inset-0 size-full object-cover" />
-        {/* Fade em vez de corte seco: a foto quase inteira, escurecendo suave na base — e é o que
-            dá contraste pro nome do time ficar legível por cima, quando `title` é passado. */}
+        {/* fade em vez de corte seco, dá contraste pro nome do time ficar legível por cima */}
         <div
           aria-hidden="true"
           className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/80 via-black/20 to-transparent"

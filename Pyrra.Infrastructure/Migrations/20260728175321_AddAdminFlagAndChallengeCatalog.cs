@@ -8,14 +8,11 @@ namespace Pyrra.Infrastructure.Migrations
     /// <inheritdoc />
     public partial class AddAdminFlagAndChallengeCatalog : Migration
     {
-        // E-mail marcado como admin nesta migration de dados, conforme pedido: sem fluxo de "virar
-        // admin" pela UI, só por aqui ou SQL manual.
+
         private const string InitialAdminEmail = "vitormjeremias@hotmail.com";
 
         private static readonly DateTime SeedDate = new(2026, 7, 28, 12, 0, 0, DateTimeKind.Utc);
 
-        // Guids fixos pro catálogo inicial — mesmo raciocínio dos times oficiais e das categorias
-        // padrão de Finanças: gerado a cada execução produziria ids diferentes entre dev e produção.
         private static readonly Guid CorridaCategoryId        = new("c1000000-0000-4000-8000-000000000001");
         private static readonly Guid AcademiaCategoryId       = new("c1000000-0000-4000-8000-000000000002");
         private static readonly Guid NutricaoCategoryId       = new("c1000000-0000-4000-8000-000000000003");
@@ -35,13 +32,13 @@ namespace Pyrra.Infrastructure.Migrations
                 name: "ChallengeCategories",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Id          = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Name        = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     Description = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
-                    Icon = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    Color = table.Column<int>(type: "int", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    Icon        = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    Color       = table.Column<int>(type: "int", nullable: false),
+                    CreatedAt   = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    UpdatedAt   = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -52,14 +49,14 @@ namespace Pyrra.Infrastructure.Migrations
                 name: "Challenges",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    CategoryId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Title = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    Id          = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    CategoryId  = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Title       = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
                     Description = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
-                    Points = table.Column<int>(type: "int", nullable: false),
-                    Deadline = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    Points      = table.Column<int>(type: "int", nullable: false),
+                    Deadline    = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    CreatedAt   = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    UpdatedAt   = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -71,14 +68,9 @@ namespace Pyrra.Infrastructure.Migrations
                 table: "Challenges",
                 column: "CategoryId");
 
-            // Marca o admin inicial por e-mail em vez de por Id: mais legível na revisão da
-            // migration e não depende de conhecer o Guid do usuário de antemão. Sem efeito se o
-            // e-mail ainda não existir no banco de destino (ex.: banco novo/local).
             migrationBuilder.Sql(
                 $"UPDATE [Users] SET [IsAdmin] = 1 WHERE [Email] = N'{InitialAdminEmail}';");
 
-            // Categorias iniciais — cor/ícone só para ter algo visível assim que o front consumir
-            // o catálogo; admin ajusta depois pelos próprios endpoints.
             migrationBuilder.InsertData(
                 table: "ChallengeCategories",
                 columns: new[] { "Id", "Name", "Description", "Icon", "Color", "CreatedAt", "UpdatedAt" },

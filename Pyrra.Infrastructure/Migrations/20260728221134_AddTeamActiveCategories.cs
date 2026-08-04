@@ -15,9 +15,9 @@ namespace Pyrra.Infrastructure.Migrations
                 name: "TeamActiveCategories",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    TeamId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    CategoryId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id          = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    TeamId      = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    CategoryId  = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     ActivatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
@@ -26,10 +26,10 @@ namespace Pyrra.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_TeamActiveCategories_TeamId_CategoryId",
-                table: "TeamActiveCategories",
+                name:    "IX_TeamActiveCategories_TeamId_CategoryId",
+                table:   "TeamActiveCategories",
                 columns: new[] { "TeamId", "CategoryId" },
-                unique: true);
+                unique:  true);
         }
 
         /// <inheritdoc />

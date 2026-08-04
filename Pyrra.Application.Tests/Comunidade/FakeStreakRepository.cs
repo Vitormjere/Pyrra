@@ -6,8 +6,6 @@ using Pyrra.Application.Common.Interfaces;
 using Pyrra.Domain.Focos;
 
 namespace Pyrra.Application.Tests.Comunidade {
-    // Só GetByUserIdAsync é exercitado pelo RankingService (lê StreakStartDate depois do settle,
-    // feito via IStreakService) — UpsertAsync não é chamado nos testes que usam este fake.
     internal sealed class FakeStreakRepository : IStreakRepository {
         private readonly Dictionary<Guid, Streak> _byUser = new();
 

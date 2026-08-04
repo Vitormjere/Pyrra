@@ -9,7 +9,6 @@ namespace Pyrra.Application.Common.Interfaces {
     public interface INutritionPlanItemRepository {
         Task<IReadOnlyList<NutritionPlanItem>> GetByUserAsync(Guid userId, CancellationToken cancellationToken = default);
 
-        // Retorna os itens do plano para o dia da semana informado
         Task<IReadOnlyList<NutritionPlanItem>> GetByUserAndDayAsync(Guid userId, WeekDay dayOfWeek, CancellationToken cancellationToken = default);
 
         Task<NutritionPlanItem?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);

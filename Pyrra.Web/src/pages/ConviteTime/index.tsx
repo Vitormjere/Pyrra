@@ -11,7 +11,7 @@ type State =
   | { status: 'done'; outcome: JoinOutcome; teamName: string; teamId: string }
   | { status: 'error' }
 
-// Mensagem por desfecho, na perspectiva de quem ABRIU o link.
+// mensagem por desfecho, na perspectiva de quem abriu o link
 function messageFor(outcome: JoinOutcome, teamName: string): string {
   switch (outcome) {
     case 'Joined':
@@ -25,15 +25,13 @@ function messageFor(outcome: JoinOutcome, teamName: string): string {
   }
 }
 
-// Abertura do link de convite de time. Logado: entra na hora e mostra o resultado. Deslogado:
-// guarda o token e manda para o login — o TeamInvitesProvider consome depois de autenticar.
-// Mesmo padrão de Convite/index.tsx (convite de amizade).
+// logado: entra na hora. deslogado: guarda o token e manda pro login — mesmo padrão de Convite/index.tsx
 export function ConviteTime() {
   const { token } = useParams<{ token: string }>()
   const { user, loading } = useAuth()
   const [state, setState] = useState<State>({ status: 'loading' })
 
-  // Evita disparar a entrada duas vezes (StrictMode monta o efeito, desmonta e remonta em dev).
+  // evita disparar a entrada duas vezes (StrictMode remonta o efeito em dev)
   const attempted = useRef(false)
 
   useEffect(() => {
@@ -59,7 +57,7 @@ export function ConviteTime() {
     return <Centered>Carregando…</Centered>
   }
 
-  // Deslogado: guarda o convite e manda para o login. O provider o consome após autenticar.
+  // deslogado: guarda o convite e manda pro login, o provider consome após autenticar
   if (!user) {
     if (token) localStorage.setItem(PENDING_TEAM_INVITE_KEY, token)
     return <Navigate to="/login" replace />

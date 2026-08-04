@@ -1,5 +1,5 @@
 namespace Pyrra.Application.Common.Exceptions {
-    // Indica que a operação do torneio é inválida
+    // quando uma operação do torneio não pode ser realizada
     public class InvalidTournamentException : Exception {
         public InvalidTournamentException(string message) : base(message) { }
     }

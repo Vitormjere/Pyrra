@@ -249,9 +249,6 @@ namespace Pyrra.Application.Treinos {
             log.Sets         = input.Sets;
             log.Reps         = input.Reps;
         }
-
-        // em corrida, distância e duração são obrigatórias
-        // calcula o pace quando não for informado
         private static void ApplyCorrida(WorkoutLog log, CreateWorkoutInput input) {
             if (input.DistanceKm is null) {
                 throw new InvalidWorkoutException("Treino de Corrida exige a distância em km.");

@@ -10,8 +10,7 @@ import type { UserSummary } from '../../types/community'
 
 const listClasses = 'divide-y divide-line overflow-hidden rounded-md bg-surface ring-1 ring-line'
 
-// Chat do jogador com o(s) admin(s) (Fase Admin-4a). Com um admin só (caso comum), vai direto pra
-// conversa, sem seletor. Com mais de um, mostra uma lista pra escolher — decisão já combinada.
+// chat do jogador com o(s) admin(s) — com um admin só vai direto pra conversa, com mais de um mostra uma lista pra escolher
 export function Suporte() {
   const [admins, setAdmins] = useState<UserSummary[] | null>(null)
   const [conversations, setConversations] = useState<ChatConversation[] | null>(null)

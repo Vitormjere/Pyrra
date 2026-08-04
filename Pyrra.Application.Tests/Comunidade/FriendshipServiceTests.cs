@@ -77,7 +77,7 @@ namespace Pyrra.Application.Tests.Comunidade {
             var (service, friendships, _, _) = Build();
             await service.SendRequestAsync(Alice, Bob);
 
-            // Bob tenta pedir de volta enquanto o pedido de Alice está pendente.
+            // Bob tenta pedir de volta enquanto o pedido de Alice está pendente
             await Assert.ThrowsAsync<InvalidFriendshipException>(() => service.SendRequestAsync(Bob, Alice));
             Assert.Single(friendships.Friendships);
         }
@@ -103,7 +103,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
             await service.AcceptAsync(Bob, pending.FriendshipId);
 
-            // Amizade aparece para os DOIS lados.
+            // amizade aparece pros dois lados
             var aliceFriends = await service.GetFriendsAsync(Alice);
             var bobFriends = await service.GetFriendsAsync(Bob);
             Assert.Equal(Bob, Assert.Single(aliceFriends).User.Id);
@@ -127,7 +127,7 @@ namespace Pyrra.Application.Tests.Comunidade {
             await service.SendRequestAsync(Alice, Bob);
             var pendingId = (await service.GetPendingReceivedAsync(Bob)).Single().FriendshipId;
 
-            // Alice (a remetente) não pode aceitar o próprio pedido; Carol (terceira) também não.
+            // Alice (a remetente) não pode aceitar o próprio pedido, Carol (terceira) também não
             await Assert.ThrowsAsync<NotFoundException>(() => service.AcceptAsync(Alice, pendingId));
             await Assert.ThrowsAsync<NotFoundException>(() => service.AcceptAsync(Carol, pendingId));
         }
@@ -152,7 +152,7 @@ namespace Pyrra.Application.Tests.Comunidade {
             var pending = (await service.GetPendingReceivedAsync(Bob)).Single();
             await service.DeclineAsync(Bob, pending.FriendshipId);
 
-            // Novo pedido depois da recusa: reaproveita a mesma linha, volta a Pendente.
+            // novo pedido depois da recusa reaproveita a mesma linha e volta a Pendente
             await service.SendRequestAsync(Alice, Bob);
 
             var f = Assert.Single(friendships.Friendships);
@@ -167,7 +167,7 @@ namespace Pyrra.Application.Tests.Comunidade {
             var pending = (await service.GetPendingReceivedAsync(Bob)).Single();
             await service.DeclineAsync(Bob, pending.FriendshipId);
 
-            // Bob, que recusou, agora pode iniciar: a linha vira pedido de Bob para Alice.
+            // Bob, que recusou, agora pode iniciar — a linha vira pedido de Bob pra Alice
             await service.SendRequestAsync(Bob, Alice);
 
             var f = Assert.Single(friendships.Friendships);
@@ -225,7 +225,7 @@ namespace Pyrra.Application.Tests.Comunidade {
             var (service, _, _, _) = Build();
 
             var result = (await service.SearchUsersAsync(Alice, "bob")).Single();
-            // UserSummary só tem Id/Name/Username — não há campo de email para vazar.
+            // UserSummary só tem Id/Name/Username — não há campo de email pra vazar
             Assert.Equal("bob", result.User.Username);
             Assert.Equal("Bob", result.User.Name);
         }
@@ -248,7 +248,7 @@ namespace Pyrra.Application.Tests.Comunidade {
             var (service, _, _, _) = Build();
             var token = await service.GetOrCreateInviteTokenAsync(Alice);
 
-            // Bob abre o link de Alice: o pedido vai de Bob para Alice, então Alice o recebe.
+            // Bob abre o link de Alice — o pedido vai de Bob pra Alice, então Alice o recebe
             var result = await service.AcceptInviteAsync(Bob, token);
 
             Assert.Equal(InviteOutcome.RequestSent, result.Outcome);

@@ -29,7 +29,7 @@ const MEAL_LABELS: Record<MealType, string> = {
   Jantar: 'Jantar',
 }
 
-// Abreviações para a grade semanal, onde não cabe o nome inteiro.
+// abreviações pra grade semanal, onde não cabe o nome inteiro
 const MEAL_SHORT_LABELS: Record<MealType, string> = {
   CafeDaManha: 'Café',
   Almoco: 'Almoço',
@@ -67,8 +67,7 @@ export function Nutricao() {
   const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('hoje')
 
-  // Qual refeição está com o formulário aberto — só uma por vez, para a tela não
-  // virar quatro formulários empilhados.
+  // só uma refeição com formulário aberto por vez, pra tela não virar quatro formulários empilhados
   const [openMeal, setOpenMeal] = useState<MealType | null>(null)
   const [itemName, setItemName] = useState('')
   const [quantity, setQuantity] = useState('')
@@ -77,8 +76,7 @@ export function Nutricao() {
   const [removingId, setRemovingId] = useState<string | null>(null)
   const itemInputRef = useRef<HTMLInputElement>(null)
 
-  // Edição inline de um item já registrado — só um por vez, como o formulário de
-  // adição. Guarda os campos e a trava de "salvando".
+  // edição inline de um item, só uma por vez — guarda os campos e a trava de "salvando"
   const [editingItemId, setEditingItemId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
   const [editQuantity, setEditQuantity] = useState('')
@@ -153,8 +151,7 @@ export function Nutricao() {
     try {
       const created = await addItem(meal, trimmedName, trimmedQuantity)
 
-      // Insere só no grupo da refeição. Diferente de finanças, aqui não há
-      // total derivado — a estrutura do dia é a própria informação.
+      // insere só no grupo da refeição — diferente de finanças, aqui não há total derivado
       setDay((current) =>
         current
           ? {
@@ -170,8 +167,7 @@ export function Nutricao() {
 
       setItemName('')
       setQuantity('')
-      // Formulário segue aberto: registrar uma refeição é listar vários itens
-      // seguidos ("2 ovos", "1 pão", "café").
+      // formulário segue aberto: registrar uma refeição é listar vários itens seguidos
       itemInputRef.current?.focus()
     } catch (err) {
       setFormError(
@@ -257,8 +253,7 @@ export function Nutricao() {
     try {
       const updated = await updateItem(itemId, trimmedName, trimmedQuantity)
 
-      // Troca só o item no grupo da refeição. Como no add, não há total derivado
-      // aqui — a resposta do PUT basta, sem segunda consulta.
+      // troca só o item no grupo da refeição — como no add, a resposta do PUT já basta, sem segunda consulta
       setDay((current) =>
         current
           ? {

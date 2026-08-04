@@ -5,15 +5,12 @@ using System.Threading.Tasks;
 using Pyrra.Domain.Desafios;
 
 namespace Pyrra.Application.Desafios {
-    // Gerencia os desafios de um torneio específico: vínculo com o catálogo geral e desafios
-    // próprios — tudo restrito ao dono do torneio (Fase 5b)
+    // gerencia os desafios de um torneio específico: vínculo com o catálogo geral e desafios próprios — tudo restrito ao dono do torneio
     public interface ITournamentChallengeService {
         // catálogo geral com status de vínculo ao torneio, verificado pelo dono
         Task<IReadOnlyList<TournamentCatalogChallengeStatus>> GetCatalogAsync(Guid ownerId, Guid tournamentId, CancellationToken cancellationToken = default);
 
-        // vincula um desafio do catálogo geral ao torneio, com meta/unidade opcionais. Chamar de
-        // novo num desafio já vinculado ATUALIZA a meta/unidade em vez de não fazer nada — evita
-        // ter que desvincular e vincular de novo só pra editar (Fase 5c).
+        // vincula um desafio do catálogo ao torneio, com meta/unidade opcionais — chamar de novo num desafio já vinculado atualiza a meta/unidade em vez de não fazer nada, evita ter que desvincular e vincular de novo só pra editar
         Task LinkCatalogChallengeAsync(
             Guid ownerId, Guid tournamentId, Guid challengeId, decimal? goal, string? unit, CancellationToken cancellationToken = default);
 
@@ -23,12 +20,12 @@ namespace Pyrra.Application.Desafios {
         // lista os desafios próprios do torneio
         Task<IReadOnlyList<TournamentOwnChallenge>> GetOwnChallengesAsync(Guid ownerId, Guid tournamentId, CancellationToken cancellationToken = default);
 
-        // cria um desafio próprio do torneio, com meta/unidade opcionais (Fase 5c)
+        // cria um desafio próprio do torneio, com meta/unidade opcionais
         Task<TournamentOwnChallenge> CreateOwnChallengeAsync(
             Guid ownerId, Guid tournamentId, string title, string? description, int points, decimal? goal, string? unit,
             CancellationToken cancellationToken = default);
 
-        // edita um desafio próprio do torneio, com meta/unidade opcionais (Fase 5c)
+        // edita um desafio próprio do torneio, com meta/unidade opcionais
         Task<TournamentOwnChallenge> UpdateOwnChallengeAsync(
             Guid ownerId, Guid tournamentId, Guid challengeId, string title, string? description, int points, decimal? goal, string? unit,
             CancellationToken cancellationToken = default);
@@ -36,15 +33,11 @@ namespace Pyrra.Application.Desafios {
         // remove um desafio próprio do torneio
         Task DeleteOwnChallengeAsync(Guid ownerId, Guid tournamentId, Guid challengeId, CancellationToken cancellationToken = default);
 
-        // lista submissões pendentes de TODOS os times participantes do torneio — a fila do dono
-        // do torneio. Aprovar/recusar continua pelos endpoints de time (TeamChallengeController),
-        // já que a submissão pertence a um time específico.
+        // lista submissões pendentes de todos os times participantes — a fila do dono do torneio; aprovar/recusar continua pelos endpoints de time, já que a submissão pertence a um time específico
         Task<IReadOnlyList<PendingTournamentSubmissionWithTeam>> GetPendingSubmissionsAsync(
             Guid ownerId, Guid tournamentId, CancellationToken cancellationToken = default);
 
-        // progresso agregado, cruzando todos os times Aprovados no torneio, de cada desafio COM
-        // META configurada (catálogo vinculado ou próprio) — só o dono vê (Fase 5c). Desafios sem
-        // meta não aparecem, já que não têm progresso a mostrar.
+        // progresso agregado, cruzando todos os times aprovados no torneio, de cada desafio com meta configurada — só o dono vê; desafios sem meta não aparecem, já que não têm progresso a mostrar
         Task<IReadOnlyList<TournamentChallengeProgress>> GetChallengeProgressAsync(
             Guid ownerId, Guid tournamentId, CancellationToken cancellationToken = default);
     }

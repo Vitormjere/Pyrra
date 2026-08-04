@@ -21,7 +21,7 @@ namespace Pyrra.Api.Controllers {
             _planNoteService = planNoteService;
         }
 
-        // Usa PUT porque a nota do dia é atualizada, sem criar uma nova a cada envio
+        // usa PUT porque a nota do dia é atualizada, sem criar uma nova a cada envio
         [HttpPut]
         public async Task<ActionResult<PlanNoteResponse>> Save([FromQuery] DateOnly? date, SavePlanNoteRequest request, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -52,7 +52,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Histórico de reflexões (só os dias em que o usuário escreveu algo)
+        // histórico de reflexões (só os dias em que o usuário escreveu algo)
         [HttpGet("historico")]
         public async Task<ActionResult<IEnumerable<PlanNoteResponse>>> GetHistory([FromQuery(Name = "dias")] int dias = 30, CancellationToken cancellationToken = default) {
             if (!TryGetUserId(out var userId)) {

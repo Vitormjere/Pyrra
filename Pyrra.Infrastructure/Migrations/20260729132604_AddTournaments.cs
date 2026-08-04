@@ -15,14 +15,14 @@ namespace Pyrra.Infrastructure.Migrations
                 name: "TournamentRequests",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    RequesterId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    ProposedName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Id                  = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    RequesterId         = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    ProposedName        = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     ProposedDescription = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
-                    Status = table.Column<int>(type: "int", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    ReviewedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    ReviewedByUserId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    Status              = table.Column<int>(type: "int", nullable: false),
+                    CreatedAt           = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ReviewedAt          = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    ReviewedByUserId    = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     CreatedTournamentId = table.Column<Guid>(type: "uniqueidentifier", nullable: true)
                 },
                 constraints: table =>
@@ -34,15 +34,15 @@ namespace Pyrra.Infrastructure.Migrations
                 name: "Tournaments",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    Description = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
-                    OwnerId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    InviteToken = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
-                    BannerTheme = table.Column<int>(type: "int", nullable: false),
+                    Id             = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Name           = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Description    = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    OwnerId        = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    InviteToken    = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
+                    BannerTheme    = table.Column<int>(type: "int", nullable: false),
                     BannerImageUrl = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    CreatedAt      = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    UpdatedAt      = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
                 {

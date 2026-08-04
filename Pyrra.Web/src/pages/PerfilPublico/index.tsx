@@ -14,9 +14,7 @@ type State =
   | { status: 'not-found' }
   | { status: 'error' }
 
-// Perfil PÚBLICO de outro usuário — mesmo visual da identidade do Perfil próprio (avatar, nome,
-// @username, plano, amigos, streak), mas SÓ LEITURA: sem preferências (são pessoais, não sociais)
-// e sem nenhum controle de edição. Acessível a partir de um card em "Meus Amigos".
+// perfil público de outro usuário — mesmo visual do Perfil próprio, mas só leitura, sem preferências nem controle de edição
 export function PerfilPublico() {
   const { username } = useParams<{ username: string }>()
   const [state, setState] = useState<State>({ status: 'loading' })

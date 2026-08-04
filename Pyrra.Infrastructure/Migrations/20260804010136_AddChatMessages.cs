@@ -15,12 +15,12 @@ namespace Pyrra.Infrastructure.Migrations
                 name: "ChatMessages",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    SenderId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id          = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    SenderId    = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     RecipientId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Content = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    ReadAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                    Content     = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: false),
+                    CreatedAt   = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ReadAt      = table.Column<DateTime>(type: "datetime2", nullable: true)
                 },
                 constraints: table =>
                 {

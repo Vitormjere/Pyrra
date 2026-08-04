@@ -39,8 +39,7 @@ import type {
 
 type Tab = 'amigos' | 'ranking' | 'pedidos' | 'buscar'
 
-// Avatar por inicial — não há foto no modelo; a inicial num círculo é o mesmo recurso do rodapé
-// de conta do menu.
+// avatar por inicial — não há foto no modelo, mesmo recurso do rodapé de conta do menu
 function Avatar({ name }: { name: string }) {
   return (
     <span
@@ -52,10 +51,7 @@ function Avatar({ name }: { name: string }) {
   )
 }
 
-// Linha de usuário reutilizada nas três abas: avatar + nome + @username, e a ação à direita.
-// `to` (só na aba Meus Amigos) torna o bloco avatar+nome um link para o perfil público — fica
-// FORA de `trailing` (não envolve o botão de remover) porque um link não pode aninhar outro
-// elemento interativo dentro dele.
+// `to` (só na aba Meus Amigos) linka o avatar+nome pro perfil, fora de `trailing` porque link não pode aninhar botão
 function UserRow({
   user,
   trailing,
@@ -91,9 +87,7 @@ function UserRow({
   )
 }
 
-// Linha do ranking: posição (coroa no #1), avatar, nome/@username e o streak atual. A linha do
-// próprio usuário ganha um fundo diferenciado para ele se achar rápido na lista, já que ela pode
-// aparecer em qualquer posição.
+// a linha do próprio usuário ganha um fundo diferenciado pra ele se achar rápido, já que pode estar em qualquer posição
 function RankingRow({ entry }: { entry: RankingEntry }) {
   const isTop = entry.position === 1
 
@@ -152,18 +146,16 @@ export function Amigos() {
 
   const [busyId, setBusyId] = useState<string | null>(null)
 
-  // Busca
+  // busca
   const [term, setTerm] = useState('')
   const [results, setResults] = useState<UserSearchResult[]>([])
   const [searching, setSearching] = useState(false)
 
-  // Convite
+  // convite
   const [inviteUrl, setInviteUrl] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
 
-  // Busca pura, sem tocar em estado: usada tanto pela carga inicial (que faz o próprio setState
-  // dentro de uma função local, para o setState ficar sempre depois de um await — como a regra
-  // react-hooks/set-state-in-effect exige) quanto para recarregar após aceitar um pedido.
+  // busca pura, sem mexer em estado — usada na carga inicial e para recarregar após aceitar um pedido
   const fetchLists = useCallback(
     () => Promise.all([getFriends(), getPendingRequests()]),
     [],
@@ -192,7 +184,7 @@ export function Amigos() {
     }
   }, [fetchLists])
 
-  // Recarrega as duas listas (usado após aceitar um pedido) sem duplicar a lógica de fetch.
+  // recarrega as duas listas (usado após aceitar um pedido) sem duplicar a lógica de fetch
   const loadLists = useCallback(async () => {
     try {
       const [f, p] = await fetchLists()
@@ -203,8 +195,7 @@ export function Amigos() {
     }
   }, [fetchLists])
 
-  // Recarrega o ranking (usado após aceitar um pedido ou remover um amigo) sem duplicar a lógica
-  // de fetch usada na carga inicial logo abaixo.
+  // recarrega o ranking (usado após aceitar pedido ou remover amigo) sem duplicar a lógica da carga inicial
   const loadRanking = useCallback(async () => {
     try {
       const data = await getRanking()
@@ -216,9 +207,7 @@ export function Amigos() {
     }
   }, [])
 
-  // Efeito próprio (não reaproveita loadRanking): um problema no ranking não deve impedir o resto
-  // da tela de carregar, e o setState precisa ficar depois de um await dentro do efeito, não
-  // escondido atrás de uma função só referenciada por nome (regra react-hooks/set-state-in-effect).
+  // efeito próprio, não reaproveita loadRanking — um problema no ranking não deve travar o resto da tela
   useEffect(() => {
     let active = true
 
@@ -241,7 +230,7 @@ export function Amigos() {
     }
   }, [])
 
-  // Link de convite: montado com a origem do próprio front, então vale em dev e produção.
+  // link de convite montado com a origem do próprio front, então vale em dev e produção
   useEffect(() => {
     let active = true
     void (async () => {
@@ -249,7 +238,7 @@ export function Amigos() {
         const link = await getInviteLink()
         if (active) setInviteUrl(`${window.location.origin}${link.path}`)
       } catch {
-        // Silencioso: o resto da tela funciona sem o link.
+        // silencioso — o resto da tela funciona sem o link
       }
     })()
     return () => {
@@ -257,9 +246,7 @@ export function Amigos() {
     }
   }, [])
 
-  // Busca com debounce. Termo vazio não zera o estado aqui — a renderização abaixo já ignora
-  // resultados/status quando o campo está vazio, então não há necessidade de um setState síncrono
-  // só para "limpar", o que a regra react-hooks/set-state-in-effect não permite de qualquer forma.
+  // busca com debounce — termo vazio não zera o estado aqui, a renderização abaixo já ignora resultados quando o campo está vazio
   useEffect(() => {
     const trimmed = term.trim()
     if (trimmed.length === 0) {
@@ -268,8 +255,7 @@ export function Amigos() {
 
     let active = true
     const timer = setTimeout(async () => {
-      // Dentro do callback do timer (função aninhada, não o corpo do efeito): o "buscando"
-      // só aparece quando a busca de fato começa, depois do debounce.
+      // "buscando" só aparece quando a busca de fato começa, depois do debounce
       setSearching(true)
       try {
         const found = await searchUsers(trimmed)
@@ -355,7 +341,7 @@ export function Amigos() {
     setError(null)
     try {
       await sendFriendRequest(userId)
-      // Reflete o novo estado no resultado da busca sem refazer a consulta.
+      // reflete o novo estado no resultado da busca sem refazer a consulta
       setResults((current) =>
         current.map((r) =>
           r.user.id === userId ? { ...r, state: 'RequestSent' } : r,
@@ -464,9 +450,7 @@ export function Amigos() {
               <UserRow
                 key={friend.friendshipId}
                 user={friend.user}
-                // Sem username não há como montar a rota /perfil/:username — não deveria
-                // acontecer (só quem já escolheu username pode virar amigo), mas a linha
-                // continua útil mesmo sem o link nesse caso defensivo.
+                // sem username não dá pra montar a rota — não deveria acontecer, mas a linha continua útil sem o link
                 to={friend.user.username ? `/perfil/${friend.user.username}` : undefined}
                 trailing={
                   <button
@@ -604,7 +588,7 @@ export function Amigos() {
   )
 }
 
-// Botão/rótulo do resultado da busca conforme o vínculo já existente.
+// botão/rótulo do resultado da busca conforme o vínculo já existente
 function SearchAction({
   state,
   busy,

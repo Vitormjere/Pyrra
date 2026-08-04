@@ -1,7 +1,6 @@
 using Pyrra.Application.Notificacoes;
 
 namespace Pyrra.Api.Dtos.Notificacoes {
-    // Retorna a mensagem e os dados que indicam como ela foi gerada    
     public record NightlyMessagePreviewResponse(
         string Message,
         string Tone,

@@ -6,11 +6,7 @@ import { createChatConnection } from '../services/signalr'
 import { useAuth } from '../hooks/useAuth'
 import { ChatConnectionContext } from './chat-connection-context'
 
-// Dona da ÚNICA conexão SignalR da sessão (Fase Admin-4b) — inicia quando há usuário logado, para
-// no logout. Reconexão automática já vem do withAutomaticReconnect() do client (createChatConnection),
-// não precisa de lógica manual aqui. Fica acima de ChatUnreadProvider e de qualquer ChatPanel, que
-// consomem a MESMA conexão via useChatConnection() e cada um registra seus próprios handlers com
-// connection.on(...) — o client do SignalR já suporta múltiplos listeners por evento.
+// dona da única conexão SignalR da sessão, inicia com o login e para no logout — reconexão automática já vem do client
 export function ChatConnectionProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()
   const [connection, setConnection] = useState<HubConnection | null>(null)
@@ -27,8 +23,7 @@ export function ChatConnectionProvider({ children }: { children: ReactNode }) {
         if (active) setConnection(hubConnection)
       })
       .catch(() => {
-        // Sem sessão de tempo real: o REST (envio/recebimento via reload) continua funcionando
-        // normalmente, é só o push instantâneo que não chega até a conexão se restabelecer.
+        // sem conexão em tempo real o chat ainda funciona via REST, só perde o push instantâneo
       })
 
     return () => {

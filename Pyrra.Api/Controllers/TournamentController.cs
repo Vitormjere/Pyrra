@@ -23,7 +23,7 @@ namespace Pyrra.Api.Controllers {
             _tournamentService = tournamentService;
         }
 
-        // Cria o torneio direto (admin)
+        // cria o torneio direto (admin)
         [HttpPost]
         public async Task<ActionResult<TournamentSummaryResponse>> Create(CreateTournamentRequest request, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -42,7 +42,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Solicita a criação de um torneio 
+        // solicita a criação de um torneio
         [HttpPost("solicitacoes")]
         public async Task<ActionResult<TournamentRequestResponse>> RequestTournament(RequestTournamentRequest request, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -57,7 +57,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Solicitações pendentes (admin)
+        // solicitações pendentes (admin)
         [HttpGet("solicitacoes")]
         public async Task<ActionResult<IEnumerable<TournamentRequestResponse>>> GetPendingRequests(CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -72,7 +72,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // TODAS as solicitações, qualquer status — Pendentes + Histórico (admin, Fase Admin-3)
+        // todas as solicitações, qualquer status — pendentes + histórico (admin)
         [HttpGet("solicitacoes/todas")]
         public async Task<ActionResult<IEnumerable<TournamentRequestResponse>>> GetAllRequests(CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -87,7 +87,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Aprova a solicitação (dono pede, admin deixa)
+        // aprova a solicitação (dono pede, admin deixa)
         [HttpPost("solicitacoes/{requestId:guid}/aprovar")]
         public async Task<ActionResult<TournamentSummaryResponse>> ApproveRequest(Guid requestId, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -106,7 +106,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Recusa a solicitação (admin)
+        // recusa a solicitação (admin)
         [HttpPost("solicitacoes/{requestId:guid}/recusar")]
         public async Task<IActionResult> RejectRequest(Guid requestId, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -125,7 +125,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Todos os torneios existentes
+        // todos os torneios existentes
         [HttpGet]
         public async Task<ActionResult<IEnumerable<TournamentSummaryResponse>>> GetAll(CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -136,7 +136,7 @@ namespace Pyrra.Api.Controllers {
             return Ok(tournaments.Select(TournamentSummaryResponse.FromSummary));
         }
 
-        // Torneios cujo dono sou eu
+        // torneios cujo dono sou eu
         [HttpGet("meus")]
         public async Task<ActionResult<IEnumerable<TournamentSummaryResponse>>> GetMyTournaments(CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -161,7 +161,6 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Altera a cor do banner
         [HttpPost("{id:guid}/tema")]
         public async Task<ActionResult<TournamentSummaryResponse>> SetBannerTheme(Guid id, SetTournamentBannerThemeRequest request, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -180,7 +179,6 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Envia a imagem de capa
         [HttpPost("{id:guid}/banner")]
         public async Task<ActionResult<TournamentSummaryResponse>> SetBannerImage(Guid id, IFormFile file, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -202,7 +200,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Remove a imagem customizada e volta a exibir a cor do tema
+        // remove a imagem customizada e volta a exibir a cor do tema
         [HttpDelete("{id:guid}/banner")]
         public async Task<ActionResult<TournamentSummaryResponse>> RemoveBannerImage(Guid id, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -217,7 +215,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Dono do time solicita entrada nesse torneio (só o dono do time pode pedir)
+        // só o dono do time pode solicitar entrada no torneio
         [HttpPost("{id:guid}/times/{teamId:guid}")]
         public async Task<ActionResult<TournamentTeamResponse>> RequestTeamEntry(Guid id, Guid teamId, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -234,7 +232,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Mesma coisa, resolvendo o torneio pelo token de convite
+        // mesma coisa, resolvendo o torneio pelo token de convite
         [HttpPost("convite/{inviteToken}/times/{teamId:guid}")]
         public async Task<ActionResult<TournamentTeamResponse>> RequestTeamEntryViaInvite(string inviteToken, Guid teamId, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -251,7 +249,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Fila de entradas pendentes do torneio (só o dono do torneio)
+        // fila de entradas pendentes do torneio, só o dono vê
         [HttpGet("{id:guid}/entradas")]
         public async Task<ActionResult<IEnumerable<TournamentTeamResponse>>> GetPendingEntries(Guid id, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -266,7 +264,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Aprova a entrada do time (só o dono do torneio)
+        // aprova a entrada do time, só o dono do torneio
         [HttpPost("{id:guid}/entradas/{tournamentTeamId:guid}/aprovar")]
         public async Task<IActionResult> ApproveEntry(Guid id, Guid tournamentTeamId, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -283,7 +281,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Recusa a entrada do time (só o dono do torneio)
+        // recusa a entrada do time, só o dono do torneio
         [HttpPost("{id:guid}/entradas/{tournamentTeamId:guid}/recusar")]
         public async Task<IActionResult> RejectEntry(Guid id, Guid tournamentTeamId, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -300,7 +298,6 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Ranking do torneio 
         [HttpGet("{id:guid}/ranking")]
         public async Task<ActionResult<IEnumerable<TournamentTeamResponse>>> GetRanking(Guid id, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {

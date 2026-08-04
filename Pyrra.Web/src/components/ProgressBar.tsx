@@ -1,11 +1,10 @@
 interface ProgressBarProps {
-  /** Pode passar de 100 (meta já superada) — a barra fica cheia, sem transbordar. */
+  // pode passar de 100 (meta já superada) — a barra fica cheia, sem transbordar
   percent: number
   className?: string
 }
 
-// Barra linear simples pra progresso de metas cumulativas (Fase 5c) — mais compacta que
-// ProgressRing, pensada pra caber numa linha de lista junto de texto (ex.: "7 / 10km").
+// versão compacta do ProgressRing, pra caber numa linha de lista junto de texto (ex.: "7 / 10km")
 export function ProgressBar({ percent, className }: ProgressBarProps) {
   const safePercent = Math.max(0, Math.min(100, percent))
 

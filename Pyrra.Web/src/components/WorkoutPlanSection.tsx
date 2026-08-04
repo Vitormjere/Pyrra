@@ -22,27 +22,23 @@ const WORKOUT_TYPES: readonly WorkoutType[] = ['Academia', 'Corrida']
 const exerciseInputClasses =
   'w-full rounded-md bg-surface-hi px-3 py-1.5 text-sm text-ink ring-1 ring-line transition outline-none placeholder:text-slate-600 focus:ring-2 focus:ring-brand-green'
 
-// Campo vazio vira null (não informado), não 0.
+// campo vazio vira null (não informado), não 0
 function parseCount(value: string): number | null {
   if (value.trim() === '') return null
   const parsed = Number(value)
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null
 }
 
-// Plano semanal de treino: 7 linhas editáveis inline, salvando ao sair do campo
-// — mesmo padrão do card de reflexão. O backend sempre devolve os 7 dias, então
-// a tela não precisa completar buracos.
+// 7 linhas editáveis inline salvando no blur, mesmo padrão do card de reflexão
 export function WorkoutPlanSection() {
   const [days, setDays] = useState<WorkoutPlanDayResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [state, setState] = useState<SaveState>('idle')
   const [error, setError] = useState<string | null>(null)
-  // Última versão confirmada pelo servidor, por dia. Comparar contra ela evita
-  // PUT quando o usuário só entra e sai do campo sem digitar.
+  // última versão confirmada pelo servidor, por dia — comparar evita PUT sem mudança real
   const savedLabels = useRef<Record<string, string>>({})
 
-  // Dia com a lista de exercícios expandida. Um por vez: sete listas abertas
-  // transformariam a seção numa tela inteira.
+  // dia com a lista expandida, um por vez — sete listas abertas virariam uma tela inteira
   const [openDay, setOpenDay] = useState<WeekDay | null>(null)
   const [newExercise, setNewExercise] = useState('')
   const [newType, setNewType] = useState<WorkoutType>('Academia')
@@ -80,8 +76,7 @@ export function WorkoutPlanSection() {
             : item,
         ),
       )
-      // Só o nome é limpo: tipo, séries e reps permanecem, porque quem monta um
-      // dia costuma repetir o mesmo esquema em vários exercícios seguidos.
+      // só o nome é limpo, tipo/séries/reps ficam porque costuma-se repetir o esquema em sequência
       setNewExercise('')
     } catch (err) {
       setError(getApiErrorMessage(err, {}, 'Não foi possível adicionar.'))
@@ -121,8 +116,7 @@ export function WorkoutPlanSection() {
           plan.map((day) => [day.dayOfWeek, day.label ?? '']),
         )
       } catch {
-        // Silencioso: a seção some em vez de ocupar a tela com erro. O histórico
-        // abaixo continua funcionando normalmente.
+        // silencioso: a seção some em vez de ocupar a tela com erro, o histórico abaixo continua normal
         if (active) setError('unavailable')
       } finally {
         if (active) setLoading(false)
@@ -155,8 +149,7 @@ export function WorkoutPlanSection() {
     setError(null)
 
     try {
-      // Manda os 7 dias porque o endpoint é de plano inteiro. Enviar só o dia
-      // alterado exigiria um PATCH que o backend não expõe.
+      // manda os 7 dias porque o endpoint é de plano inteiro, um PATCH do dia isolado não existe
       const saved = await saveWorkoutPlan(days)
       setDays(saved)
       savedLabels.current = Object.fromEntries(
@@ -199,8 +192,7 @@ export function WorkoutPlanSection() {
                 htmlFor={`plano-${day.dayOfWeek}`}
                 className={[
                   'w-20 shrink-0 text-xs font-medium',
-                  // O dia corrente ganha a cor de destaque: é a linha que importa
-                  // quando se abre a tela para treinar agora.
+                  // dia corrente ganha destaque, é a linha que importa ao abrir a tela pra treinar agora
                   day.dayOfWeek === today ? 'text-brand-green' : 'text-slate-500',
                 ].join(' ')}
               >
@@ -214,8 +206,7 @@ export function WorkoutPlanSection() {
                 onBlur={() => handleBlur(day.dayOfWeek)}
                 maxLength={200}
                 placeholder="Sem plano definido"
-                // Sem moldura: o campo só se revela ao foco, para as 7 linhas
-                // lerem como lista e não como formulário.
+                // sem moldura, o campo só se revela ao foco pra ler como lista e não formulário
                 className="w-full rounded bg-transparent px-2 py-1.5 text-sm text-ink transition outline-none placeholder:text-slate-600 focus:bg-surface-hi focus:ring-1 focus:ring-brand-green"
               />
               <button

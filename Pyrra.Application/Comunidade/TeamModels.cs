@@ -3,10 +3,9 @@ using System.Collections.Generic;
 using Pyrra.Domain.Comunidade;
 
 namespace Pyrra.Application.Comunidade {
-    // Membro exibido nos detalhes do time
     public record TeamMemberSummary(Guid UserId, UserSummary User, bool IsOwner, DateTime? JoinedAt);
 
-    // Resumo de um time com informações relativas ao usuário atual
+    // resumo de um time, já com dados relativos ao usuário atual (dono, membro etc)
     public record TeamSummary(
         Guid        Id,
         string      Name,
@@ -21,7 +20,6 @@ namespace Pyrra.Application.Comunidade {
         TeamBannerTheme BannerTheme,
         string?         BannerImageUrl);
 
-    // Torneio ativo associado ao time
     public record ActiveTeamTournament(Guid TournamentId, string TournamentName, TournamentTeamStatus Status);
 
     public record TeamDetails(
@@ -30,13 +28,11 @@ namespace Pyrra.Application.Comunidade {
         string InviteToken,
         IReadOnlyList<ActiveTeamTournament> ActiveTournaments);
 
-    // Resumo de um time público para exploração
     public record PublicTeamSummary(TeamSummary Summary, string InviteToken);
 
-    // Convite pendente recebido para entrada em um time
     public record TeamInviteSummary(Guid InviteId, TeamSummary Team, UserSummary Inviter, DateTime CreatedAt);
 
-    // Resultado da tentativa de entrada por convite
+    // resultado de tentar entrar num time por convite
     public enum JoinOutcome {
         Joined,
         AlreadyMember,

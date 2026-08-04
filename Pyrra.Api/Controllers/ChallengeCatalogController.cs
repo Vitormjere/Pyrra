@@ -12,7 +12,7 @@ using Pyrra.Application.Desafios;
 using Pyrra.Domain.Desafios;
 
 namespace Pyrra.Api.Controllers {
-    // Endpoints de administração do catálogo de desafios, acessíveis apenas por admins
+    // endpoints de administração do catálogo de desafios (só admin acessa)
     [ApiController]
     [Authorize]
     [Route("api/admin/desafios")]

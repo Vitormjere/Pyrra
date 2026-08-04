@@ -16,7 +16,6 @@ namespace Pyrra.Api.Dtos.Comunidade {
             s.BannerTheme.ToString(), s.BannerImageUrl);
     }
 
-    // Retorna os detalhes do torneio
     public record TournamentDetailsResponse(TournamentSummaryResponse Tournament, string InviteToken, string InvitePath) {
         public static TournamentDetailsResponse FromDetails(TournamentDetails d) => new(
             TournamentSummaryResponse.FromSummary(d.Summary),
@@ -24,36 +23,32 @@ namespace Pyrra.Api.Dtos.Comunidade {
             $"/torneios/convite/{d.InviteToken}");
     }
 
-    // Status/ReviewedAt existem desde a Fase 4a na entidade, mas só passaram a ser expostos aqui
-    // na Fase Admin-3 (histórico) — ver comentário em TournamentRequestSummary.
+    // status e reviewedat já existiam na entidade, só passaram a ser expostos aqui — ver TournamentRequestSummary
     public record TournamentRequestResponse(
-        Guid Id,
-        string ProposedName,
-        string? ProposedDescription,
+        Guid      Id,
+        string    ProposedName,
+        string?   ProposedDescription,
         UserSummaryResponse Requester,
-        DateTime CreatedAt,
-        string Status,
+        DateTime  CreatedAt,
+        string    Status,
         DateTime? ReviewedAt) {
         public static TournamentRequestResponse FromSummary(TournamentRequestSummary s) => new(
             s.Id, s.ProposedName, s.ProposedDescription, UserSummaryResponse.FromSummary(s.Requester), s.CreatedAt,
             s.Status.ToString(), s.ReviewedAt);
     }
 
-    // Dados para criar um torneio
     public record CreateTournamentRequest(
         [Required] string Name,
         string? Description,
         string? BannerTheme);
 
-    // Dados para solicitar a criação de um torneio
     public record RequestTournamentRequest(
         [Required] string Name,
         string? Description);
 
-    // Dados para alterar a cor do banner do torneio
     public record SetTournamentBannerThemeRequest([Required] string BannerTheme);
 
-    // Representa um time participante ou com solicitação de entrada no torneio
+    // time participante do torneio, ou ainda com solicitação de entrada pendente
     public record TournamentTeamResponse(
         Guid Id,
         Guid TournamentId,

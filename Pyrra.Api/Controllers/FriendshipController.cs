@@ -23,7 +23,7 @@ namespace Pyrra.Api.Controllers {
             _rankingService    = rankingService;
         }
 
-        // Busca por username ou email
+        // busca por username ou email
         [HttpGet("buscar")]
         public async Task<ActionResult<IEnumerable<UserSearchResultResponse>>> Search([FromQuery(Name = "termo")] string termo, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -44,7 +44,7 @@ namespace Pyrra.Api.Controllers {
             return Ok(friends.Select(FriendResponse.FromSummary));
         }
 
-        // Retorna apenas a quantidade de amigos para o perfil, sem carregar a lista completa
+        // só a quantidade de amigos
         [HttpGet("contagem")]
         public async Task<ActionResult<FriendCountResponse>> GetFriendsCount(CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -55,7 +55,7 @@ namespace Pyrra.Api.Controllers {
             return Ok(new FriendCountResponse(count));
         }
 
-        // Retorna o ranking do usuário e de seus amigos com base na sequência atual
+        // ranking do usuário e dos amigos, baseado na sequência atual
         [HttpGet("ranking")]
         public async Task<ActionResult<IEnumerable<RankingEntryResponse>>> GetRanking(CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -80,7 +80,7 @@ namespace Pyrra.Api.Controllers {
             return Ok(pending.Select(FriendRequestResponse.FromSummary));
         }
 
-        // Retorna apenas a quantidade para o badge do menu, sem carregar a lista completa
+        // só a quantidade
         [HttpGet("pedidos/contagem")]
         public async Task<ActionResult<PendingCountResponse>> GetPendingCount(CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -139,7 +139,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Desfaz uma amizade ou cancela um pedido enviado
+        // desfaz uma amizade ou cancela um pedido enviado
         [HttpDelete("{id:guid}")]
         public async Task<IActionResult> Remove(Guid id, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {

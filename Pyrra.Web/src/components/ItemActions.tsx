@@ -9,9 +9,7 @@ interface ItemActionsProps {
   deleteLabel: string
 }
 
-// Par editar/remover, idêntico em todas as listas. Ícones pequenos e discretos —
-// a ação principal de cada linha continua sendo o toque no conteúdo, não nestes
-// controles.
+// par editar/remover idêntico em todas as listas — a ação principal da linha é o toque no conteúdo, não estes botões
 export function ItemActions({
   onEdit,
   onDelete,

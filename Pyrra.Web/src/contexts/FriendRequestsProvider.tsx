@@ -5,30 +5,23 @@ import { acceptInvite, getPendingCount } from '../services/friendService'
 import { useAuth } from '../hooks/useAuth'
 import { FriendRequestsContext, PENDING_INVITE_KEY } from './friend-requests-context'
 
-// Provider da contagem de pedidos pendentes. Fica ACIMA do AppLayout (por isso é uma rota de
-// layout com Outlet), para o badge do menu e a tela de Amigos lerem a mesma contagem.
-//
-// Também consome aqui o convite guardado antes do login: como este provider só monta depois dos
-// gates de sessão/onboarding/username, o pedido só é enviado quando o usuário já está completo.
+// fica acima do AppLayout pro badge do menu e a tela de Amigos lerem a mesma contagem, e também
+// consome aqui o convite guardado antes do login, já que só monta depois dos gates de onboarding
 export function FriendRequestsProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [count, setCount] = useState(0)
 
-  // Exposto no contexto para a tela de Amigos recarregar após aceitar/recusar um pedido — uma
-  // chamada de evento, não dentro de um efeito, então pode fazer setState livremente.
+  // exposto no contexto pra tela de Amigos recarregar após aceitar/recusar um pedido
   const refresh = useCallback(async () => {
     try {
       setCount(await getPendingCount())
     } catch {
-      // Silencioso: o badge é secundário, um erro aqui não deve estourar na tela.
+      // badge é secundário, erro aqui não deve estourar na tela
     }
   }, [])
 
-  // Carga inicial: função assíncrona definida DENTRO do efeito (em vez de chamar `refresh`
-  // diretamente) para o setState só acontecer depois do await, como a regra
-  // react-hooks/set-state-in-effect exige — chamar uma função externa (mesmo useCallback) não
-  // deixa o analisador confirmar isso.
+  // função async definida dentro do efeito (em vez de chamar refresh) pro eslint confirmar que o setState só roda depois do await
   useEffect(() => {
     if (!user) return
     let active = true
@@ -38,7 +31,7 @@ export function FriendRequestsProvider({ children }: { children: ReactNode }) {
         const result = await getPendingCount()
         if (active) setCount(result)
       } catch {
-        // Silencioso, mesmo critério do refresh manual.
+        // mesmo critério do refresh manual, falha aqui não aparece pro usuário
       }
     }
 
@@ -54,14 +47,14 @@ export function FriendRequestsProvider({ children }: { children: ReactNode }) {
     const token = localStorage.getItem(PENDING_INVITE_KEY)
     if (!token) return
 
-    // Remove ANTES de enviar: se falhar, não fica reenviando a cada carga.
+    // remove antes de enviar pra não ficar reenviando a cada carga se falhar
     localStorage.removeItem(PENDING_INVITE_KEY)
 
     void (async () => {
       try {
         await acceptInvite(token)
       } catch {
-        // Convite inválido/expirado ou erro de rede: ignora, o usuário pode tentar de novo.
+        // convite inválido/expirado ou erro de rede, ignora e deixa o usuário tentar de novo
       }
       navigate('/amigos', { replace: true })
     })()

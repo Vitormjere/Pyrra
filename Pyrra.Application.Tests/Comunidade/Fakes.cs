@@ -10,15 +10,14 @@ using Pyrra.Domain.Comunidade;
 using Pyrra.Domain.Users;
 
 namespace Pyrra.Application.Tests.Comunidade {
-    // Relógio fixo: torna CreatedAt/RespondedAt determinísticos nos testes.
+    // relógio fixo: torna CreatedAt/RespondedAt determinísticos nos testes
     internal sealed class FakeClock : IClockService {
         public DateTime UtcNow { get; set; } = new(2026, 7, 27, 12, 0, 0, DateTimeKind.Utc);
         public DateOnly TodayIn(string timezoneId) => DateOnly.FromDateTime(UtcNow);
         public DateOnly ToLocalDate(DateTime utc, string timezoneId) => DateOnly.FromDateTime(utc);
     }
 
-    // Só conta chamadas e devolve uma URL fake determinística — os testes de TeamService validam
-    // a lógica de tipo/tamanho/prioridade sem precisar de um Blob Storage real.
+    // só conta chamadas e devolve uma URL fake, pra testar tipo/tamanho/prioridade sem Blob Storage real
     internal sealed class FakeTeamBannerStorageService : ITeamBannerStorageService {
         public int UploadCallCount { get; private set; }
         public int DeleteCallCount { get; private set; }
@@ -39,8 +38,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         public FakeUserRepository(params User[] users) => Users.AddRange(users);
 
-        // Mesmo filtro do UserRepository real: um usuário com DeletedAt marcado simplesmente não
-        // existe para nenhuma consulta — é isso que os testes de exclusão de conta verificam.
+        // mesmo filtro do UserRepository real: usuário com DeletedAt marcado não existe pra nenhuma consulta
         private IEnumerable<User> Active => Users.Where(u => u.DeletedAt is null);
 
         public Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default) =>
@@ -68,14 +66,12 @@ namespace Pyrra.Application.Tests.Comunidade {
         public Task<IReadOnlyList<User>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<User>>(Active.Where(u => ids.Contains(u.Id)).ToList());
 
-        // Diferente dos demais: NÃO filtra por Active, igual ao UserRepository real.
+        // diferente dos demais, não filtra por Active — igual ao UserRepository real
         public Task<IReadOnlyList<User>> GetAllAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<User>>(Users.OrderBy(u => u.Name).ToList());
 
         public Task AddAsync(User user, CancellationToken cancellationToken = default) {
-            // Mesma proteção de corrida do UpdateAsync abaixo — simula os índices únicos do
-            // UserRepository real, agora também no insert (relevante desde a Fase Admin-2, que cria
-            // usuários já com username).
+            // mesma proteção de corrida do UpdateAsync abaixo — simula os índices únicos do UserRepository real, agora também no insert
             if (user.Username is not null && Active.Any(u => u.Id != user.Id && u.Username == user.Username)) {
                 throw new UsernameAlreadyTakenException(user.Username);
             }
@@ -87,8 +83,7 @@ namespace Pyrra.Application.Tests.Comunidade {
         }
 
         public Task UpdateAsync(User user, CancellationToken cancellationToken = default) {
-            // Simula os índices únicos de username e e-mail: se outro usuário ativo já tem o
-            // mesmo valor, é violação — mesmo critério do UserRepository real.
+            // simula os índices únicos de username e e-mail
             if (user.Username is not null && Active.Any(u => u.Id != user.Id && u.Username == user.Username)) {
                 throw new UsernameAlreadyTakenException(user.Username);
             }
@@ -134,7 +129,7 @@ namespace Pyrra.Application.Tests.Comunidade {
         }
 
         public Task UpdateAsync(Friendship friendship, CancellationToken cancellationToken = default) {
-            // A instância já está na lista (fake devolve a referência real), nada a fazer.
+            // a instância já está na lista (fake devolve a referência real), nada a fazer
             return Task.CompletedTask;
         }
 
@@ -147,9 +142,6 @@ namespace Pyrra.Application.Tests.Comunidade {
     internal sealed class FakeTeamRepository : ITeamRepository {
         public readonly List<Team> Teams = new();
 
-        // Referência à mesma lista usada pelo FakeTeamMemberRepository — GetForUserAsync precisa
-        // combinar "sou dono" com "tenho uma linha de membership", igual à query real do
-        // TeamRepository (Any() sobre TeamMembers, sem navigation property).
         private readonly FakeTeamMemberRepository _members;
 
         public FakeTeamRepository(FakeTeamMemberRepository members) {
@@ -181,9 +173,6 @@ namespace Pyrra.Application.Tests.Comunidade {
             return Task.CompletedTask;
         }
 
-        // Passthrough pra registrar um membro sem precisar expor a lista interna do
-        // FakeTeamMemberRepository — usado por testes que criam um segundo time dentro do mesmo
-        // Build() (ex.: isolamento de placar entre times).
         public void AddMember(TeamMember member) => _members.Members.Add(member);
 
         public Task UpdateAsync(Team team, CancellationToken cancellationToken = default) => Task.CompletedTask;
@@ -300,8 +289,7 @@ namespace Pyrra.Application.Tests.Comunidade {
         public Task UpdateAsync(TournamentRequest request, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
-    // Só conta chamadas e devolve uma URL fake determinística — mesmo espírito de
-    // FakeTeamBannerStorageService.
+    // só conta chamadas e devolve uma URL fake
     internal sealed class FakeTournamentBannerStorageService : ITournamentBannerStorageService {
         public int UploadCallCount { get; private set; }
         public int DeleteCallCount { get; private set; }

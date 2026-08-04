@@ -13,8 +13,7 @@ namespace Pyrra.Application.Tests.Usuario {
         private static readonly Guid Alice = Guid.Parse("11111111-1111-1111-1111-111111111111");
         private static readonly Guid Bob   = Guid.Parse("22222222-2222-2222-2222-222222222222");
 
-        // Hasher real (não fake): é o mesmo Microsoft.AspNetCore.Identity.PasswordHasher usado em
-        // produção pelo AuthService, então o roundtrip hash/verify testado aqui é o de verdade.
+        // hasher real, não fake — é o mesmo PasswordHasher usado em produção, então o roundtrip hash/verify aqui é de verdade
         private static readonly IPasswordHasher<User> Hasher = new PasswordHasher<User>();
 
         private User MakeUser(Guid id, string email, string password) {
@@ -81,7 +80,7 @@ namespace Pyrra.Application.Tests.Usuario {
             await Assert.ThrowsAsync<IncorrectPasswordException>(
                 () => service.ChangeEmailAsync(Alice, "novo@x.com", "SenhaErrada"));
 
-            // Nada mudou.
+            // nada mudou
             Assert.Equal("alice@x.com", users.Users.Single(u => u.Id == Alice).Email);
         }
 
@@ -100,8 +99,7 @@ namespace Pyrra.Application.Tests.Usuario {
             var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
             var (service, _, _) = Build(alice);
 
-            // Mesmo e-mail (com caixa diferente, já normalizado): não deve checar unicidade
-            // contra si mesmo nem lançar.
+            // mesmo e-mail (só a caixa muda, já normalizado) não deve checar unicidade contra si mesmo nem lançar
             var updated = await service.ChangeEmailAsync(Alice, "ALICE@X.COM", "SenhaForte123");
 
             Assert.Equal("alice@x.com", updated.Email);
@@ -130,7 +128,7 @@ namespace Pyrra.Application.Tests.Usuario {
                 () => service.ChangePasswordAsync(Alice, "SenhaErrada", "NovaSenha456"));
 
             var stored = users.Users.Single(u => u.Id == Alice);
-            // A senha antiga continua válida — a troca não foi aplicada.
+            // a senha antiga continua válida, a troca não foi aplicada
             var result = Hasher.VerifyHashedPassword(stored, stored.PasswordHash, "SenhaForte123");
             Assert.Equal(PasswordVerificationResult.Success, result);
         }
@@ -198,8 +196,7 @@ namespace Pyrra.Application.Tests.Usuario {
 
             await service.DeleteAccountAsync(Alice, "SenhaForte123");
 
-            // O próprio repositório (fake, espelhando o real) já não encontra mais o usuário:
-            // é o que faz uma sessão existente perder efeito na próxima chamada.
+            // o próprio repositório já não encontra mais o usuário — é isso que faz uma sessão existente perder efeito na próxima chamada
             Assert.Null(await users.GetByIdAsync(Alice));
             Assert.Null(await users.GetByEmailAsync("alice@x.com"));
         }
@@ -221,8 +218,7 @@ namespace Pyrra.Application.Tests.Usuario {
             var (service, _, _) = Build(alice);
             await service.DeleteAccountAsync(Alice, "SenhaForte123");
 
-            // Segunda tentativa: a conta já não é encontrada (mesmo critério de "some de toda
-            // consulta"), então é indistinguível de um usuário inexistente.
+            // segunda tentativa não encontra a conta (mesmo critério de sumir de toda consulta), fica indistinguível de usuário inexistente
             await Assert.ThrowsAsync<NotFoundException>(() => service.DeleteAccountAsync(Alice, "SenhaForte123"));
         }
     }

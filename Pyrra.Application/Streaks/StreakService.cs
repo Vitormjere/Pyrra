@@ -227,7 +227,7 @@ namespace Pyrra.Application.Streaks {
             bank.LastGrantedWeekStart = currentWeekStart;
         }
 
-        // Semana começa na segunda
+        // semana começa na segunda
         private static DateOnly StartOfWeek(DateOnly date) =>
             date.AddDays(-(((int)date.DayOfWeek + 6) % 7));
 

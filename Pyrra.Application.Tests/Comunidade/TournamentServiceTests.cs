@@ -33,12 +33,12 @@ namespace Pyrra.Application.Tests.Comunidade {
                 Id = TeamId, Name = "Time QA", OwnerId = TeamOwnerId, MemberLimit = 10, InviteToken = "team-token"
             });
 
-            var tournaments = new FakeTournamentRepository();
-            var requests = new FakeTournamentRequestRepository();
-            var entries = new FakeTournamentTeamRepository();
+            var tournaments   = new FakeTournamentRepository();
+            var requests      = new FakeTournamentRequestRepository();
+            var entries       = new FakeTournamentTeamRepository();
             var bannerStorage = new FakeTournamentBannerStorageService();
-            var clock = new FakeClock();
-            var adminAuth = new AdminAuthorizationService(users);
+            var clock         = new FakeClock();
+            var adminAuth     = new AdminAuthorizationService(users);
 
             var service = new TournamentService(tournaments, requests, entries, teams, users, bannerStorage, adminAuth, clock);
             return (service, tournaments, requests, entries, bannerStorage, teams, clock);
@@ -124,7 +124,7 @@ namespace Pyrra.Application.Tests.Comunidade {
             await Assert.ThrowsAsync<ForbiddenException>(() => service.GetPendingRequestsAsync(RegularId));
         }
 
-        // ---- listar todas as solicitações (histórico, Fase Admin-3) ----
+        // ---- listar todas as solicitações (histórico) ----
 
         [Fact]
         public async Task GetAllRequests_ComoAdmin_ListaPendentesEAvaliadasMaisRecentePrimeiro() {
@@ -140,7 +140,7 @@ namespace Pyrra.Application.Tests.Comunidade {
             var all = await service.GetAllRequestsAsync(AdminId);
 
             Assert.Equal(3, all.Count);
-            // Mais recente primeiro: a última criada (rejected) vem antes da primeira (pending).
+            // mais recente primeiro: a última criada (rejected) vem antes da primeira (pending)
             Assert.Equal(rejected.Id, all[0].Id);
             Assert.Equal(pending.Id, all[2].Id);
             Assert.Equal(TournamentRequestStatus.Pendente, all.Single(r => r.Id == pending.Id).Status);
@@ -394,8 +394,7 @@ namespace Pyrra.Application.Tests.Comunidade {
                 service.RequestTeamEntryAsync(TeamOwnerId, TeamId, Guid.NewGuid()));
         }
 
-        // Fase 5b: uma entrada pendente em outro torneio não bloqueia mais — o time pode ter até
-        // MaxTournamentsPerTeam entradas ativas simultâneas, em torneios diferentes.
+        // entrada pendente em outro torneio não bloqueia mais (time pode ter várias ativas ao mesmo tempo, em torneios diferentes)
         [Fact]
         public async Task RequestTeamEntry_TimeComPendenteEmOutroTorneio_Permite() {
             var (service, _, _, entries, _, _, _) = Build();
@@ -421,8 +420,7 @@ namespace Pyrra.Application.Tests.Comunidade {
             Assert.Equal(2, entries.Entries.Count);
         }
 
-        // Pedir de novo o MESMO torneio enquanto já tem uma entrada ativa nele continua bloqueado,
-        // independente do limite de torneios simultâneos.
+        // pedir de novo o mesmo torneio com uma entrada já ativa nele continua bloqueado, independente do limite
         [Fact]
         public async Task RequestTeamEntry_MesmoTorneioComEntradaPendente_Lanca() {
             var (service, _, _, entries, _, _, _) = Build();
@@ -562,7 +560,7 @@ namespace Pyrra.Application.Tests.Comunidade {
             var tournamentB = await service.CreateOfficialAsync(AdminId, "Copa B", null, TeamBannerTheme.Azul);
             var entry = await service.RequestTeamEntryAsync(TeamOwnerId, TeamId, tournamentA.Id);
 
-            // Entrada pertence ao torneio A, não ao B — mesmo o dono do B tentando não pode aprovar.
+            // entrada é do torneio A, não do B — nem o dono do B consegue aprovar
             await Assert.ThrowsAsync<NotFoundException>(() => service.ApproveEntryAsync(AdminId, tournamentB.Id, entry.Id));
         }
 
@@ -599,7 +597,7 @@ namespace Pyrra.Application.Tests.Comunidade {
             var entryB = await service.RequestTeamEntryAsync(OtherId, teamBId, tournament.Id);
             await service.ApproveEntryAsync(AdminId, tournament.Id, entryB.Id);
 
-            // Simula pontuação (normalmente viria da aprovação de submissão, próxima etapa).
+            // simula pontuação, que normalmente viria da aprovação de submissão
             entries.Entries.Single(e => e.Id == entryA.Id).Score = 10;
             entries.Entries.Single(e => e.Id == entryB.Id).Score = 25;
 
@@ -631,8 +629,6 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         // ---- torneio com dono removido (conta excluída — soft delete) ----
 
-        // Variante que também devolve o FakeUserRepository — só usada pelos testes abaixo, que
-        // precisam marcar DeletedAt num usuário depois de criar o torneio.
         private static (TournamentService service, FakeTournamentRepository tournaments, FakeUserRepository users) BuildWithUsers() {
             var users = new FakeUserRepository(
                 new User { Id = AdminId, Name = "Admin", Email = "admin@x.com", IsAdmin = true },
@@ -664,8 +660,7 @@ namespace Pyrra.Application.Tests.Comunidade {
             var orphanRequest = await service.RequestTournamentAsync(RegularId, "Copa Orfa", null);
             var orphan = await service.ApproveRequestAsync(AdminId, orphanRequest.Id);
 
-            // Dono do torneio "órfão" exclui a própria conta — soft delete, mesmo critério de
-            // UserAccountService.DeleteAccountAsync (o usuário "some" de qualquer busca).
+            // dono do torneio órfão exclui a própria conta
             users.Users.Single(u => u.Id == RegularId).DeletedAt = DateTime.UtcNow;
 
             var all = await service.GetAllAsync(OtherId);
@@ -704,8 +699,7 @@ namespace Pyrra.Application.Tests.Comunidade {
             var orphan = await service.ApproveRequestAsync(AdminId, request.Id);
             users.Users.Single(u => u.Id == RegularId).DeletedAt = DateTime.UtcNow;
 
-            // RegularId "é" o dono (OwnerId bate) mas a conta foi excluída — um token antigo ainda
-            // válido não pode conseguir mais nada além de um 404 coerente, nunca um 500.
+            // RegularId ainda bate como dono, mas a conta foi excluída
             await Assert.ThrowsAsync<NotFoundException>(() =>
                 service.SetBannerThemeAsync(RegularId, orphan.Id, TeamBannerTheme.Azul));
         }

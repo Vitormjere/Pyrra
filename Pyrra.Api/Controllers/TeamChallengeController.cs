@@ -12,7 +12,7 @@ using Pyrra.Application.Common.Exceptions;
 using Pyrra.Application.Desafios;
 
 namespace Pyrra.Api.Controllers {
-    // Gerencia as categorias ativas e os desafios disponíveis de cada time
+    // gerencia as categorias ativas e os desafios disponíveis de cada time
     [ApiController]
     [Authorize]
     [Route("api/times/{teamId:guid}/desafios")]
@@ -38,7 +38,6 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Ativa uma categoria para o time
         [HttpPost("categorias/{categoryId:guid}")]
         public async Task<IActionResult> ActivateCategory(Guid teamId, Guid categoryId, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -53,7 +52,6 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Desativa uma categoria do time
         [HttpDelete("categorias/{categoryId:guid}")]
         public async Task<IActionResult> DeactivateCategory(Guid teamId, Guid categoryId, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -68,7 +66,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Desafios das categorias ativas do time
+        // desafios das categorias ativas do time
         [HttpGet]
         public async Task<ActionResult<IEnumerable<AvailableChallengeResponse>>> GetAvailableChallenges(Guid teamId, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -83,7 +81,6 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Envia a prova por foto de um desafio
         [HttpPost("{challengeId:guid}/submissoes")]
         public async Task<ActionResult<ChallengeSubmissionResponse>> SubmitProof(Guid teamId, Guid challengeId, IFormFile file, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -108,7 +105,6 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Fila de submissões pendentes do time
         [HttpGet("submissoes")]
         public async Task<ActionResult<IEnumerable<PendingSubmissionResponse>>> GetPendingSubmissions(Guid teamId, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -123,7 +119,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Aprova a submissão e soma os pontos do desafio ao time
+        // aprova a submissão e soma os pontos do desafio ao time
         [HttpPost("submissoes/{submissionId:guid}/aprovar")]
         public async Task<IActionResult> ApproveSubmission(Guid teamId, Guid submissionId, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -140,7 +136,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Recusa a submissão, sem somar pontos
+        // recusa a submissão, sem somar pontos
         [HttpPost("submissoes/{submissionId:guid}/recusar")]
         public async Task<IActionResult> RejectSubmission(Guid teamId, Guid submissionId, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -157,7 +153,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Ranking de membros do time por placar individual
+        // ranking de membros do time por placar individual
         [HttpGet("ranking")]
         public async Task<ActionResult<IEnumerable<TeamMemberRankingResponse>>> GetRanking(Guid teamId, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -172,7 +168,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Retorna a foto da submissão apenas para membros do time  
+        // foto da submissão, só pra membros do time
         [HttpGet("submissoes/{submissionId:guid}/foto")]
         public async Task<IActionResult> GetSubmissionPhoto(Guid teamId, Guid submissionId, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -187,9 +183,9 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // ---- Desafios de torneio (Fase 5b) — separados dos desafios normais do time acima ----
+        // ---- desafios de torneio, separados dos desafios normais do time acima ----
 
-        // Desafios de um torneio específico em que o time está Aprovado (catálogo vinculado + próprios)
+        // desafios de um torneio específico em que o time está Aprovado (catálogo vinculado + próprios)
         [HttpGet("torneios/{tournamentId:guid}")]
         public async Task<ActionResult<IEnumerable<AvailableTournamentChallengeResponse>>> GetAvailableTournamentChallenges(
             Guid teamId, Guid tournamentId, CancellationToken cancellationToken) {
@@ -207,8 +203,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Envia a prova de um desafio do catálogo geral vinculado ao torneio. quantity é exigida
-        // só quando o desafio tem meta configurada (Fase 5c) — sem meta, é ignorada.
+        // envia a prova de um desafio do catálogo vinculado ao torneio — quantity só é exigida quando o desafio tem meta configurada, senão é ignorada
         [HttpPost("torneios/{tournamentId:guid}/catalogo/{challengeId:guid}/submissoes")]
         public async Task<ActionResult<ChallengeSubmissionResponse>> SubmitTournamentCatalogChallengeProof(
             Guid teamId, Guid tournamentId, Guid challengeId, IFormFile file, [FromForm] decimal? quantity, CancellationToken cancellationToken) {
@@ -234,7 +229,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Envia a prova de um desafio próprio do torneio. Mesma regra de quantity acima.
+        // envia a prova de um desafio próprio do torneio — mesma regra de quantity acima
         [HttpPost("torneios/{tournamentId:guid}/proprios/{challengeId:guid}/submissoes")]
         public async Task<ActionResult<ChallengeSubmissionResponse>> SubmitTournamentOwnChallengeProof(
             Guid teamId, Guid tournamentId, Guid challengeId, IFormFile file, [FromForm] decimal? quantity, CancellationToken cancellationToken) {
@@ -260,7 +255,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Fila de submissões pendentes de um torneio específico, só pro dono dele
+        // fila de submissões pendentes de um torneio específico, só pro dono dele
         [HttpGet("torneios/{tournamentId:guid}/submissoes")]
         public async Task<ActionResult<IEnumerable<PendingTournamentSubmissionResponse>>> GetPendingTournamentSubmissions(
             Guid teamId, Guid tournamentId, CancellationToken cancellationToken) {
@@ -276,7 +271,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Aprova a submissão de torneio: pontos vão só pro placar desse torneio específico
+        // aprova a submissão de torneio — pontos vão só pro placar desse torneio específico
         [HttpPost("torneios/{tournamentId:guid}/submissoes/{submissionId:guid}/aprovar")]
         public async Task<IActionResult> ApproveTournamentSubmission(Guid teamId, Guid tournamentId, Guid submissionId, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -293,7 +288,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Recusa a submissão de torneio, sem somar pontos
+        // recusa a submissão de torneio, sem somar pontos
         [HttpPost("torneios/{tournamentId:guid}/submissoes/{submissionId:guid}/recusar")]
         public async Task<IActionResult> RejectTournamentSubmission(Guid teamId, Guid tournamentId, Guid submissionId, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {

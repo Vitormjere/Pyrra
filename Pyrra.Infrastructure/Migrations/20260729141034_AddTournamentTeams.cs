@@ -15,13 +15,13 @@ namespace Pyrra.Infrastructure.Migrations
                 name: "TournamentTeams",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    TournamentId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    TeamId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Status = table.Column<int>(type: "int", nullable: false),
-                    Score = table.Column<int>(type: "int", nullable: false),
-                    RequestedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    ReviewedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    Id               = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    TournamentId     = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    TeamId           = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Status           = table.Column<int>(type: "int", nullable: false),
+                    Score            = table.Column<int>(type: "int", nullable: false),
+                    RequestedAt      = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ReviewedAt       = table.Column<DateTime>(type: "datetime2", nullable: true),
                     ReviewedByUserId = table.Column<Guid>(type: "uniqueidentifier", nullable: true)
                 },
                 constraints: table =>

@@ -47,11 +47,10 @@ const TEXT_COLORS = {
   finance: 'text-amber-400',
 } as const
 
-// Grade do mês com a semana começando na SEGUNDA, igual ao resto do app
-// (WeekRange no backend). Células nulas preenchem o espaço antes do dia 1.
+// semana começa na segunda, igual ao resto do app — células nulas preenchem o espaço antes do dia 1
 function buildMonthGrid(year: number, month: number): (string | null)[] {
   const firstWeekday = (new Date(year, month, 1).getDay() + 6) % 7
-  // Dia 0 do mês seguinte = último dia deste mês.
+  // dia 0 do mês seguinte = último dia deste mês
   const daysInMonth = new Date(year, month + 1, 0).getDate()
 
   const cells: (string | null)[] = Array<string | null>(firstWeekday).fill(null)
@@ -95,13 +94,12 @@ export function Agenda() {
 
   const cells = buildMonthGrid(year, month)
 
-  // Intervalo do mês inteiro: a primeira e a última célula preenchidas.
+  // intervalo do mês inteiro: primeira e última célula preenchidas
   const rangeStart = toIsoDate(new Date(year, month, 1))
   const rangeEnd = toIsoDate(new Date(year, month + 1, 0))
 
   const fetchMonth = useCallback(async (start: string, end: string) => {
-    // Três consultas de mesmo formato, em paralelo. As categorias vêm junto
-    // porque o lançamento só carrega o categoryId.
+    // três consultas em paralelo — categorias vêm junto porque o lançamento só carrega o categoryId
     const [tasksData, workoutsData, entriesData, categoriesData] =
       await Promise.all([
         getTasksForRange(start, end),
@@ -250,7 +248,7 @@ export function Agenda() {
                     <span
                       className={[
                         'tabular-nums',
-                        // Hoje ganha só um sublinhado de cor, não um preenchimento.
+                        // hoje ganha só um sublinhado de cor, não um preenchimento
                         isToday && !isSelected ? 'text-brand-green' : '',
                       ].join(' ')}
                     >
@@ -482,8 +480,7 @@ export function Agenda() {
               ].map((option) => (
                 <Link
                   key={option.to}
-                  // from=agenda: a tela de destino usa isso para, ao fechar o
-                  // formulário sem salvar, devolver o usuário à Agenda.
+                  // from=agenda: a tela de destino usa isso pra voltar aqui se o formulário for fechado sem salvar
                   to={`${option.to}?data=${selectedDate}&from=agenda`}
                   className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm text-slate-200 transition hover:bg-surface-hi"
                 >

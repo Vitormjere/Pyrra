@@ -9,15 +9,15 @@ using Pyrra.Domain.Users;
 
 namespace Pyrra.Application.Auth {
     public class AuthService : IAuthService {
-        private readonly IUserRepository _userRepository;
+        private readonly IUserRepository       _userRepository;
         private readonly IPasswordHasher<User> _passwordHasher;
-        private readonly ITokenService _tokenService;
-        private readonly JwtSettings _jwtSettings;
+        private readonly ITokenService         _tokenService;
+        private readonly JwtSettings           _jwtSettings;
 
         public AuthService(
-            IUserRepository userRepository,
+            IUserRepository       userRepository,
             IPasswordHasher<User> passwordHasher,
-            ITokenService tokenService,
+            ITokenService         tokenService,
             IOptions<JwtSettings> jwtOptions) {
             _userRepository = userRepository;
             _passwordHasher = passwordHasher;
@@ -46,7 +46,6 @@ namespace Pyrra.Application.Auth {
             };
             user.PasswordHash = _passwordHasher.HashPassword(user, password);
 
-            // Salva o usuário e garante que o email seja unico
             await _userRepository.AddAsync(user, cancellationToken);
 
             return BuildAuthResult(user);
@@ -69,7 +68,7 @@ namespace Pyrra.Application.Auth {
         }
 
         private AuthResult BuildAuthResult(User user) {
-            var token = _tokenService.GenerateToken(user);
+            var token     = _tokenService.GenerateToken(user);
             var expiresAt = DateTime.UtcNow.AddMinutes(_jwtSettings.ExpirationMinutes);
             return new AuthResult(user.Id, user.Email, user.Name, token, expiresAt);
         }

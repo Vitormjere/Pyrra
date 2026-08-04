@@ -7,42 +7,26 @@ namespace Pyrra.Domain.Users {
         public string PasswordHash { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
 
-        // Identificador público único, escolhido pelo usuário (ex.: "vitorj", exibido como "@vitorj").
-        // Nulo enquanto não escolhido: usuários criados antes da feature de Amigos não têm um, e o
-        // gate de username no frontend é o que obriga a preencher no primeiro acesso seguinte.
-        // Guardado em minúsculas e sem "@" — o "@" é só apresentação.
+        // nulo até o usuário escolher um (contas antigas, principalmente) 
         public string? Username { get; set; }
 
-        // Token estável do link de convite pessoal (pyrra/convite/{token}). Gerado sob demanda na
-        // primeira vez que o usuário pede o link e nunca muda, para o link compartilhado não expirar.
-        // Aleatório em vez de derivado do Id, para o link não expor o UserId.
+        // gerado sob demanda no primeiro pedido de link e nunca muda, senão o compartilhado quebra
         public string? InviteToken { get; set; }
         public string Timezone { get; set; } = "America/Sao_Paulo";
         public CommunicationTone CommunicationTone { get; set; }
         public TimeOnly EveningNotificationTime { get; set; }
         public UserPlan Plan { get; set; } = UserPlan.Free;
 
-        // Quem pode ver o perfil público deste usuário (nome, @username, contagem de amigos,
-        // streak). Padrão Público: a feature de Amigos só faz sentido se dá para conhecer alguém
-        // antes de virar amigo. SomenteAmigos restringe a quem já é amigo CONFIRMADO — pedido
-        // pendente não conta.
+        // público por padrão 
         public ProfileVisibility ProfileVisibility { get; set; } = ProfileVisibility.Publico;
 
-        // Quando o usuário concluiu (ou pulou) o onboarding de primeiro acesso. Nulo = ainda não
-        // passou por ele, e é isso que o frontend usa para decidir mostrar o fluxo uma única vez.
+        // nulo enquanto não passou pelo onboarding 
         public DateTime? OnboardingCompletedAt { get; set; }
 
-        // Soft delete: nulo = conta ativa. Marcado (nunca removido de fato) quando o usuário exclui
-        // a própria conta. O UserRepository filtra DeletedAt != null em toda consulta, então uma
-        // conta excluída simplesmente some de login, busca, amigos e qualquer endpoint que carregue
-        // o usuário pelo id do token — sem precisar repetir a checagem em cada serviço. Email e
-        // Username NÃO são liberados: ficam reservados para essa conta, o que também é o que torna
-        // a restauração manual (suporte zerando este campo) trivial.
+        // soft delete — o repositório já filtra isso em toda consulta, então a conta some de login, busca e afins sem precisar repetir a checagem em cada serviço
         public DateTime? DeletedAt { get; set; }
 
-        // Acesso aos endpoints administrativos de curadoria (categorias/desafios/torneios). Não
-        // existe fluxo de "virar admin" pela UI — o campo só muda via migration de dados ou SQL
-        // manual, nunca por uma requisição autenticada.
+        // só muda por migration ou SQL direto, nunca por uma requisição 
         public bool IsAdmin { get; set; }
 
         public DateTime CreatedAt { get; set; }

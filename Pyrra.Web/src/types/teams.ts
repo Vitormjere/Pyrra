@@ -1,4 +1,4 @@
-// Espelha os DTOs de Pyrra.Api/Dtos/Comunidade/TeamDtos.cs.
+// espelha os DTOs de Pyrra.Api/Dtos/Comunidade/TeamDtos.cs
 
 import type { UserSummary } from './community'
 
@@ -31,7 +31,7 @@ export interface TeamMember {
   joinedAt: string | null
 }
 
-// Torneio em que o time tem uma entrada ativa (Pendente ou Aprovado).
+// torneio em que o time tem uma entrada ativa (pendente ou aprovado)
 export interface ActiveTournament {
   tournamentId: string
   tournamentName: string
@@ -57,7 +57,7 @@ export interface TeamInvite {
   createdAt: string
 }
 
-// Desfecho de entrar via link de convite de time.
+// desfecho de entrar via link de convite de time
 export type JoinOutcome = 'Joined' | 'AlreadyMember' | 'TeamFull' | 'OwnLink'
 
 // POST /api/times/convite/{token}/entrar
@@ -66,8 +66,7 @@ export interface JoinResult {
   outcome: JoinOutcome
 }
 
-// GET /api/times/publicos — time público na aba Explorar, com o token de convite (o botão
-// "Entrar" do card chama joinTeamViaLink direto com esse token).
+// GET /api/times/publicos — time público na aba Explorar, já vem com o token de convite
 export interface PublicTeam {
   team: Team
   inviteToken: string

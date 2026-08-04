@@ -7,10 +7,7 @@ interface DeleteAccountDialogProps {
   onCancel: () => void
 }
 
-// Confirmação forte de exclusão de conta: exige a senha atual (reautenticação), não só um clique
-// ou digitar uma palavra — mesmo padrão de segurança de trocar senha/e-mail. Segue o visual do
-// ConfirmDialog (overlay escuro, Esc/toque fora cancelam), mas com campo de senha em vez de só
-// dois botões, então é um componente à parte em vez de uma variante do ConfirmDialog genérico.
+// exclusão de conta exige a senha atual (reautenticação), por isso é um componente à parte em vez de variante do ConfirmDialog genérico
 export function DeleteAccountDialog({ onConfirm, onCancel }: DeleteAccountDialogProps) {
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -33,9 +30,7 @@ export function DeleteAccountDialog({ onConfirm, onCancel }: DeleteAccountDialog
 
     try {
       await onConfirm(password)
-      // Sem setSubmitting(false) no caminho de sucesso: o chamador desmonta este diálogo (a conta
-      // já foi excluída e a sessão encerrada), então continuar mexendo em estado local aqui seria
-      // setState num componente que está saindo.
+      // sem setSubmitting(false) aqui: o chamador desmonta este diálogo, mexer em estado depois seria setState num componente saindo
     } catch (err) {
       setError(
         getApiErrorMessage(err, {}, 'Não foi possível excluir sua conta.'),

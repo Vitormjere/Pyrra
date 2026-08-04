@@ -21,9 +21,7 @@ interface NavItem {
   icon: LucideIcon
 }
 
-// Índice do menu admin. Times e Torneios são as MESMAS telas do app comum, só alcançadas por
-// aqui agora. Sem os itens operacionais do dia a dia (Hoje, Zelo, Agenda, Treino, Tarefas,
-// Finanças, Nutrição, Diário, Amigos) — ver RequireNotAdmin.
+// índice do menu admin — times e torneios são as mesmas telas do app comum, sem os itens operacionais do dia a dia (ver RequireNotAdmin)
 const ADMIN_SECTIONS: NavItem[] = [
   { to: '/times', label: 'Times', icon: Shield },
   { to: '/torneios', label: 'Torneios', icon: Trophy },
@@ -34,8 +32,7 @@ const ADMIN_SECTIONS: NavItem[] = [
   { to: '/configuracoes', label: 'Configurações', icon: Settings },
 ]
 
-// Selo "ADMIN" ao lado do wordmark — única diferenciação de cor: mesmo verde neon da marca,
-// só um selo a mais. Reaproveitado no header mobile, na sidebar fixa e no drawer.
+// selo "ADMIN" ao lado do wordmark, reaproveitado no header mobile, na sidebar fixa e no drawer
 function AdminBadge() {
   return (
     <span className="rounded-full bg-brand-green/15 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-brand-green ring-1 ring-brand-green/30">
@@ -45,8 +42,7 @@ function AdminBadge() {
 }
 
 function SectionNav({ onNavigate }: { onNavigate?: () => void }) {
-  // Contagem de mensagens não lidas para o badge de "Mensagens" (Fase Admin-4a) — mesmo provider
-  // usado pelo "Suporte" do AppLayout, já que a contagem é simétrica (soma de todas as conversas).
+  // contagem de mensagens não lidas pro badge de "Mensagens" — mesmo provider do "Suporte" no AppLayout
   const { count: chatUnreadCount } = useChatUnread()
 
   return (
@@ -108,9 +104,7 @@ function AccountFooter({ name, email }: { name?: string; email?: string }) {
   )
 }
 
-// Layout paralelo ao AppLayout, usado só por contas com IsAdmin=true (ver RootLayout). Mesmo
-// esqueleto responsivo (sidebar fixa no desktop, header + drawer no mobile), mas sem a barra
-// inferior de atalhos: o menu admin tem 7 itens, não os 5 curados de uso diário do app comum.
+// layout paralelo ao AppLayout pra contas admin (ver RootLayout) — mesmo esqueleto responsivo, mas sem a barra inferior de atalhos
 export function AdminLayout() {
   const { user } = useAuth()
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -128,7 +122,7 @@ export function AdminLayout() {
 
   return (
     <div className="min-h-screen">
-      {/* BARRA SUPERIOR — só mobile, mesmo padrão do AppLayout. */}
+      {/* barra superior — só mobile, mesmo padrão do AppLayout */}
       <header className="sticky top-0 z-30 border-b border-line bg-brand-dark/90 backdrop-blur lg:hidden">
         <div className="mx-auto flex h-14 w-full max-w-md items-center gap-3 px-4">
           <button
@@ -145,7 +139,7 @@ export function AdminLayout() {
         </div>
       </header>
 
-      {/* SIDEBAR PERMANENTE — só desktop. */}
+      {/* sidebar permanente — só desktop */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 flex-col border-r border-line bg-brand-dark lg:flex">
         <div className="flex h-14 items-center gap-2 border-b border-line px-4">
           <span className="font-display text-lg font-semibold tracking-tight">Pyrra</span>
@@ -155,15 +149,14 @@ export function AdminLayout() {
         <AccountFooter name={user?.name} email={user?.email} />
       </aside>
 
-      {/* Sem barra inferior aqui: pb-12 em vez de pb-24, já que não há nada fixo por cima do
-          conteúdo no mobile. */}
+      {/* sem barra inferior aqui, por isso pb-12 em vez de pb-24 */}
       <main className="w-full px-4 pt-5 pb-12 lg:pl-72">
         <div className="mx-auto w-full max-w-md lg:max-w-2xl">
           <Outlet />
         </div>
       </main>
 
-      {/* DRAWER */}
+      {/* drawer */}
       {drawerOpen && (
         <>
           <button

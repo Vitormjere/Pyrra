@@ -14,7 +14,7 @@ namespace Pyrra.Application.Common.Interfaces {
         Task AddAsync(TeamMember member, CancellationToken cancellationToken = default);
         Task RemoveAsync(TeamMember member, CancellationToken cancellationToken = default);
 
-        // Cascade usado ao excluir um time
+        // cascade usado ao excluir um time
         Task RemoveAllForTeamAsync(Guid teamId, CancellationToken cancellationToken = default);
     }
 }

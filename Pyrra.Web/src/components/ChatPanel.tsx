@@ -15,7 +15,7 @@ import type { UserSummary } from '../types/community'
 const inputClasses =
   'w-full rounded-md bg-surface-hi px-3 py-2 text-sm text-ink ring-1 ring-line transition outline-none placeholder:text-slate-500 focus:ring-2 focus:ring-brand-green'
 
-/** "14:32" */
+// formata tipo "14:32"
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 }
@@ -40,15 +40,8 @@ function Bubble({ message, isMine }: { message: ChatMessage; isMine: boolean }) 
   )
 }
 
-// Painel de conversa com UMA contraparte — reaproveitado pela tela do admin (Admin/Mensagens) e
-// pela do jogador (Suporte). A mensagem enviada aparece na hora (é a resposta do próprio POST); a
-// resposta da outra pessoa chega ao vivo via Hub (Fase Admin-4b) enquanto a conexão estiver de
-// pé — se cair ou a contraparte enviar enquanto esta tela está fechada, aparece normalmente ao
-// reabrir/trocar de conversa (mensagem já persistida via REST).
-//
-// Quem usa este componente precisa passar key={counterpart.id} — é isso que reseta o estado
-// (mensagens, erro, texto digitado) ao trocar de conversa, em vez de um efeito fazendo o reset na
-// mão a cada mudança de prop.
+// painel de conversa com uma contraparte, reaproveitado entre admin/mensagens e suporte do jogador
+// quem usa precisa passar key={counterpart.id} pra resetar o estado ao trocar de conversa
 export function ChatPanel({ counterpart }: { counterpart: UserSummary }) {
   const { refresh: refreshUnread } = useChatUnread()
   const connection = useChatConnection()
@@ -87,10 +80,7 @@ export function ChatPanel({ counterpart }: { counterpart: UserSummary }) {
     listEndRef.current?.scrollIntoView({ block: 'end' })
   }, [messages])
 
-  // Tempo real (Fase Admin-4b): mensagem da contraparte chega via Hub e entra direto na lista,
-  // sem reabrir a conversa. Como a tela está aberta e visível, já marca como lida na hora — mesmo
-  // efeito de quando a conversa é aberta com mensagens não lidas, só que reativo em vez de na
-  // carga inicial.
+  // mensagem da contraparte chega ao vivo via hub e entra direto na lista, já marcando como lida
   useEffect(() => {
     if (!connection) return
 

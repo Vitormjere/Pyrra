@@ -7,7 +7,7 @@ using Pyrra.Domain.Common;
 using Pyrra.Domain.Treinos;
 
 namespace Pyrra.Api.Dtos.Treinos {
-    // O campo de ordem é usado apenas internamente pelo backend
+    // campo de ordem é usado só internamente pelo backend
     public record WorkoutPlanExerciseResponse(
         Guid Id,
         string Type,
@@ -22,7 +22,6 @@ namespace Pyrra.Api.Dtos.Treinos {
                 exercise.Reps);
     }
 
-    // Retorna o dia da semana como texto
     public record WorkoutPlanDayResponse(
         string  DayOfWeek,
         string? Label,
@@ -37,7 +36,6 @@ namespace Pyrra.Api.Dtos.Treinos {
         [Required] WeekDay? DayOfWeek,
         [MaxLength(200)] string? Label);
 
-    // Envia o plano completo da semana
     public record SaveWorkoutPlanRequest(
         [Required] IReadOnlyList<WorkoutPlanDayInput> Days);
 

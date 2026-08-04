@@ -2,8 +2,7 @@ import { useContext } from 'react'
 import { TeamInvitesContext } from '../contexts/team-invites-context'
 import type { TeamInvitesContextValue } from '../contexts/team-invites-context'
 
-// Contagem de convites de time pendentes + refresh. Em arquivo próprio, separado do provider,
-// para o Fast Refresh continuar funcionando no arquivo do provider.
+// contagem de convites de time pendentes + refresh, em arquivo próprio pra não quebrar o fast refresh do provider
 export function useTeamInvites(): TeamInvitesContextValue {
   const context = useContext(TeamInvitesContext)
   if (context === undefined) {

@@ -11,7 +11,7 @@ type State =
   | { status: 'done'; outcome: InviteOutcome; ownerName: string }
   | { status: 'error' }
 
-// Mensagem por desfecho, na perspectiva de quem ABRIU o link.
+// mensagem por desfecho, na perspectiva de quem abriu o link
 function messageFor(outcome: InviteOutcome, ownerName: string): string {
   switch (outcome) {
     case 'RequestSent':
@@ -25,14 +25,13 @@ function messageFor(outcome: InviteOutcome, ownerName: string): string {
   }
 }
 
-// Abertura do link de convite. Logado: envia o pedido na hora e mostra o resultado. Deslogado:
-// guarda o token e manda para o login — o FriendRequestsProvider consome depois de autenticar.
+// logado: envia o pedido na hora. deslogado: guarda o token e manda pro login — o provider consome depois
 export function Convite() {
   const { token } = useParams<{ token: string }>()
   const { user, loading } = useAuth()
   const [state, setState] = useState<State>({ status: 'loading' })
 
-  // Evita disparar o aceite duas vezes (StrictMode monta o efeito, desmonta e remonta em dev).
+  // evita disparar o aceite duas vezes (StrictMode remonta o efeito em dev)
   const attempted = useRef(false)
 
   useEffect(() => {
@@ -57,7 +56,7 @@ export function Convite() {
     return <Centered>Carregando…</Centered>
   }
 
-  // Deslogado: guarda o convite e manda para o login. O provider o consome após autenticar.
+  // deslogado: guarda o convite e manda pro login, o provider consome após autenticar
   if (!user) {
     if (token) localStorage.setItem(PENDING_INVITE_KEY, token)
     return <Navigate to="/login" replace />

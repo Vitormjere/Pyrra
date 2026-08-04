@@ -17,8 +17,6 @@ namespace Pyrra.Infrastructure.Migrations
                 nullable: false,
                 defaultValue: 0);
 
-            // Logs criados antes desta coluna não têm peso congelado. O peso atual do foco é a
-            // melhor aproximação disponível — o valor da época não foi registrado em lugar nenhum.
             migrationBuilder.Sql(@"
                 UPDATE l
                    SET l.WeightAtTimeOfLog = f.Weight

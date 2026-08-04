@@ -51,7 +51,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Retorna as tarefas do período informado para a agenda
+        // tarefas do período informado, usado pela Agenda
         [HttpGet("intervalo")]
         public async Task<ActionResult<IEnumerable<TaskResponse>>> GetForRange(
             [FromQuery(Name = "inicio")] DateOnly inicio,

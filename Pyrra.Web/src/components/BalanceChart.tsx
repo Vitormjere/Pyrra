@@ -18,16 +18,14 @@ interface BalanceChartProps {
   days: number
 }
 
-// Valores compactos no eixo: "1,2 mil" ocupa muito menos que "R$ 1.234,56" e o
-// eixo Y de um gráfico estreito não comporta a moeda inteira.
+// "1,2 mil" ocupa bem menos espaço que "R$ 1.234,56" — eixo Y estreito não comporta a moeda inteira
 const axisFormatter = new Intl.NumberFormat('pt-BR', {
   notation: 'compact',
   maximumFractionDigits: 1,
 })
 
 export function BalanceChart({ history, days }: BalanceChartProps) {
-  // Uma linha exige pelo menos dois pontos; com menos, o gráfico renderizaria
-  // uma área vazia sem explicar por quê.
+  // uma linha exige pelo menos dois pontos, com menos o gráfico ficaria vazio sem explicar por quê
   if (history.length < 2) {
     return (
       <section className="flex flex-col gap-2">
@@ -75,7 +73,7 @@ export function BalanceChart({ history, days }: BalanceChartProps) {
                 tick={{ fill: '#64748b', fontSize: 10 }}
                 tickLine={false}
                 axisLine={false}
-                // Mostra ~5 rótulos em vez de 30 sobrepostos.
+                // mostra ~5 rótulos em vez de 30 sobrepostos
                 interval={Math.max(0, Math.floor(data.length / 5) - 1)}
                 minTickGap={8}
               />
@@ -95,8 +93,7 @@ export function BalanceChart({ history, days }: BalanceChartProps) {
                 }}
                 labelStyle={{ color: '#94a3b8' }}
                 itemStyle={{ color: '#e2e8f0' }}
-                // O tipo do recharts admite valores não numéricos, então a
-                // conversão é explícita em vez de assumir number.
+                // recharts admite valores não numéricos, então converte explícito em vez de assumir number
                 formatter={(value) => [formatCurrency(Number(value)), 'Saldo']}
               />
               {/* Glow em degradê sob a linha. Sem traço próprio (stroke=none) e
@@ -116,14 +113,11 @@ export function BalanceChart({ history, days }: BalanceChartProps) {
                 dataKey="balance"
                 stroke="#02F5A1"
                 strokeWidth={2}
-                // Glow inline e não pela utility: o recharts renderiza a linha
-                // dentro do seu próprio SVG, fora do alcance de uma classe
-                // aplicada ao contêiner React.
+                // glow inline porque o recharts renderiza a linha no próprio SVG, fora do alcance de classe do contêiner
                 style={{
                   filter: 'drop-shadow(0 0 6px rgb(2 245 161 / 0.55))',
                 }}
-                // Sem bolinha por ponto: com 30 pontos vira uma fileira de
-                // pontos que polui a leitura. Só o ponto sob o cursor aparece.
+                // sem bolinha por ponto — com 30 pontos vira poluição visual, só o ponto do cursor aparece
                 dot={false}
                 activeDot={{ r: 4, fill: '#02F5A1' }}
               />

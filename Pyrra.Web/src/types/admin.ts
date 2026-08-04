@@ -1,6 +1,6 @@
-// Espelha os DTOs de Pyrra.Api/Dtos/Admin — gestão administrativa de contas (Fase Admin-2).
+// espelha os DTOs de Pyrra.Api/Dtos/Admin — gestão administrativa de contas
 
-// GET /api/admin/usuarios e POST /api/admin/contas. Nunca traz senha nem hash.
+// GET /api/admin/usuarios e POST /api/admin/contas — nunca traz senha nem hash
 export interface AdminUser {
   id: string
   email: string
@@ -13,8 +13,7 @@ export interface AdminUser {
   deletedAt: string | null
 }
 
-// POST /api/admin/contas — a senha vai em texto puro, via HTTPS, direto do formulário; o backend
-// faz o hash antes de guardar (mesmo caminho de RegisterRequest).
+// POST /api/admin/contas — senha vai em texto puro via HTTPS, o backend faz o hash antes de guardar
 export interface CreateAdminAccountRequest {
   email: string
   name: string

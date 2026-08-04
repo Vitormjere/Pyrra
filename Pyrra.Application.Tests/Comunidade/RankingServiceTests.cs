@@ -18,7 +18,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         private static (RankingService service, FakeFriendshipRepository friendships, FakeStreakService streaks, FakeStreakRepository streakDates)
             Build(params User[] users) {
-            var userRepo      = new FakeUserRepository(users);
+            var userRepo       = new FakeUserRepository(users);
             var friendshipRepo = new FakeFriendshipRepository();
             var streakService  = new FakeStreakService();
             var streakRepo     = new FakeStreakRepository();
@@ -57,8 +57,7 @@ namespace Pyrra.Application.Tests.Comunidade {
             var (service, friendships, streaks, streakDates) = Build(alice, bob);
             MakeFriends(friendships, Alice, Bob);
 
-            // Mesmo streak atual, mas Bob está nele desde mais tempo (StreakStartDate mais antigo)
-            // — deve ficar na frente mesmo com nome depois de "Alice" alfabeticamente.
+            // mesmo streak atual, mas Bob está nele há mais tempo — fica na frente mesmo com nome depois de "Alice" alfabeticamente
             streaks.SetStatus(Alice, 5, 5);
             streaks.SetStatus(Bob, 5, 5);
             streakDates.SetStreakStartDate(Alice, new DateOnly(2026, 1, 10));
@@ -76,8 +75,7 @@ namespace Pyrra.Application.Tests.Comunidade {
             var (service, friendships, streaks, _) = Build(alice, bob);
             MakeFriends(friendships, Alice, Bob);
 
-            // Streak zerado nos dois: sem StreakStartDate (null), então o único critério que sobra
-            // é o nome.
+            // streak zerado nos dois, sem StreakStartDate (sobra só o nome como critério)
             streaks.SetStatus(Alice, 0, 0);
             streaks.SetStatus(Bob, 0, 0);
 

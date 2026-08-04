@@ -11,19 +11,18 @@ using Xunit;
 
 namespace Pyrra.Application.Tests.Usuario {
     public class AdminUserServiceTests {
-        private static readonly Guid AdminId    = Guid.Parse("11111111-1111-1111-1111-111111111111");
-        private static readonly Guid PlayerId   = Guid.Parse("22222222-2222-2222-2222-222222222222");
+        private static readonly Guid AdminId      = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        private static readonly Guid PlayerId     = Guid.Parse("22222222-2222-2222-2222-222222222222");
         private static readonly Guid OtherAdminId = Guid.Parse("33333333-3333-3333-3333-333333333333");
 
-        // Hasher real, mesmo critério de UserAccountServiceTests: é o mesmo
-        // Microsoft.AspNetCore.Identity.PasswordHasher usado em produção.
+        // hasher real, mesmo critério de UserAccountServiceTests — é o mesmo PasswordHasher usado em produção
         private static readonly IPasswordHasher<User> Hasher = new PasswordHasher<User>();
 
         private static (AdminUserService service, FakeUserRepository users, FakeClock clock) Build(params User[] users) {
-            var repo = new FakeUserRepository(users);
-            var clock = new FakeClock();
+            var repo      = new FakeUserRepository(users);
+            var clock     = new FakeClock();
             var adminAuth = new AdminAuthorizationService(repo);
-            var service = new AdminUserService(repo, adminAuth, Hasher, clock);
+            var service   = new AdminUserService(repo, adminAuth, Hasher, clock);
             return (service, repo, clock);
         }
 

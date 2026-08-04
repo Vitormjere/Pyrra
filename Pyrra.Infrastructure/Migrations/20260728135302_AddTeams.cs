@@ -15,12 +15,12 @@ namespace Pyrra.Infrastructure.Migrations
                 name: "TeamInvites",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    TeamId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    InviterId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    InviteeId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Status = table.Column<int>(type: "int", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Id          = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    TeamId      = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    InviterId   = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    InviteeId   = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Status      = table.Column<int>(type: "int", nullable: false),
+                    CreatedAt   = table.Column<DateTime>(type: "datetime2", nullable: false),
                     RespondedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
                 },
                 constraints: table =>
@@ -32,9 +32,9 @@ namespace Pyrra.Infrastructure.Migrations
                 name: "TeamMembers",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    TeamId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id       = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    TeamId   = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId   = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     JoinedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
@@ -46,15 +46,15 @@ namespace Pyrra.Infrastructure.Migrations
                 name: "Teams",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Id          = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Name        = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     Description = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
-                    OwnerId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    OwnerId     = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     MemberLimit = table.Column<int>(type: "int", nullable: false),
                     InviteToken = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
                     TotalPoints = table.Column<int>(type: "int", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    CreatedAt   = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    UpdatedAt   = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
                 {

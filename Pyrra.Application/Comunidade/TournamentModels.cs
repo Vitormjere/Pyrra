@@ -2,24 +2,19 @@ using System;
 using Pyrra.Domain.Comunidade;
 
 namespace Pyrra.Application.Comunidade {
-    // Resumo de um torneio com informações relativas ao usuário atual
+    // resumo de um torneio, já com dados relativos ao usuário atual
     public record TournamentSummary(
-        Guid Id,
-        string Name,
+        Guid    Id,
+        string  Name,
         string? Description,
         UserSummary Owner,
-        bool IsOwner,
+        bool    IsOwner,
         TeamBannerTheme BannerTheme,
         string? BannerImageUrl);
 
-    // Detalhes do torneio com informações adicionais
     public record TournamentDetails(TournamentSummary Summary, string InviteToken);
 
-    // Solicitação de criação de torneio. Status/ReviewedAt existem na entidade desde a Fase 4a,
-    // mas só passaram a aparecer aqui na Fase Admin-3 — até então este resumo só era montado a
-    // partir de solicitações Pendentes (Status sempre igual, ReviewedAt sempre nulo), então não
-    // valia a pena expor. Agora também alimenta a listagem completa (histórico), onde os dois
-    // variam de verdade.
+    // Status/ReviewedAt só passaram a aparecer aqui quando esse resumo também virou base do histórico completo — nas solicitações pendentes eles eram sempre iguais (Status fixo, ReviewedAt nulo), não valia a pena expor
     public record TournamentRequestSummary(
         Guid        Id,
         string      ProposedName,
@@ -29,15 +24,15 @@ namespace Pyrra.Application.Comunidade {
         TournamentRequestStatus Status,
         DateTime?   ReviewedAt);
 
-    // Time associado a um torneio com seu status de participação
+    // time associado a um torneio, com o status de participação
     public record TournamentTeamSummary(
-        Guid Id,
-        Guid TournamentId,
-        Guid TeamId,
+        Guid   Id,
+        Guid   TournamentId,
+        Guid   TeamId,
         string TeamName,
         TeamBannerTheme TeamBannerTheme,
         string? TeamBannerImageUrl,
         TournamentTeamStatus Status,
-        int Score,
+        int     Score,
         DateTime RequestedAt);
 }

@@ -4,7 +4,6 @@ using System.Linq;
 using Pyrra.Application.Nutricao;
 
 namespace Pyrra.Api.Dtos.Nutricao {
-    // Retorna o período da semana utilizado na consulta
     public record WeekNutritionResponse(
         DateOnly WeekStart,
         DateOnly WeekEnd,

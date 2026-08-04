@@ -24,16 +24,14 @@ interface GymHistorySectionProps {
   onRegister?: () => void
 }
 
-// Campo vazio ou não numérico vira null.
+// campo vazio ou não numérico vira null
 function parseNumber(value: string): number | null {
   if (value.trim() === '') return null
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : null
 }
 
-// Histórico de Academia agrupado por exercício, para ler evolução de carga —
-// a lista cronológica plana misturava exercícios diferentes e não respondia
-// "quanto eu levantava antes neste movimento?".
+// agrupado por exercício pra ler evolução de carga — a lista cronológica plana misturava tudo
 export function GymHistorySection({
   workouts,
   onWorkoutUpdated,
@@ -41,7 +39,7 @@ export function GymHistorySection({
   onRegister,
 }: GymHistorySectionProps) {
   const { confirm, dialog } = useConfirm()
-  // Cache por exercício: reabrir um já consultado não refaz a requisição.
+  // cache por exercício, reabrir um já consultado não refaz a requisição
   const [historyByExercise, setHistoryByExercise] = useState<
     Record<string, WorkoutResponse[]>
   >({})
@@ -49,7 +47,7 @@ export function GymHistorySection({
   const [loadingExercise, setLoadingExercise] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  // Edição inline de uma entrada (carga + data) e travas de linha em voo.
+  // edição inline de uma entrada (carga + data) e travas de linha em voo
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editLoad, setEditLoad] = useState('')
   const [editDate, setEditDate] = useState('')
@@ -64,8 +62,7 @@ export function GymHistorySection({
     setEditError(null)
   }
 
-  // Substitui a entrada no cache do exercício e reordena por data crescente —
-  // editar a data pode mudar a posição na progressão.
+  // reordena por data ao substituir, já que editar a data pode mudar a posição na progressão
   function replaceInCache(exerciseName: string, updated: WorkoutResponse) {
     setHistoryByExercise((current) => {
       const list = current[exerciseName]
@@ -104,8 +101,7 @@ export function GymHistorySection({
     setEditError(null)
 
     try {
-      // O nome do exercício é mantido (é o grupo em que a linha vive); só carga e
-      // data são editáveis aqui.
+      // nome do exercício não muda aqui, só carga e data
       const updated = await updateWorkout(entry.id, {
         type: 'Academia',
         date: editDate,
@@ -148,8 +144,7 @@ export function GymHistorySection({
     }
   }
 
-  // Nomes distintos, na ordem em que aparecem (mais recente primeiro, que é
-  // como o backend devolve a lista completa).
+  // nomes distintos, mais recente primeiro (ordem em que o backend devolve a lista completa)
   const exerciseNames = Array.from(
     new Set(
       workouts
@@ -172,8 +167,7 @@ export function GymHistorySection({
     setError(null)
 
     try {
-      // Endpoint dedicado: devolve o histórico daquele exercício em ordem
-      // CRESCENTE de data, que é como se lê progressão de carga.
+      // endpoint dedicado devolve em ordem crescente de data, que é como se lê progressão
       const history = await getWorkoutHistory(name)
       setHistoryByExercise((current) => ({ ...current, [name]: history }))
     } catch (err) {

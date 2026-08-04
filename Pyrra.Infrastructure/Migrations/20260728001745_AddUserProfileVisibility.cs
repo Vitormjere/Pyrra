@@ -11,9 +11,9 @@ namespace Pyrra.Infrastructure.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<int>(
-                name: "ProfileVisibility",
+                name:  "ProfileVisibility",
                 table: "Users",
-                type: "int",
+                type:  "int",
                 nullable: false,
                 defaultValue: 0);
         }
@@ -22,7 +22,7 @@ namespace Pyrra.Infrastructure.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
-                name: "ProfileVisibility",
+                name:  "ProfileVisibility",
                 table: "Users");
         }
     }

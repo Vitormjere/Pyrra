@@ -9,14 +9,13 @@ import type {
 
 // ---- gestão do dono do torneio ----
 
-// Catálogo geral inteiro com o status de vínculo a esse torneio — só o dono vê.
+// catálogo geral inteiro com o status de vínculo a esse torneio, só o dono vê
 export async function getTournamentCatalog(tournamentId: string): Promise<TournamentCatalogChallenge[]> {
   const { data } = await api.get<TournamentCatalogChallenge[]>(`/api/torneios/${tournamentId}/desafios/catalogo`)
   return data
 }
 
-// goal/unit são opcionais (Fase 5c) — chamar de novo num desafio já vinculado ATUALIZA a
-// meta/unidade em vez de não fazer nada (evita ter que desvincular pra editar).
+// goal/unit são opcionais — chamar de novo num desafio já vinculado atualiza a meta/unidade em vez de não fazer nada
 export async function linkTournamentCatalogChallenge(
   tournamentId: string,
   challengeId: string,
@@ -57,13 +56,13 @@ export async function deleteTournamentOwnChallenge(tournamentId: string, challen
   await api.delete(`/api/torneios/${tournamentId}/desafios/proprios/${challengeId}`)
 }
 
-// Fila de submissões pendentes do torneio, cruzando todos os times participantes — só o dono vê.
+// fila de submissões pendentes do torneio, cruzando todos os times participantes, só o dono vê
 export async function getTournamentPendingSubmissions(tournamentId: string): Promise<PendingTournamentSubmissionWithTeam[]> {
   const { data } = await api.get<PendingTournamentSubmissionWithTeam[]>(`/api/torneios/${tournamentId}/desafios/submissoes`)
   return data
 }
 
-// Progresso agregado de cada desafio COM META, cruzando todos os times Aprovados — só o dono vê.
+// progresso agregado de cada desafio com meta, cruzando todos os times aprovados, só o dono vê
 export async function getTournamentChallengeProgress(tournamentId: string): Promise<TournamentChallengeProgress[]> {
   const { data } = await api.get<TournamentChallengeProgress[]>(`/api/torneios/${tournamentId}/desafios/progresso`)
   return data
@@ -71,7 +70,7 @@ export async function getTournamentChallengeProgress(tournamentId: string): Prom
 
 // ---- visão de membro de um time participante ----
 
-// Desafios de UM torneio específico em que o time está Aprovado — qualquer membro do time vê.
+// desafios de um torneio específico em que o time está aprovado, qualquer membro do time vê
 export async function getAvailableTournamentChallenges(
   teamId: string,
   tournamentId: string,
@@ -80,9 +79,7 @@ export async function getAvailableTournamentChallenges(
   return data
 }
 
-// Envia a prova de um desafio do catálogo geral vinculado ao torneio — multipart/form-data,
-// mesmo padrão de submitChallengeProof (desafio de time). quantity só é exigida quando o desafio
-// tem meta configurada (Fase 5c) — sem meta, é ignorada mesmo se informada.
+// envia a prova de um desafio do catálogo vinculado ao torneio, mesmo padrão de submitChallengeProof — quantity só importa se o desafio tem meta
 export async function submitTournamentCatalogChallengeProof(
   teamId: string,
   tournamentId: string,
@@ -100,7 +97,7 @@ export async function submitTournamentCatalogChallengeProof(
   })
 }
 
-// Envia a prova de um desafio próprio do torneio. Mesma regra de quantity acima.
+// envia a prova de um desafio próprio do torneio, mesma regra de quantity acima
 export async function submitTournamentOwnChallengeProof(
   teamId: string,
   tournamentId: string,

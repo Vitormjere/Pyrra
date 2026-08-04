@@ -1,6 +1,4 @@
-// Espelha os DTOs de Pyrra.Api/Dtos/Chat — chat entre admin e jogadores (Fase Admin-4a). Sem
-// tempo real ainda: mensagens aparecem ao enviar (local) ou ao (re)carregar a conversa — a versão
-// ao vivo chega na Fase Admin-4b, por cima do mesmo modelo.
+// espelha os DTOs de chat do backend, mensagens entre admin e jogadores
 
 import type { UserSummary } from './community'
 
@@ -14,7 +12,7 @@ export interface ChatMessage {
   readAt: string | null
 }
 
-// Uma linha da lista de conversas — a contraparte com quem já houve troca de mensagem.
+// uma linha da lista de conversas, com quem já houve troca de mensagem
 export interface ChatConversation {
   counterpart: UserSummary
   lastMessageContent: string

@@ -9,8 +9,7 @@ namespace Pyrra.Application.Common.Interfaces {
         Task<TournamentRequest?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
         Task<IReadOnlyList<TournamentRequest>> GetPendingAsync(CancellationToken cancellationToken = default);
 
-        // TODAS as solicitações, qualquer status — só a listagem administrativa de
-        // histórico (Fase Admin-3) usa isso; GetPendingAsync acima continua igual.
+        // todas as solicitações, qualquer status, só pra listagem administrativa de histórico
         Task<IReadOnlyList<TournamentRequest>> GetAllAsync(CancellationToken cancellationToken = default);
 
         Task AddAsync(TournamentRequest request, CancellationToken cancellationToken = default);

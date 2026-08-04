@@ -5,10 +5,7 @@ import { Check, Circle } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { getApiErrorMessage } from '../../services/apiError'
 
-// Requisitos de força da senha, checados no cliente e mostrados como lista viva
-// abaixo do campo. ATENÇÃO: o backend (AuthService.RegisterAsync) só exige 8
-// caracteres — maiúscula/número/especial são regras só do frontend por enquanto,
-// então são mais estritas que o servidor, não conflitantes.
+// lista viva de requisitos — o backend só exige 8 caracteres, o resto é regra só do frontend (mais estrita, não conflitante)
 const PASSWORD_RULES: readonly { label: string; test: (value: string) => boolean }[] = [
   { label: 'Pelo menos 8 caracteres', test: (v) => v.length >= 8 },
   { label: 'Uma letra maiúscula', test: (v) => /[A-Z]/.test(v) },
@@ -16,8 +13,7 @@ const PASSWORD_RULES: readonly { label: string; test: (value: string) => boolean
   { label: 'Um caractere especial (ex: !@#$)', test: (v) => /[^A-Za-z0-9]/.test(v) },
 ]
 
-// Checagem de formato deliberadamente frouxa: só descarta o que é claramente
-// inválido. Se um e-mail existe de verdade, quem decide é o servidor.
+// checagem frouxa de propósito — só descarta o claramente inválido, quem decide se o e-mail existe é o servidor
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 interface FieldErrors {
@@ -47,7 +43,7 @@ function validate(
     errors.password = 'A senha não atende a todos os requisitos abaixo.'
   }
 
-  // Igualdade é só client-side: o backend não conhece o campo de confirmação.
+  // igualdade é só client-side, o backend não conhece o campo de confirmação
   if (!confirmPassword) {
     errors.confirmPassword = 'Confirme sua senha.'
   } else if (password !== confirmPassword) {
@@ -72,9 +68,7 @@ export function Cadastro() {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  // Some com os erros assim que o usuário começa a corrigir, mesmo comportamento
-  // do Login: manter a mensagem enquanto ele reescreve passa a impressão de que a
-  // correção não surtiu efeito.
+  // some com os erros assim que o usuário começa a corrigir, mesmo comportamento do Login
   function clearErrors(field: keyof FieldErrors) {
     setFieldErrors((current) => {
       if (current[field] === undefined) {
@@ -97,8 +91,7 @@ export function Cadastro() {
     setFieldErrors(validation)
     setError(null)
 
-    // Nada é enviado enquanto houver erro de formato — o objetivo da validação
-    // no cliente é justamente poupar a viagem.
+    // nada é enviado enquanto houver erro de formato — a validação no cliente existe pra poupar a viagem
     if (Object.keys(validation).length > 0) {
       return
     }
@@ -106,8 +99,7 @@ export function Cadastro() {
     setSubmitting(true)
 
     try {
-      // register() já salva o token e carrega o usuário: o cadastro entra logado,
-      // sem passar pela tela de login.
+      // register() já salva o token e carrega o usuário — o cadastro entra logado direto
       await register(name.trim(), email.trim(), password)
       navigate('/hoje', { replace: true })
     } catch (err) {
@@ -192,8 +184,7 @@ export function Cadastro() {
               onChange={(event) => {
                 setPassword(event.target.value)
                 clearErrors('password')
-                // Mudar a senha invalida um "não coincidem" anterior: limpa o erro
-                // da confirmação para não afirmar algo que deixou de ser verdade.
+                // mudar a senha invalida um "não coincidem" anterior
                 clearErrors('confirmPassword')
               }}
               autoComplete="new-password"

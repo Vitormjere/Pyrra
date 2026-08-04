@@ -30,8 +30,7 @@ interface NavItem {
   icon: LucideIcon
 }
 
-// Todas as seções — índice completo do app, compartilhado pelo drawer (mobile)
-// e pela sidebar permanente (desktop).
+// índice completo do app, compartilhado pelo drawer (mobile) e pela sidebar permanente (desktop)
 const ALL_SECTIONS: NavItem[] = [
   { to: '/hoje', label: 'Hoje', icon: Flame },
   { to: '/zelo', label: 'Zelo', icon: Sparkles },
@@ -42,20 +41,17 @@ const ALL_SECTIONS: NavItem[] = [
   { to: '/nutricao', label: 'Nutrição', icon: Apple },
   { to: '/diario', label: 'Diário', icon: NotebookPen },
   { to: '/amigos', label: 'Amigos', icon: Users },
-  // Shield (não UsersRound): a variante arredondada de Users era fácil de confundir com o ícone
-  // de Amigos logo acima — Shield tem silhueta bem distinta e combina com o "emblema" de time.
+  // shield em vez de UsersRound: a variante arredondada de Users confundia com o ícone de Amigos
   { to: '/times', label: 'Times', icon: Shield },
   { to: '/torneios', label: 'Torneios', icon: Trophy },
   { to: '/perfil', label: 'Perfil', icon: User },
-  // Chat com o admin (Fase Admin-4a) — mesmo critério de Configurações logo abaixo: destino
-  // ocasional, não uso diário, por isso só no menu completo, não em QUICK_SECTIONS.
+  // destino ocasional, não uso diário, por isso só entra no menu completo
   { to: '/suporte', label: 'Suporte', icon: LifeBuoy },
-  // Destino ocasional (edição de conta), não uso diário — por isso só entra aqui (menu completo),
-  // não em QUICK_SECTIONS, que já tem seus 5 slots de telas de consulta diária ocupados.
+  // mesmo critério do Suporte acima: ocasional, fora dos 5 slots do QUICK_SECTIONS
   { to: '/configuracoes', label: 'Configurações', icon: Settings },
 ]
 
-// Barra inferior
+// barra inferior
 const QUICK_ROUTES = ['/hoje', '/financas', '/zelo', '/nutricao', '/perfil']
 const QUICK_SECTIONS: NavItem[] = QUICK_ROUTES.map(
   (route) => ALL_SECTIONS.find((section) => section.to === route)!,
@@ -91,13 +87,9 @@ function BottomNavItem({ to, label, icon: Icon }: NavItem) {
   )
 }
 
-// Índice de seções, reutilizado pelo drawer e pela sidebar fixa. onNavigate
-// deixa o drawer fechar ao clicar num item; a sidebar permanente não passa nada,
-// pois não fecha. Manter uma cópia única evita as duas navegações divergirem.
+// índice de seções compartilhado entre drawer e sidebar fixa — onNavigate fecha o drawer ao clicar, a sidebar não passa nada porque não fecha
 function SectionNav({ onNavigate }: { onNavigate?: () => void }) {
-  // Contagem de pedidos/convites/mensagens pendentes para os badges de "Amigos", "Times" e
-  // "Suporte". O SectionNav sempre é renderizado dentro dos três providers (que envolvem o
-  // AppLayout), então os hooks estão disponíveis.
+  // contagem de pedidos/convites/mensagens pendentes pros badges de Amigos, Times e Suporte
   const { count } = useFriendRequests()
   const { count: teamInviteCount } = useTeamInvites()
   const { count: chatUnreadCount } = useChatUnread()
@@ -112,9 +104,7 @@ function SectionNav({ onNavigate }: { onNavigate?: () => void }) {
           <li key={to}>
             <NavLink
               to={to}
-              // Fecha ao navegar. Feito no clique, e não num efeito sobre a rota:
-              // é reação a uma ação do usuário, não sincronização com sistema
-              // externo. Ausente na sidebar fixa (onNavigate undefined = no-op).
+              // fecha ao navegar — é reação ao clique, não sincronização com a rota
               onClick={onNavigate}
               className={({ isActive }) =>
                 [
@@ -148,8 +138,7 @@ function SectionNav({ onNavigate }: { onNavigate?: () => void }) {
   )
 }
 
-// Rodapé com a conta — âncora de "de quem é este app". Compartilhado entre o
-// drawer e a sidebar fixa.
+// rodapé com a conta, compartilhado entre o drawer e a sidebar fixa
 function AccountFooter({ name, email }: { name?: string; email?: string }) {
   return (
     <div className="flex items-center gap-3 border-t border-line px-4 py-3">
@@ -170,7 +159,7 @@ function AccountFooter({ name, email }: { name?: string; email?: string }) {
 export function AppLayout() {
   const { user } = useAuth()
   const [drawerOpen, setDrawerOpen] = useState(false)
-  // Esc fecha, como em qualquer painel sobreposto.
+  // esc fecha, como em qualquer painel sobreposto
   useEffect(() => {
     if (!drawerOpen) return
 
@@ -184,8 +173,7 @@ export function AppLayout() {
 
   return (
     <div className="min-h-screen">
-      {/* BARRA SUPERIOR — só o gatilho do menu e o wordmark. Só no mobile: no
-          desktop (lg+) a sidebar permanente ocupa seu lugar. */}
+      {/* barra superior — só o gatilho do menu e o wordmark, só no mobile */}
       <header className="sticky top-0 z-30 border-b border-line bg-brand-dark/90 backdrop-blur lg:hidden">
         <div className="mx-auto flex h-14 w-full max-w-md items-center gap-3 px-4">
           <button
@@ -201,9 +189,7 @@ export function AppLayout() {
         </div>
       </header>
 
-      {/* SIDEBAR PERMANENTE — só no desktop (lg+). Substitui hambúrguer + drawer
-          + tab bar, reusando o mesmo índice de seções e o mesmo rodapé de conta.
-          Fixa à esquerda; o <main> reserva o espaço dela com lg:pl-72. */}
+      {/* sidebar permanente — só desktop, substitui hambúrguer + drawer + tab bar */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 flex-col border-r border-line bg-brand-dark lg:flex">
         <div className="flex h-14 items-center border-b border-line px-4">
           <span className="font-display text-lg font-semibold tracking-tight">Pyrra</span>
@@ -212,19 +198,17 @@ export function AppLayout() {
         <AccountFooter name={user?.name} email={user?.email} />
       </aside>
 
-      {/* No desktop o conteúdo desloca para além da sidebar (lg:pl-72) e ganha
-          uma coluna mais larga, porém contida (lg:max-w-2xl) e centralizada — a
-          largura cheia deixaria as linhas longas demais, o "mobile esticado". */}
+      {/* no desktop a coluna fica mais larga mas contida, senão as linhas ficam longas demais */}
       <main className="w-full px-4 pt-5 pb-24 lg:pb-12 lg:pl-72">
         <div className="mx-auto w-full max-w-md lg:max-w-2xl">
           <Outlet />
         </div>
       </main>
 
-      {/* DRAWER */}
+      {/* drawer */}
       {drawerOpen && (
         <>
-          {/* Fundo clicável: fechar tocando fora é o gesto esperado. */}
+          {/* fundo clicável — fechar tocando fora é o gesto esperado */}
           <button
             type="button"
             aria-label="Fechar menu"
@@ -255,14 +239,12 @@ export function AppLayout() {
         </>
       )}
 
-      {/* BARRA INFERIOR — monocromática, sem preenchimento. O item ativo muda só
-          a cor do ícone e do rótulo; nada de pílula colorida atrás. Só no mobile:
-          no desktop (lg+) a sidebar permanente cobre a navegação. */}
+      {/* barra inferior — monocromática, item ativo muda só a cor, sem pílula atrás; só mobile */}
       <nav
         aria-label="Navegação rápida"
         className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-brand-dark/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
       >
-        {/* Cinco itens iguais, o Zelo no centro sem tratamento especial. */}
+        {/* cinco itens iguais, o Zelo no centro sem tratamento especial */}
         <ul className="mx-auto flex w-full max-w-md">
           {QUICK_SECTIONS.map((item) => (
             <BottomNavItem key={item.to} {...item} />

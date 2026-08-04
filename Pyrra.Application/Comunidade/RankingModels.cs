@@ -1,6 +1,6 @@
 using System;
 
 namespace Pyrra.Application.Comunidade {
-    // Posição de um usuário no ranking de streak
+    // posição de um usuário no ranking de streak
     public record RankingEntry(Guid UserId, UserSummary User, int CurrentStreak, bool IsSelf);
 }

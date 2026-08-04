@@ -7,17 +7,13 @@ namespace Pyrra.Domain.Focos {
         public int CurrentCount { get; set; }
         public int BestCount { get; set; }
 
-        // Última data já avaliada e incorporada ao streak. Sempre <= ontem: o dia corrente só é
-        // avaliado depois que vira passado.
+        // última data já avaliada no streak 
         public DateOnly LastSettledDate { get; set; }
 
-        // Primeiro dia da sequência atual. Null quando o streak está zerado.
-        // Serve de limite inicial da média do primeiro marco.
+        // primeiro dia da sequência atual, nulo quando o streak está zerado 
         public DateOnly? StreakStartDate { get; set; }
 
-        // Dia em que o último marco foi atingido. Null se a sequência atual ainda não cruzou
-        // nenhum. Sem isso não dá para delimitar a janela da média de um marco cruzado em outra
-        // chamada — o "dia seguinte ao marco anterior" seria irrecuperável.
+        // dia do último marco atingido, nulo se a sequência ainda não cruzou nenhum 
         public DateOnly? LastMilestoneDate { get; set; }
     }
 }

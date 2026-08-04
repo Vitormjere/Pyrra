@@ -15,7 +15,7 @@ namespace Pyrra.Application.Common {
         public async Task EnsureAdminAsync(Guid userId, CancellationToken cancellationToken = default) {
             var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
 
-            // Não diferencia campos inexistentes de campos não marcados
+            // não diferencia campos inexistentes de campos não marcados
             if (user is null || !user.IsAdmin) {
                 throw new ForbiddenException("Esta ação é restrita a administradores.");
             }

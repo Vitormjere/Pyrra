@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Pyrra.Domain.Desafios;
 
 namespace Pyrra.Application.Common.Interfaces {
-    // Vínculos entre torneios e desafios do catálogo geral (Fase 5b)
+    // vínculos entre torneios e desafios do catálogo geral
     public interface ITournamentChallengeRepository {
         Task<IReadOnlyList<TournamentChallenge>> GetByTournamentAsync(Guid tournamentId, CancellationToken cancellationToken = default);
         Task<TournamentChallenge?> GetAsync(Guid tournamentId, Guid challengeId, CancellationToken cancellationToken = default);

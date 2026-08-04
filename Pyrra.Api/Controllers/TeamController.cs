@@ -53,9 +53,7 @@ namespace Pyrra.Api.Controllers {
             return Ok(teams.Select(TeamSummaryResponse.FromSummary));
         }
 
-        // TODOS os times do site, públicos e privados, de qualquer dono — restrito a admins
-        // (Fase Admin-2.1). Usado pela tela de Times quando IsAdmin=true, no lugar das abas
-        // "Meus Times"/"Explorar" do usuário comum.
+        // todos os times do site, de qualquer dono — só admin vê essa lista
         [HttpGet("todos")]
         public async Task<ActionResult<IEnumerable<TeamSummaryResponse>>> GetAllTeams(CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -70,7 +68,6 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Retorna os times do usuário que podem participar de um torneio
         [HttpGet("meus/elegiveis-torneio")]
         public async Task<ActionResult<IEnumerable<TeamSummaryResponse>>> GetMyEligibleForTournament(CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -81,7 +78,7 @@ namespace Pyrra.Api.Controllers {
             return Ok(teams.Select(TeamSummaryResponse.FromSummary));
         }
 
-        // Times marcados como Público - aba Explorar
+        // times públicos, pra aba Explorar
         [HttpGet("publicos")]
         public async Task<ActionResult<IEnumerable<PublicTeamResponse>>> GetPublicTeams(CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -92,7 +89,6 @@ namespace Pyrra.Api.Controllers {
             return Ok(teams.Select(PublicTeamResponse.FromSummary));
         }
 
-        // Altera a visibilidade do time
         [HttpPost("{id:guid}/visibilidade")]
         public async Task<IActionResult> SetVisibility(Guid id, SetTeamVisibilityRequest request, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -111,7 +107,6 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Altera a cor do banner
         [HttpPost("{id:guid}/tema")]
         public async Task<ActionResult<TeamSummaryResponse>> SetBannerTheme(Guid id, SetTeamBannerThemeRequest request, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -130,7 +125,6 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Upload de imagem de capa 
         [HttpPost("{id:guid}/banner")]
         [RequestSizeLimit(3 * 1024 * 1024 + 1024)]
         public async Task<ActionResult<TeamSummaryResponse>> UploadBannerImage(Guid id, IFormFile file, CancellationToken cancellationToken) {
@@ -153,7 +147,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Remove a imagem customizada e volta a exibir a cor do tema
+        // remove a imagem e volta a mostrar a cor do tema
         [HttpDelete("{id:guid}/banner")]
         public async Task<ActionResult<TeamSummaryResponse>> RemoveBannerImage(Guid id, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -182,7 +176,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Convite direto (só o dono pode, e se ser amigo dele)
+        // só o dono convida, e só quem já é amigo dele
         [HttpPost("{id:guid}/convidar")]
         public async Task<IActionResult> InviteFriend(Guid id, InviteFriendToTeamRequest request, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -209,7 +203,7 @@ namespace Pyrra.Api.Controllers {
             return Ok(pending.Select(TeamInviteResponse.FromSummary));
         }
 
-        // Retorna apenas a quantidade para o badge do menu, sem carregar a lista completa
+        // só a quantidade, pro badge do menu — evita carregar a lista toda
         [HttpGet("convites/contagem")]
         public async Task<ActionResult<TeamInviteCountResponse>> GetPendingInvitesCount(CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -252,7 +246,6 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Processa a entrada por link e retorna o resultado da operaçao
         [HttpPost("convite/{token}/entrar")]
         public async Task<ActionResult<JoinResultResponse>> JoinViaLink(string token, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -283,7 +276,6 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Remove um membro do time
         [HttpDelete("{id:guid}/membros/{memberUserId:guid}")]
         public async Task<IActionResult> RemoveMember(Guid id, Guid memberUserId, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -300,7 +292,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Exclui o time e todos os vínculos
+        // apaga o time e todos os vínculos junto
         [HttpDelete("{id:guid}")]
         public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -315,7 +307,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Transfere a titularidade para um membro já existente do time
+        // só pra alguém que já é membro do time
         [HttpPost("{id:guid}/transferir")]
         public async Task<IActionResult> TransferOwnership(Guid id, TransferOwnershipRequest request, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -337,7 +329,7 @@ namespace Pyrra.Api.Controllers {
             return Guid.TryParse(claim, out userId);
         }
 
-        // Quando não informado ou inválido, usa a privacidade padrão
+        // sem valor ou inválido, cai pro padrão (privado)
         private static TeamVisibility ParseVisibility(string? value) =>
             Enum.TryParse<TeamVisibility>(value, out var visibility) ? visibility : TeamVisibility.Privado;
 

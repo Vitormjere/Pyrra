@@ -4,13 +4,10 @@ import { Sparkles } from 'lucide-react'
 import { askZelo } from '../services/zeloService'
 import { getApiErrorMessage } from '../services/apiError'
 
-// Mesmo teto do backend (MaxQuestionLength no ZeloController): o front corta antes
-// para o usuário não digitar o que a API vai recusar.
+// mesmo teto do backend (MaxQuestionLength) pra não deixar digitar o que a API vai recusar
 const MAX_LENGTH = 300
 
-// Card de destaque do Zelo, logo abaixo do anel de progresso. Carrega o próprio
-// estado e não depende do carregamento da tela Hoje: é uma interação isolada, e
-// uma falha aqui não afeta o resto do dashboard.
+// carrega o próprio estado, não depende da tela Hoje — é isolado, falha aqui não afeta o resto
 export function ZeloCard() {
   const [question, setQuestion] = useState('')
   const [answer, setAnswer] = useState<string | null>(null)
@@ -30,9 +27,7 @@ export function ZeloCard() {
       const resposta = await askZelo(pergunta)
       setAnswer(resposta)
     } catch (err) {
-      // Sem mapeamento por status: o 429 (limite) e as validações já vêm com um
-      // { message } pronto do backend, que o getApiErrorMessage usa. Qualquer
-      // outra falha (rede, 5xx) cai no texto genérico.
+      // 429 e validações já vêm com { message } pronto do backend, o resto cai no texto genérico
       setError(
         getApiErrorMessage(
           err,
@@ -45,8 +40,7 @@ export function ZeloCard() {
     }
   }
 
-  // Enter envia; Shift+Enter quebra linha. O textarea acomoda perguntas de duas
-  // linhas sem virar um campo de uma linha só.
+  // enter envia, shift+enter quebra linha
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault()
@@ -99,8 +93,7 @@ export function ZeloCard() {
       )}
 
       {answer && !error && (
-        // aria-live: quando a resposta chega depois do "Pensando...", o leitor de
-        // tela anuncia o texto novo sem o usuário precisar procurar.
+        // aria-live pra anunciar a resposta assim que chega, sem o usuário precisar procurar
         <div
           aria-live="polite"
           className="rounded-md bg-brand-dark px-4 py-3 text-sm leading-relaxed text-slate-200 ring-1 ring-line"

@@ -1,10 +1,5 @@
-// Único lugar que conhece COMO a sessão é persistida. Isolar aqui permite trocar
-// localStorage por outra estratégia (cookie httpOnly, sessionStorage) sem tocar no
-// axios nem no contexto de autenticação.
-//
-// localStorage é aceitável para este MVP, mas fica exposto a XSS: qualquer script
-// injetado na página consegue ler o token. Quando houver refresh token, o par
-// natural é cookie httpOnly + refresh silencioso.
+// único lugar que sabe como a sessão é persistida, isolado pra trocar de estratégia sem tocar no resto
+// localStorage expõe o token a XSS, mas serve pro MVP — quando tiver refresh token, trocar por cookie httpOnly
 const TOKEN_KEY = 'pyrra.token'
 
 export function getToken(): string | null {

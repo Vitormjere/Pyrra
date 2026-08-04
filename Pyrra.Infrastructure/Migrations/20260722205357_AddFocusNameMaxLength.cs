@@ -11,25 +11,25 @@ namespace Pyrra.Infrastructure.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AlterColumn<string>(
-                name: "Name",
-                table: "DailyFocuses",
-                type: "nvarchar(100)",
-                maxLength: 100,
-                nullable: false,
+                name:       "Name",
+                table:      "DailyFocuses",
+                type:       "nvarchar(100)",
+                maxLength:  100,
+                nullable:   false,
                 oldClrType: typeof(string),
-                oldType: "nvarchar(max)");
+                oldType:    "nvarchar(max)");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AlterColumn<string>(
-                name: "Name",
-                table: "DailyFocuses",
-                type: "nvarchar(max)",
-                nullable: false,
-                oldClrType: typeof(string),
-                oldType: "nvarchar(100)",
+                name:         "Name",
+                table:        "DailyFocuses",
+                type:         "nvarchar(max)",
+                nullable:     false,
+                oldClrType:   typeof(string),
+                oldType:      "nvarchar(100)",
                 oldMaxLength: 100);
         }
     }

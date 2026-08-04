@@ -4,10 +4,7 @@ import TeamBanner from './TeamBanner'
 import { getApiErrorMessage } from '../services/apiError'
 import type { Team } from '../types/teams'
 
-// Lista de times próprios com um botão "Solicitar" por linha — usada tanto pelo Convite de
-// Torneio (resolve o torneio pelo token) quanto pelo botão "Solicitar entrada" na tela de
-// Detalhes do Torneio (já sabe o id do torneio). `onRequest` decide qual endpoint chamar; este
-// componente só cuida do estado de busy/sucesso/erro por time.
+// lista de times com botão "Solicitar" por linha, reaproveitada no convite e nos detalhes do torneio — onRequest decide qual endpoint chamar
 export function TeamEntryPicker({
   teams,
   onRequest,

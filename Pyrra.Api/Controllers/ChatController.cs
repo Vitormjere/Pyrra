@@ -14,9 +14,7 @@ using Pyrra.Application.Chat;
 using Pyrra.Application.Common.Exceptions;
 
 namespace Pyrra.Api.Controllers {
-    // Chat entre admin e jogadores (Fase Admin-4a) — sem gate de admin aqui: o mesmo controller
-    // atende os dois lados, simétrico. O que restringe quem fala com quem é a checagem de par
-    // (um admin, um jogador) dentro de SendMessage, não [Authorize(Roles=...)].
+    // chat entre admin e jogador, o mesmo controller atende os dois lados
     [ApiController]
     [Authorize]
     [Route("api/chat")]
@@ -26,10 +24,10 @@ namespace Pyrra.Api.Controllers {
 
         public ChatController(IChatService chatService, IHubContext<ChatHub> hubContext) {
             _chatService = chatService;
-            _hubContext = hubContext;
+            _hubContext  = hubContext;
         }
 
-        // Admins ativos — o jogador usa isso pra saber com quem pode começar uma conversa.
+        // admins ativos (o jogador usa isso pra saber com quem pode começar uma conversa)
         [HttpGet("admins")]
         public async Task<ActionResult<IEnumerable<UserSummaryResponse>>> GetActiveAdmins(CancellationToken cancellationToken) {
             if (!TryGetUserId(out _)) {
@@ -70,9 +68,7 @@ namespace Pyrra.Api.Controllers {
                 var message = await _chatService.SendMessageAsync(userId, counterpartId, request.Content, cancellationToken);
                 var response = ChatMessageResponse.FromSummary(message);
 
-                // Push em tempo real (Fase Admin-4b) — Clients.User entrega só se o destinatário
-                // tiver alguma conexão de Hub ativa; se estiver offline, a mensagem já persistida
-                // (linha acima) é vista normalmente ao abrir a conversa depois.
+                // push em tempo real, só entrega se o destinatário tiver uma conexão de hub ativa; se estiver offline, vê a mensagem normal ao abrir a conversa depois
                 await _hubContext.Clients.User(counterpartId.ToString()).SendAsync("ReceiveMessage", response, cancellationToken);
 
                 return Created($"/api/chat/conversas/{counterpartId}/mensagens", response);

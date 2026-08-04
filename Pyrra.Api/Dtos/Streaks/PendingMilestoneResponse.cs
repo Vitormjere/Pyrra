@@ -4,9 +4,9 @@ using Pyrra.Application.Streaks;
 
 namespace Pyrra.Api.Dtos.Streaks {
     public record PendingMilestoneResponse(
-        Guid Id,
-        int Milestone,
-        decimal AveragePercentage,
+        Guid     Id,
+        int      Milestone,
+        decimal  AveragePercentage,
         DateOnly ReachedDate) {
         public static PendingMilestoneResponse FromResult(PendingMilestoneItem item) =>
             new(item.Id, item.Milestone, item.AveragePercentage, item.ReachedDate);

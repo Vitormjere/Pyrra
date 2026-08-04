@@ -9,10 +9,7 @@ import { requestTeamEntryViaInvite } from '../../services/tournamentService'
 import { getApiErrorMessage } from '../../services/apiError'
 import type { Team } from '../../types/teams'
 
-// Abertura do link de convite de torneio. Ao contrário do convite de time (que entra na hora),
-// aqui só o DONO de um time pode solicitar a entrada — e a entrada fica pendente até o dono do
-// torneio aprovar. Por isso a tela mostra os times próprios ELEGÍVEIS (sem entrada ativa em outro
-// torneio) pra escolher, em vez de agir sozinha.
+// diferente do convite de time (que entra na hora), aqui só o dono de um time solicita entrada, que fica pendente até o dono do torneio aprovar
 export function ConviteTorneio() {
   const { token } = useParams<{ token: string }>()
   const { user, loading } = useAuth()
@@ -43,9 +40,7 @@ export function ConviteTorneio() {
     return <Centered>Carregando…</Centered>
   }
 
-  // Sem o "guarda e retoma depois do login" do convite de time/amizade: esse link circula entre
-  // donos de time que já têm conta (peer-to-peer), não é o primeiro contato de alguém novo no
-  // app — perder o token nesse caso raro (abrir deslogado) é aceitável, o link continua ali.
+  // sem o "guarda e retoma depois do login": esse link circula entre donos de time que já têm conta
   if (!user) {
     return <Navigate to="/login" replace />
   }

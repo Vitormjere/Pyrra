@@ -1,9 +1,7 @@
 using System;
 
 namespace Pyrra.Domain.Desafios {
-    // Desafio curado por admin, pertence a uma categoria. Só admin cria/edita/remove — ver
-    // ChallengeCatalogService. Sem FK para ChallengeCategory, mesma convenção do projeto (módulos
-    // guardam o Id relacionado sem constraint).
+    // desafio curado por admin, pertence a uma categoria
     public class Challenge {
         public Guid Id { get; set; }
         public Guid CategoryId { get; set; }
@@ -11,8 +9,7 @@ namespace Pyrra.Domain.Desafios {
         public string? Description { get; set; }
         public int Points { get; set; }
 
-        // Nulo = sempre disponível enquanto a categoria estiver ativa no time. Preenchido = deixa
-        // de valer após esse instante, mesmo com a categoria continuando ativa.
+        // nulo fica disponível enquanto a categoria estiver ativa, preenchido deixa de valer depois desse instante mesmo com a categoria ativa
         public DateTime? Deadline { get; set; }
 
         public DateTime CreatedAt { get; set; }

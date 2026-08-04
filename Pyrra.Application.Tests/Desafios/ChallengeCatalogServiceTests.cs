@@ -21,9 +21,9 @@ namespace Pyrra.Application.Tests.Desafios {
 
             var categories = new FakeChallengeCategoryRepository();
             var challenges = new FakeChallengeRepository();
-            var clock = new FakeClock();
-            var adminAuth = new AdminAuthorizationService(users);
-            var service = new ChallengeCatalogService(categories, challenges, adminAuth, clock);
+            var clock      = new FakeClock();
+            var adminAuth  = new AdminAuthorizationService(users);
+            var service    = new ChallengeCatalogService(categories, challenges, adminAuth, clock);
 
             return (service, categories, challenges, clock);
         }
@@ -165,7 +165,7 @@ namespace Pyrra.Application.Tests.Desafios {
         [Fact]
         public async Task DeleteChallenge_ComoNaoAdmin_Lanca() {
             var (service, _, challenges, _) = Build();
-            var category = await service.CreateCategoryAsync(AdminId, "Corrida", null, "footprints", ChallengeCategoryColor.Azul);
+            var category  = await service.CreateCategoryAsync(AdminId, "Corrida", null, "footprints", ChallengeCategoryColor.Azul);
             var challenge = await service.CreateChallengeAsync(AdminId, category.Id, "Correr 5km", null, 20, null);
 
             await Assert.ThrowsAsync<ForbiddenException>(() => service.DeleteChallengeAsync(RegularId, challenge.Id));

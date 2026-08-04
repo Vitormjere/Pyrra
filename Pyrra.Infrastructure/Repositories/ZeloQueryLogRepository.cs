@@ -17,8 +17,6 @@ namespace Pyrra.Infrastructure.Repositories {
         public Task<ZeloQueryLog?> GetByUserAndDateAsync(Guid userId, DateOnly date, CancellationToken cancellationToken = default) =>
             _context.ZeloQueryLogs.FirstOrDefaultAsync(l => l.UserId == userId && l.Date == date, cancellationToken);
 
-        // Mesmo padrão do DailyScoreRepository: cria a linha do par usuário+data ou atualiza o Count
-        // da já rastreada, preservando o Id — o índice único garante que nunca duplica.
         public async Task<ZeloQueryLog> UpsertAsync(ZeloQueryLog log, CancellationToken cancellationToken = default) {
             var existing = await GetByUserAndDateAsync(log.UserId, log.Date, cancellationToken);
 

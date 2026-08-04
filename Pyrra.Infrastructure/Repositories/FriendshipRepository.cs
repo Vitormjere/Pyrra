@@ -19,8 +19,6 @@ namespace Pyrra.Infrastructure.Repositories {
         public Task<Friendship?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
             _context.Friendships.FirstOrDefaultAsync(f => f.Id == id, cancellationToken);
 
-        // Nos dois sentidos: o par (A,B) pode estar gravado como A→B ou B→A. Uma linha por par é
-        // invariante garantida pelo service, então FirstOrDefault basta.
         public Task<Friendship?> GetBetweenAsync(Guid userA, Guid userB, CancellationToken cancellationToken = default) =>
             _context.Friendships.FirstOrDefaultAsync(
                 f => (f.RequesterId == userA && f.AddresseeId == userB)

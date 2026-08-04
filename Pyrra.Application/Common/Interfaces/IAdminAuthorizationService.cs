@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 namespace Pyrra.Application.Common.Interfaces {
     public interface IAdminAuthorizationService {
-        // Verifica se o usuário é admin
+        // lança exceção se o usuário não for admin
         Task EnsureAdminAsync(Guid userId, CancellationToken cancellationToken = default);
     }
 }

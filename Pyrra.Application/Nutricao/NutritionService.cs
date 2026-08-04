@@ -33,7 +33,7 @@ namespace Pyrra.Application.Nutricao {
         }
 
         public async Task<NutritionEntry> AddItemAsync(Guid userId, MealType mealType, string itemName, string quantity, DateOnly? date = null, CancellationToken cancellationToken = default) {
-            // [Required] no DTO barra null e "", mas deixa passar "   ".
+            // [Required] no DTO barra null e "", mas deixa passar "   "
             var normalizedItemName = itemName?.Trim();
             if (string.IsNullOrEmpty(normalizedItemName)) {
                 throw new InvalidNutritionEntryException("O nome do item é obrigatório.");

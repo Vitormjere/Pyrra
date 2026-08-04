@@ -80,7 +80,7 @@ function UserRow({
   )
 }
 
-// Gestão de contas (Fase Admin-2) — cria novas contas admin e lista/exclui contas de jogadores.
+// cria novas contas admin e lista/exclui contas de jogadores
 export function AdminContas() {
   const { confirm, dialog } = useConfirm()
 

@@ -72,7 +72,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        //  a grade completa do plano semanal, mesmo com refeições vazias
+        // a grade completa do plano semanal, mesmo com refeições vazias
         [HttpGet("plano")]
         public async Task<ActionResult<IEnumerable<PlanDayResponse>>> GetPlan(CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {

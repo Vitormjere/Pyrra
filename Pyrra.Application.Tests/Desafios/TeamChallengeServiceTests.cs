@@ -12,10 +12,10 @@ using Xunit;
 
 namespace Pyrra.Application.Tests.Desafios {
     public class TeamChallengeServiceTests {
-        private static readonly Guid OwnerId  = Guid.Parse("11111111-1111-1111-1111-111111111111");
-        private static readonly Guid MemberId = Guid.Parse("22222222-2222-2222-2222-222222222222");
-        private static readonly Guid OutsiderId = Guid.Parse("33333333-3333-3333-3333-333333333333");
-        private static readonly Guid TeamId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        private static readonly Guid OwnerId           = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        private static readonly Guid MemberId          = Guid.Parse("22222222-2222-2222-2222-222222222222");
+        private static readonly Guid OutsiderId        = Guid.Parse("33333333-3333-3333-3333-333333333333");
+        private static readonly Guid TeamId            = Guid.Parse("44444444-4444-4444-4444-444444444444");
         private static readonly Guid TournamentOwnerId = Guid.Parse("66666666-6666-6666-6666-666666666666");
 
         private static (TeamChallengeService service, FakeChallengeCategoryRepository categories,
@@ -24,12 +24,9 @@ namespace Pyrra.Application.Tests.Desafios {
             FakeTeamRepository teams, FakeClock clock, FakeTournamentTeamRepository tournamentEntries,
             FakeTournamentRepository tournaments, FakeTournamentChallengeRepository tournamentChallengeLinks,
             FakeTournamentOwnChallengeRepository tournamentOwnChallenges)
-            // memberScores é opcional — default vazio, sem tocar nos call sites existentes; só os
-            // testes de placar individual/ranking (Fase 5a) passam um fake próprio, quando
-            // precisam inspecionar ou compartilhar o mesmo repositório entre chamadas.
             Build(FakeTeamMemberScoreRepository? memberScores = null) {
             var members = new FakeTeamMemberRepository();
-            var teams = new FakeTeamRepository(members);
+            var teams   = new FakeTeamRepository(members);
             teams.Teams.Add(new Team {
                 Id = TeamId, Name = "Time", OwnerId = OwnerId, MemberLimit = 10,
                 InviteToken = "token", TotalPoints = 0
@@ -41,16 +38,16 @@ namespace Pyrra.Application.Tests.Desafios {
                 new User { Id = MemberId, Name = "Member", Email = "member@x.com" },
                 new User { Id = TournamentOwnerId, Name = "TournamentOwner", Email = "tournamentowner@x.com" });
 
-            var categories = new FakeChallengeCategoryRepository();
-            var challenges = new FakeChallengeRepository();
-            var activations = new FakeTeamActiveCategoryRepository();
-            var submissions = new FakeChallengeSubmissionRepository();
-            var storage = new FakeChallengeSubmissionStorageService();
-            var tournamentEntries = new FakeTournamentTeamRepository();
-            var tournaments = new FakeTournamentRepository();
+            var categories               = new FakeChallengeCategoryRepository();
+            var challenges               = new FakeChallengeRepository();
+            var activations              = new FakeTeamActiveCategoryRepository();
+            var submissions              = new FakeChallengeSubmissionRepository();
+            var storage                  = new FakeChallengeSubmissionStorageService();
+            var tournamentEntries        = new FakeTournamentTeamRepository();
+            var tournaments              = new FakeTournamentRepository();
             var tournamentChallengeLinks = new FakeTournamentChallengeRepository();
-            var tournamentOwnChallenges = new FakeTournamentOwnChallengeRepository();
-            var clock = new FakeClock();
+            var tournamentOwnChallenges  = new FakeTournamentOwnChallengeRepository();
+            var clock                    = new FakeClock();
 
             var service = new TeamChallengeService(
                 teams, members, categories, challenges, activations, submissions, storage,
@@ -85,8 +82,7 @@ namespace Pyrra.Application.Tests.Desafios {
                 Goal = goal, Unit = unit
             });
 
-        // Cria um torneio e uma entrada do TeamId nele, com o status pedido (Aprovado por padrão
-        // — só entrada Aprovada muda quem aprova submissões). Devolve o Id do torneio.
+        // cria um torneio e uma entrada do TeamId nele, com o status pedido (Aprovado por padrão) — devolve o Id do torneio
         private static Guid PutTeamInTournament(
             FakeTournamentRepository tournaments, FakeTournamentTeamRepository entries,
             TournamentTeamStatus status = TournamentTeamStatus.Aprovado, Guid tournamentOwnerId = default) {
@@ -207,8 +203,6 @@ namespace Pyrra.Application.Tests.Desafios {
             Assert.False(statuses.Single(s => s.Category.Id == academia.Id).IsActive);
         }
 
-        // Categoria continua sendo decisão do dono do TIME mesmo com o time num torneio Aprovado —
-        // só a aprovação de submissão muda de mão (ver testes de torneio mais abaixo).
         [Fact]
         public async Task ActivateCategory_TimeEmTorneio_AindaEDonoDoTimeQuePodeAtivar() {
             var (service, categories, _, activations, _, _, _, _, tournamentEntries, tournaments, _, _) = Build();
@@ -324,7 +318,7 @@ namespace Pyrra.Application.Tests.Desafios {
             categories.Categories.Add(category);
             var challenge = MakeChallenge(category.Id);
             challenges.Challenges.Add(challenge);
-            // Categoria NÃO ativada.
+            // categoria não ativada
 
             await Assert.ThrowsAsync<InvalidChallengeException>(() =>
                 service.SubmitChallengeProofAsync(MemberId, TeamId, challenge.Id, MakePhoto(), "image/jpeg", 1024));
@@ -520,7 +514,7 @@ namespace Pyrra.Application.Tests.Desafios {
             var challenge = MakeChallenge(category.Id, points: 25);
             challenges.Challenges.Add(challenge);
             await service.ActivateCategoryAsync(OwnerId, TeamId, category.Id);
-            // O DONO envia a própria prova.
+            // o dono envia a própria prova
             var submission = await service.SubmitChallengeProofAsync(OwnerId, TeamId, challenge.Id, MakePhoto(), "image/jpeg", 1024);
 
             await Assert.ThrowsAsync<InvalidChallengeException>(() => service.ApproveSubmissionAsync(OwnerId, TeamId, submission.Id));
@@ -539,7 +533,7 @@ namespace Pyrra.Application.Tests.Desafios {
             await service.ActivateCategoryAsync(OwnerId, TeamId, category.Id);
             var submission = await service.SubmitChallengeProofAsync(OwnerId, TeamId, challenge.Id, MakePhoto(), "image/jpeg", 1024);
 
-            // Sem trava pra recusar a própria submissão — só a aprovação é bloqueada.
+            // sem trava pra recusar a própria submissão — só a aprovação é bloqueada
             await service.RejectSubmissionAsync(OwnerId, TeamId, submission.Id);
 
             Assert.Equal(ChallengeSubmissionStatus.Recusado, submissions.Submissions.Single().Status);
@@ -590,9 +584,7 @@ namespace Pyrra.Application.Tests.Desafios {
             Assert.Empty(pending);
         }
 
-        // ---- aprovação/recusa de desafio de TIME quando o time também está num torneio (Fase 5b:
-        // não delega mais pro dono do torneio — desafio de time é sempre do dono do time, desafio
-        // de torneio tem fila e aprovador próprios, ver a seção "desafios de torneio" abaixo) ----
+        // ---- aprovação/recusa de desafio de time num torneio — desafio de time é sempre do dono do time ----
 
         [Fact]
         public async Task ApproveSubmission_TimeEmTorneioAprovado_DonoDoTimeAindaAprovaNormalmente() {
@@ -605,13 +597,13 @@ namespace Pyrra.Application.Tests.Desafios {
             var submission = await service.SubmitChallengeProofAsync(MemberId, TeamId, challenge.Id, MakePhoto(), "image/jpeg", 1024);
             var tournamentId = PutTeamInTournament(tournaments, tournamentEntries);
 
-            // Dono do TIME aprova normalmente, mesmo com o time Aprovado num torneio.
+            // dono do time aprova normalmente, mesmo com o time aprovado num torneio
             await service.ApproveSubmissionAsync(OwnerId, TeamId, submission.Id);
 
             Assert.Equal(ChallengeSubmissionStatus.Aprovado, submissions.Submissions.Single().Status);
             Assert.Equal(OwnerId, submissions.Submissions.Single().ReviewedByUserId);
             Assert.Equal(25, teams.Teams.Single(t => t.Id == TeamId).TotalPoints);
-            // Desafio de TIME nunca toca no placar do torneio — só desafio DE torneio faz isso.
+            // desafio de time nunca toca no placar do torneio — só desafio de torneio faz isso
             Assert.Equal(0, tournamentEntries.Entries.Single(e => e.TournamentId == tournamentId).Score);
         }
 
@@ -626,8 +618,7 @@ namespace Pyrra.Application.Tests.Desafios {
             var submission = await service.SubmitChallengeProofAsync(MemberId, TeamId, challenge.Id, MakePhoto(), "image/jpeg", 1024);
             PutTeamInTournament(tournaments, tournamentEntries);
 
-            // O dono do TORNEIO (que antes assumia a aprovação) não tem mais nada a ver com
-            // desafios de time — só com os desafios DAQUELE torneio.
+            // dono do torneio (que antes assumia a aprovação) não tem mais nada a ver com desafios de time — só com os do próprio torneio
             await Assert.ThrowsAsync<NotFoundException>(() => service.ApproveSubmissionAsync(TournamentOwnerId, TeamId, submission.Id));
 
             Assert.Equal(ChallengeSubmissionStatus.Pendente, submissions.Submissions.Single().Status);
@@ -681,7 +672,7 @@ namespace Pyrra.Application.Tests.Desafios {
 
             Assert.Equal(ChallengeSubmissionStatus.Aprovado, submissions.Submissions.Single().Status);
             Assert.Equal(10, teams.Teams.Single(t => t.Id == TeamId).TotalPoints);
-            // Score do torneio NÃO deve ter sido tocado — desafio de time nunca mexe nele.
+            // score do torneio não deve ter sido tocado — desafio de time nunca mexe nele
             Assert.Equal(0, tournamentEntries.Entries.Single(e => e.TournamentId == tournamentId).Score);
         }
 
@@ -693,9 +684,7 @@ namespace Pyrra.Application.Tests.Desafios {
             var challenge = MakeChallenge(category.Id);
             challenges.Challenges.Add(challenge);
             await service.ActivateCategoryAsync(OwnerId, TeamId, category.Id);
-            // Torneio é do próprio OwnerId — prova que a trava de auto-aprovação de desafio de
-            // time não depende em nada do papel de dono de torneio (que nem é mais consultado
-            // aqui).
+            // torneio é do próprio OwnerId — prova que a trava de auto-aprovação de desafio de time não depende do papel de dono de torneio
             PutTeamInTournament(tournaments, tournamentEntries, tournamentOwnerId: OwnerId);
             var submission = await service.SubmitChallengeProofAsync(OwnerId, TeamId, challenge.Id, MakePhoto(), "image/jpeg", 1024);
 
@@ -704,8 +693,7 @@ namespace Pyrra.Application.Tests.Desafios {
             Assert.Equal(ChallengeSubmissionStatus.Pendente, submissions.Submissions.Single().Status);
         }
 
-        // Time entra num torneio DEPOIS de enviar um desafio de time: não muda nada no aprovador
-        // nem no destino dos pontos — desafio de time é sempre do dono do time, timing irrelevante.
+        // time entra num torneio depois de enviar um desafio de time — não muda o aprovador nem o destino dos pontos, timing é irrelevante
         [Fact]
         public async Task ApproveSubmission_TimeEntraNoTorneioDepoisDoEnvio_DonoDoTimeAprovaIgual() {
             var (service, categories, challenges, _, submissions, _, teams, _, tournamentEntries, tournaments, _, _) = Build();
@@ -725,8 +713,7 @@ namespace Pyrra.Application.Tests.Desafios {
             Assert.Equal(0, tournamentEntries.Entries.Single(e => e.TournamentId == tournamentId).Score);
         }
 
-        // ---- desafios de torneio (Fase 5b) — catálogo vinculado e próprios, separados do fluxo
-        // de desafios de time acima ----
+        // ---- desafios de torneio — catálogo vinculado e próprios, separados do fluxo de desafios de time acima ----
 
         [Fact]
         public async Task GetAvailableTournamentChallengesAsync_ListaCatalogoVinculadoEProprio() {
@@ -775,24 +762,24 @@ namespace Pyrra.Application.Tests.Desafios {
             var challenge = MakeChallenge(category.Id, points: 20);
             challenges.Challenges.Add(challenge);
 
-            // Mesmo desafio do catálogo, disponível nos DOIS torneios em que o time está aprovado.
+            // mesmo desafio do catálogo, disponível nos dois torneios em que o time está aprovado
             var tournamentAId = PutTeamInTournament(tournaments, tournamentEntries);
             var tournamentBId = PutTeamInTournament(tournaments, tournamentEntries);
             LinkChallenge(links, tournamentAId, challenge.Id);
             LinkChallenge(links, tournamentBId, challenge.Id);
 
-            // Também disponível como desafio de TIME normal, fora de torneio.
+            // também disponível como desafio de time normal, fora de torneio
             await service.ActivateCategoryAsync(OwnerId, TeamId, category.Id);
             await service.SubmitChallengeProofAsync(MemberId, TeamId, challenge.Id, MakePhoto(), "image/jpeg", 1024);
 
-            // Envia só no torneio A.
+            // envia só no torneio A
             await service.SubmitTournamentCatalogChallengeProofAsync(MemberId, TeamId, tournamentAId, challenge.Id, null, MakePhoto(), "image/jpeg", 1024);
 
             var availableA = await service.GetAvailableTournamentChallengesAsync(MemberId, TeamId, tournamentAId);
             var availableB = await service.GetAvailableTournamentChallengesAsync(MemberId, TeamId, tournamentBId);
 
             Assert.Equal(ChallengeSubmissionStatus.Pendente, availableA.Single().MySubmissionStatus);
-            // Torneio B não tem submissão própria — não pode enxergar a do torneio A nem a de time.
+            // torneio B não tem submissão própria — não pode enxergar a do torneio A nem a de time
             Assert.Null(availableB.Single().MySubmissionStatus);
         }
 
@@ -874,8 +861,7 @@ namespace Pyrra.Application.Tests.Desafios {
                 service.SubmitTournamentCatalogChallengeProofAsync(MemberId, TeamId, tournamentId, challenge.Id, null, MakePhoto(), "image/jpeg", 1024));
         }
 
-        // Regressão-chave: o mesmo ChallengeId pode ter uma submissão ativa como desafio de TIME
-        // e, em paralelo, uma como desafio DE TORNEIO — Source diferencia os dois, não colidem.
+        // o mesmo ChallengeId pode ter uma submissão ativa como desafio de time e, em paralelo, como desafio de torneio — Source diferencia os dois
         [Fact]
         public async Task SubmitTournamentCatalogChallengeProofAsync_NaoColideComSubmissaoDeTimeMesmoChallengeId() {
             var (service, categories, challenges, _, submissions, _, _, _, tournamentEntries, tournaments, links, _) = Build();
@@ -973,7 +959,7 @@ namespace Pyrra.Application.Tests.Desafios {
             ownChallenges.Challenges.Add(ownChallenge);
             await service.SubmitTournamentOwnChallengeProofAsync(MemberId, TeamId, tournamentId, ownChallenge.Id, null, MakePhoto(), "image/jpeg", 1024);
 
-            // Dono do TIME não tem nada a ver com a fila de um torneio que não é dele.
+            // dono do time não tem nada a ver com a fila de um torneio que não é dele
             await Assert.ThrowsAsync<NotFoundException>(() => service.GetPendingTournamentSubmissionsAsync(OwnerId, TeamId, tournamentId));
         }
 
@@ -1019,7 +1005,7 @@ namespace Pyrra.Application.Tests.Desafios {
             Assert.Equal(ChallengeSubmissionStatus.Aprovado, submissions.Submissions.Single().Status);
             Assert.Equal(TournamentOwnerId, submissions.Submissions.Single().ReviewedByUserId);
             Assert.Equal(25, tournamentEntries.Entries.Single(e => e.TournamentId == tournamentId).Score);
-            // Nunca toca no placar do time — isolamento pedido no requisito 6.
+            // nunca toca no placar do time — fica isolado de propósito
             Assert.Equal(0, teams.Teams.Single(t => t.Id == TeamId).TotalPoints);
         }
 
@@ -1037,7 +1023,7 @@ namespace Pyrra.Application.Tests.Desafios {
             Assert.Equal(18, tournamentEntries.Entries.Single(e => e.TournamentId == tournamentId).Score);
             Assert.Equal(0, teams.Teams.Single(t => t.Id == TeamId).TotalPoints);
 
-            // Ranking individual do time (Fase 5a) fica isolado — só reflete desafios normais.
+            // ranking individual do time fica isolado — só reflete desafios normais
             var ranking = await service.GetTeamRankingAsync(OwnerId, TeamId);
             Assert.Equal(0, ranking.Single(r => r.User.Id == MemberId).Points);
         }
@@ -1048,7 +1034,7 @@ namespace Pyrra.Application.Tests.Desafios {
             var tournamentId = PutTeamInTournament(tournaments, tournamentEntries, tournamentOwnerId: OwnerId);
             var ownChallenge = MakeOwnChallenge(tournamentId);
             ownChallenges.Challenges.Add(ownChallenge);
-            // Dono do torneio TAMBÉM é dono do time aqui — pode submeter como dono/membro implícito.
+            // dono do torneio também é dono do time aqui — pode submeter como dono/membro implícito
             var submission = await service.SubmitTournamentOwnChallengeProofAsync(
                 OwnerId, TeamId, tournamentId, ownChallenge.Id, null, MakePhoto(), "image/jpeg", 1024);
 
@@ -1058,8 +1044,7 @@ namespace Pyrra.Application.Tests.Desafios {
             Assert.Equal(ChallengeSubmissionStatus.Pendente, submissions.Submissions.Single().Status);
         }
 
-        // Requisito 6: pontos de um torneio não podem vazar pra outro torneio em que o mesmo time
-        // também participa.
+        // pontos de um torneio não podem vazar pra outro torneio em que o mesmo time também participa
         [Fact]
         public async Task ApproveTournamentSubmissionAsync_NaoVazaPraOutroTorneioQueOTimeParticipa() {
             var (service, _, _, _, _, _, _, _, tournamentEntries, tournaments, _, ownChallenges) = Build();
@@ -1106,7 +1091,7 @@ namespace Pyrra.Application.Tests.Desafios {
             Assert.Equal(0, tournamentEntries.Entries.Single(e => e.TournamentId == tournamentId).Score);
         }
 
-        // ---- meta/quantidade/progresso (Fase 5c) ----
+        // ---- meta/quantidade/progresso ----
 
         [Fact]
         public async Task SubmitTournamentCatalogChallengeProofAsync_ComMeta_SemQuantidade_Lanca() {
@@ -1294,7 +1279,7 @@ namespace Pyrra.Application.Tests.Desafios {
             await service.ApproveTournamentSubmissionAsync(TournamentOwnerId, TeamId, tournamentId, first.Id);
             await service.ApproveTournamentSubmissionAsync(TournamentOwnerId, TeamId, tournamentId, second.Id);
 
-            // Soma (7) já passou da meta (5) — o desafio continua aceitando novos envios, sem trava.
+            // soma (7) já passou da meta (5) — o desafio continua aceitando novos envios, sem trava
             var third = await service.SubmitTournamentCatalogChallengeProofAsync(
                 MemberId, TeamId, tournamentId, challenge.Id, 2m, MakePhoto(), "image/jpeg", 1024);
             await service.ApproveTournamentSubmissionAsync(TournamentOwnerId, TeamId, tournamentId, third.Id);
@@ -1371,7 +1356,7 @@ namespace Pyrra.Application.Tests.Desafios {
             await service.ActivateCategoryAsync(OwnerId, TeamId, category.Id);
             var submission = await service.SubmitChallengeProofAsync(MemberId, TeamId, challenge.Id, MakePhoto(), "image/jpeg", 1024);
 
-            // Dono busca a foto de uma submissão de outro membro.
+            // dono busca a foto de uma submissão de outro membro
             var (content, contentType) = await service.GetSubmissionPhotoAsync(OwnerId, TeamId, submission.Id);
 
             Assert.Equal("image/jpeg", contentType);
@@ -1400,7 +1385,7 @@ namespace Pyrra.Application.Tests.Desafios {
             await Assert.ThrowsAsync<NotFoundException>(() => service.GetSubmissionPhotoAsync(OwnerId, TeamId, Guid.NewGuid()));
         }
 
-        // ---- placar individual / ranking do time (Fase 5a) ----
+        // ---- placar individual / ranking do time ----
 
         [Fact]
         public async Task ApproveSubmission_SomaPlacarIndividualDoMembroEOrdenaAcima() {
@@ -1416,8 +1401,7 @@ namespace Pyrra.Application.Tests.Desafios {
 
             var ranking = await service.GetTeamRankingAsync(OwnerId, TeamId);
 
-            // Member ganhou os 25 pontos; Owner (que nunca submeteu) aparece com 0, mesmo sem ter
-            // linha em TeamMember — e Member fica na frente por ter mais pontos.
+            // Member ganhou os 25 pontos, Owner (que nunca submeteu) aparece com 0 mesmo sem linha em TeamMember, e Member fica na frente por ter mais pontos
             Assert.Equal(2, ranking.Count);
             Assert.Equal(1, ranking[0].Position);
             Assert.Equal(MemberId, ranking[0].User.Id);
@@ -1426,7 +1410,7 @@ namespace Pyrra.Application.Tests.Desafios {
             Assert.Equal(OwnerId, ranking[1].User.Id);
             Assert.Equal(0, ranking[1].Points);
 
-            // TotalPoints do time continua funcionando igual (regressão) — os dois convivem.
+            // TotalPoints do time continua funcionando igual (regressão) — os dois convivem
             Assert.Equal(25, teams.Teams.Single(t => t.Id == TeamId).TotalPoints);
         }
 
@@ -1461,14 +1445,12 @@ namespace Pyrra.Application.Tests.Desafios {
             challenges.Challenges.Add(challenge1);
             challenges.Challenges.Add(challenge2);
 
-            // Time 1 (TeamId, já existe): Member ganha 10 pontos lá.
+            // time 1 (TeamId, já existe) — Member ganha 10 pontos lá
             await service.ActivateCategoryAsync(OwnerId, TeamId, category.Id);
             var sub1 = await service.SubmitChallengeProofAsync(MemberId, TeamId, challenge1.Id, MakePhoto(), "image/jpeg", 1024);
             await service.ApproveSubmissionAsync(OwnerId, TeamId, sub1.Id);
 
-            // Time 2 (novo, dono é OutsiderId): Member é só MEMBRO desse outro time, então o
-            // OutsiderId (dono do Time 2) aprova normalmente — sem precisar de torneio nenhum
-            // pra isso, desafio de time é sempre resolvido pelo dono do time.
+            // time 2 (novo, dono OutsiderId) — Member é só membro lá, então quem aprova é o dono do time 2, sem torneio nenhum envolvido
             var team2Id = Guid.NewGuid();
             teams.Teams.Add(new Team {
                 Id = team2Id, Name = "Time 2", OwnerId = OutsiderId, MemberLimit = 10,
@@ -1478,8 +1460,7 @@ namespace Pyrra.Application.Tests.Desafios {
             await service.ActivateCategoryAsync(OutsiderId, team2Id, category.Id);
             var sub2 = await service.SubmitChallengeProofAsync(MemberId, team2Id, challenge2.Id, MakePhoto(), "image/jpeg", 1024);
 
-            // Antes de aprovar no Time 2: o placar do Member lá já deve ser 0 — a aprovação no
-            // Time 1 não vazou pra cá.
+            // antes de aprovar no time 2, o placar do Member lá já deve ser 0 — a aprovação no time 1 não vazou pra cá
             var beforeTeam2 = await service.GetTeamRankingAsync(MemberId, team2Id);
             Assert.Equal(0, beforeTeam2.Single(r => r.User.Id == MemberId).Points);
 
@@ -1498,8 +1479,7 @@ namespace Pyrra.Application.Tests.Desafios {
 
             var ranking = await service.GetTeamRankingAsync(OwnerId, TeamId);
 
-            // Ninguém submeteu nada ainda: os dois aparecem com 0, empate desfeito por nome
-            // ("Member" antes de "Owner" alfabeticamente).
+            // ninguém submeteu nada ainda, os dois aparecem com 0 — empate desfeito por nome ("Member" antes de "Owner")
             Assert.Equal(2, ranking.Count);
             Assert.Equal("Member", ranking[0].User.Name);
             Assert.Equal(0, ranking[0].Points);

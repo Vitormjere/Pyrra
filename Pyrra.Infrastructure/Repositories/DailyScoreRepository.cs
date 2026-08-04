@@ -37,8 +37,6 @@ namespace Pyrra.Infrastructure.Repositories {
                 return score;
             }
 
-            // Atualiza a instância já rastreada pelo contexto, preservando o Id original —
-            // assim o upsert nunca duplica a linha do par usuário+data.
             existing.PointsEarned   = score.PointsEarned;
             existing.PointsPossible = score.PointsPossible;
             existing.Percentage     = score.Percentage;

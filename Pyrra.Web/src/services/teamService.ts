@@ -31,23 +31,19 @@ export async function getMyTeams(): Promise<Team[]> {
   return data
 }
 
-// TODOS os times do site, públicos e privados, de qualquer dono — restrito a admins (Fase
-// Admin-2.1). Usado pela tela de Times quando IsAdmin=true, no lugar de getMyTeams/getPublicTeams.
+// todos os times do site — só pra tela de admin
 export async function getAllTeams(): Promise<Team[]> {
   const { data } = await api.get<Team[]>('/api/times/todos')
   return data
 }
 
-// Times próprios sem entrada ativa em nenhum torneio — usado pelo botão "Solicitar entrada" na
-// tela de Detalhes do Torneio e pelo Convite de Torneio, pra saber quais times oferecer sem
-// precisar tentar e receber erro depois (regra "um torneio por vez").
+// times que ainda não estão em nenhum torneio, pra oferecer só esses no botão de solicitar entrada
 export async function getMyEligibleTeamsForTournament(): Promise<Team[]> {
   const { data } = await api.get<Team[]>('/api/times/meus/elegiveis-torneio')
   return data
 }
 
-// Times marcados como Público, para a aba Explorar — vem com o token de convite, já que
-// "público" quer dizer exatamente que qualquer um pode ver e usar esse link.
+// times públicos pra aba Explorar — já vem com o token de convite, afinal são públicos mesmo
 export async function getPublicTeams(): Promise<PublicTeam[]> {
   const { data } = await api.get<PublicTeam[]>('/api/times/publicos')
   return data
@@ -62,8 +58,7 @@ export async function setTeamBannerTheme(teamId: string, bannerTheme: TeamBanner
   return data
 }
 
-// Upload de imagem de capa — multipart/form-data. Validação de tipo/tamanho é do backend; erros
-// (formato inválido, arquivo grande) chegam como { message } e passam por getApiErrorMessage.
+// validação de tipo e tamanho é toda do backend, erro chega como { message }
 export async function uploadTeamBannerImage(teamId: string, file: File): Promise<Team> {
   const formData = new FormData()
   formData.append('file', file)
@@ -105,7 +100,7 @@ export async function declineTeamInvite(inviteId: string): Promise<void> {
   await api.post(`/api/times/convites/${inviteId}/recusar`)
 }
 
-// Entrar via link: time cheio ou já ser membro não são erro, o desfecho vem no corpo da resposta.
+// time cheio ou já ser membro não é erro aqui, o resultado vem no corpo da resposta
 export async function joinTeamViaLink(token: string): Promise<JoinResult> {
   const { data } = await api.post<JoinResult>(
     `/api/times/convite/${encodeURIComponent(token)}/entrar`,

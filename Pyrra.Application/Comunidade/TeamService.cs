@@ -11,7 +11,7 @@ using Pyrra.Domain.Users;
 
 namespace Pyrra.Application.Comunidade {
     public class TeamService : ITeamService {
-        // Valida os formatos e tamanho máximo permitidos para upload
+        // formatos e tamanho máximo permitidos pro upload do banner
         private static readonly HashSet<string> AllowedBannerContentTypes =
             new(StringComparer.OrdinalIgnoreCase) { "image/jpeg", "image/png", "image/webp" };
 
@@ -115,8 +115,7 @@ namespace Pyrra.Application.Comunidade {
 
             var results = new List<PublicTeamSummary>(teams.Count);
             foreach (var team in teams) {
-                // Dono removido (conta excluída, soft delete): ignora pra não quebrar a listagem
-                // pública inteira por causa de UM time órfão — mesmo critério de TournamentService.
+                // dono removido (soft delete): ignora pra não quebrar a listagem pública por causa de um time órfão — mesmo critério de TournamentService
                 var summary = await TryToSummaryAsync(team, userId, cancellationToken);
                 if (summary is not null) {
                     results.Add(new PublicTeamSummary(summary, team.InviteToken));
@@ -222,7 +221,7 @@ namespace Pyrra.Application.Comunidade {
                 throw new InvalidTeamException("Você não pode convidar a si mesmo.");
             }
 
-            // Só amigo CONFIRMADO pode ser convidado
+            // só amigo confirmado pode ser convidado
             var friendship = await _friendshipRepository.GetBetweenAsync(ownerId, inviteeId, cancellationToken);
             if (friendship is null || friendship.Status != FriendshipStatus.Aceito) {
                 throw new InvalidTeamException("Só é possível convidar amigos confirmados.");
@@ -240,7 +239,7 @@ namespace Pyrra.Application.Comunidade {
                     case TeamInviteStatus.Aceito:
                         throw new InvalidTeamException("Esse usuário já é membro do time.");
                     case TeamInviteStatus.Recusado:
-                        // Convites recusados podem ser enviados novamente
+                        // convite recusado pode ser reenviado
                         existing.InviterId  = ownerId;
                         existing.Status     = TeamInviteStatus.Pendente;
                         existing.CreatedAt  = _clock.UtcNow;
@@ -275,8 +274,7 @@ namespace Pyrra.Application.Comunidade {
                     continue;
                 }
 
-                // dono do time removido (soft delete): ignora igual aos demais casos acima, em vez
-                // de derrubar a lista inteira de convites por causa de UM time órfão.
+                // dono do time removido (soft delete): ignora igual aos demais casos, em vez de derrubar a lista inteira de convites por causa de um time órfão
                 var summary = await TryToSummaryAsync(team, userId, cancellationToken);
                 if (summary is null) {
                     continue;
@@ -357,7 +355,7 @@ namespace Pyrra.Application.Comunidade {
                 throw new NotFoundException("Time não encontrado.");
             }
 
-            // O dono não pode sair enquanto o time não tiver outro responsável
+            // dono não pode sair enquanto o time não tiver outro responsável
             if (team.OwnerId == userId) {
                 throw new InvalidTeamException("Transfira a titularidade ou exclua o time antes de sair.");
             }
@@ -400,7 +398,7 @@ namespace Pyrra.Application.Comunidade {
                 throw new InvalidTeamException("Você já é o dono desse time.");
             }
 
-            // Transfere a titularidade apenas para membros existentes do time
+            // só pode transferir a titularidade pra quem já é membro do time
             var newOwnerMember = await _teamMemberRepository.GetAsync(teamId, newOwnerId, cancellationToken);
             if (newOwnerMember is null) {
                 throw new InvalidTeamException("O novo dono precisa já ser membro do time.");
@@ -412,7 +410,7 @@ namespace Pyrra.Application.Comunidade {
             team.UpdatedAt = _clock.UtcNow;
             await _teamRepository.UpdateAsync(team, cancellationToken);
 
-            // Ao transferir a titularidade, o ex-dono permanece no time como membro comum
+            // o ex-dono continua no time, agora como membro comum
             await _teamMemberRepository.AddAsync(new TeamMember {
                 Id       = Guid.NewGuid(),
                 TeamId   = teamId,
@@ -421,7 +419,7 @@ namespace Pyrra.Application.Comunidade {
             }, cancellationToken);
         }
 
-        // ---- internos ----
+        // internos
 
         private async Task<IReadOnlyList<TeamSummary>> ToSummariesAsync(IReadOnlyList<Team> teams, Guid userId, CancellationToken cancellationToken) {
             if (teams.Count == 0) {
@@ -430,8 +428,7 @@ namespace Pyrra.Application.Comunidade {
 
             var results = new List<TeamSummary>(teams.Count);
             foreach (var team in teams) {
-                // Dono removido (conta excluída, soft delete): ignora pra não quebrar a listagem
-                // inteira por causa de UM time órfão — mesmo critério de TournamentService.
+                // dono removido (soft delete): ignora pra não quebrar a listagem toda por causa de um time órfão — mesmo critério de TournamentService
                 var summary = await TryToSummaryAsync(team, userId, cancellationToken);
                 if (summary is not null) {
                     results.Add(summary);
@@ -441,8 +438,7 @@ namespace Pyrra.Application.Comunidade {
             return results.OrderBy(t => t.Name).ToList();
         }
 
-        // Versão que não lança: dono removido vira null em vez de exceção, pra quem lista vários
-        // times de uma vez poder simplesmente pular o órfão (ver ToSummariesAsync).
+        // versão que não lança: dono removido vira null em vez de exceção, pra quem lista vários times poder pular o órfão (ver ToSummariesAsync)
         private async Task<TeamSummary?> TryToSummaryAsync(Team team, Guid userId, CancellationToken cancellationToken) {
             var owner = await _userRepository.GetByIdAsync(team.OwnerId, cancellationToken);
             if (owner is null) {
@@ -468,9 +464,7 @@ namespace Pyrra.Application.Comunidade {
                 team.BannerImageUrl);
         }
 
-        // Dono removido (conta excluída): trata o time como inexistente — usado onde só existe UM
-        // time em jogo (não dá pra simplesmente pular como na listagem), ex.: CreateAsync,
-        // GetDetailsAsync, JoinViaLinkAsync e as ações de banner.
+        // dono removido: trata o time como inexistente — usado onde só existe um time em jogo (CreateAsync, GetDetailsAsync, JoinViaLinkAsync, ações de banner), não dá pra simplesmente pular como na listagem
         private async Task<TeamSummary> ToSummaryAsync(Team team, Guid userId, CancellationToken cancellationToken) {
             var summary = await TryToSummaryAsync(team, userId, cancellationToken);
             if (summary is null) {
@@ -479,7 +473,7 @@ namespace Pyrra.Application.Comunidade {
             return summary;
         }
 
-        // Carrega o time garantindo acesso do usuário
+        // carrega o time garantindo que o usuário tem acesso
         private async Task<Team> GetOwnedOrMemberTeamAsync(Guid userId, Guid teamId, CancellationToken cancellationToken) {
             var team = await _teamRepository.GetByIdAsync(teamId, cancellationToken);
             if (team is null) {
@@ -494,7 +488,7 @@ namespace Pyrra.Application.Comunidade {
             return team;
         }
 
-        // Carrega o time garantindo que o usuário é o dono
+        // carrega o time garantindo que o usuário é o dono
         private async Task<Team> GetOwnedTeamAsync(Guid ownerId, Guid teamId, CancellationToken cancellationToken) {
             var team = await _teamRepository.GetByIdAsync(teamId, cancellationToken);
             if (team is null || team.OwnerId != ownerId) {
@@ -504,7 +498,7 @@ namespace Pyrra.Application.Comunidade {
             return team;
         }
 
-        // Valida que o convite está pendente e pertence ao usuário
+        // garante que o convite está pendente e pertence a esse usuário
         private async Task<TeamInvite> GetPendingAddressedToAsync(Guid userId, Guid inviteId, CancellationToken cancellationToken) {
             var invite = await _teamInviteRepository.GetByIdAsync(inviteId, cancellationToken);
 
@@ -527,7 +521,7 @@ namespace Pyrra.Application.Comunidade {
 
         private static UserSummary ToSummary(User user) => new(user.Id, user.Name, user.Username);
 
-        // Retorna os torneios ativos associados ao time (até MaxTournamentsPerTeam, Fase 5b)
+        // torneios ativos do time, até o limite de MaxTournamentsPerTeam
         private async Task<IReadOnlyList<ActiveTeamTournament>> GetActiveTournamentsAsync(Guid teamId, CancellationToken cancellationToken) {
             var entries = await _tournamentTeamRepository.GetActiveEntriesForTeamAsync(teamId, cancellationToken);
             if (entries.Count == 0) {
@@ -536,7 +530,7 @@ namespace Pyrra.Application.Comunidade {
 
             var result = new List<ActiveTeamTournament>(entries.Count);
             foreach (var entry in entries) {
-                // Torneio removido: ignora para não quebrar a listagem
+                // torneio removido: ignora pra não quebrar a listagem
                 var tournament = await _tournamentRepository.GetByIdAsync(entry.TournamentId, cancellationToken);
                 if (tournament is null) {
                     continue;

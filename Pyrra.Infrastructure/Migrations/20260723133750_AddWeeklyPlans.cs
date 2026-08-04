@@ -15,12 +15,12 @@ namespace Pyrra.Infrastructure.Migrations
                 name: "NutritionPlanItems",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id        = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId    = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     DayOfWeek = table.Column<int>(type: "int", nullable: false),
-                    MealType = table.Column<int>(type: "int", nullable: false),
-                    ItemName = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    Quantity = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false)
+                    MealType  = table.Column<int>(type: "int", nullable: false),
+                    ItemName  = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    Quantity  = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false)
                 },
                 constraints: table =>
                 {
@@ -31,9 +31,9 @@ namespace Pyrra.Infrastructure.Migrations
                 name: "NutritionPlanSeedLogs",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Date = table.Column<DateOnly>(type: "date", nullable: false),
+                    Id       = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId   = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Date     = table.Column<DateOnly>(type: "date", nullable: false),
                     SeededAt = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
@@ -45,10 +45,10 @@ namespace Pyrra.Infrastructure.Migrations
                 name: "WorkoutPlanDays",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id        = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId    = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     DayOfWeek = table.Column<int>(type: "int", nullable: false),
-                    Label = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true)
+                    Label     = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true)
                 },
                 constraints: table =>
                 {

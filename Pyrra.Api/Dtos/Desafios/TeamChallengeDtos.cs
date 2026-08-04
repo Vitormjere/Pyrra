@@ -3,7 +3,6 @@ using Pyrra.Api.Dtos.Comunidade;
 using Pyrra.Application.Desafios;
 
 namespace Pyrra.Api.Dtos.Desafios {
-    // Retorna as categorias do time e o status de ativação de cada uma
     public record TeamCategoryStatusResponse(
         Guid    Id,
         string  Name,
@@ -15,7 +14,6 @@ namespace Pyrra.Api.Dtos.Desafios {
             s.Category.Id, s.Category.Name, s.Category.Description, s.Category.Icon, s.Category.Color.ToString(), s.IsActive);
     }
 
-    // Representa um desafio disponivel para o time
     public record AvailableChallengeResponse(
         Guid      Id,
         string    Title,
@@ -29,7 +27,6 @@ namespace Pyrra.Api.Dtos.Desafios {
             ChallengeCategoryResponse.FromEntity(a.Category), a.MySubmissionStatus?.ToString());
     }
 
-    // Retorna os dados da submissão enviada
     public record ChallengeSubmissionResponse(
         Guid     Id,
         Guid     ChallengeId,
@@ -39,7 +36,6 @@ namespace Pyrra.Api.Dtos.Desafios {
             s.Id, s.ChallengeId, s.Status.ToString(), s.CreatedAt);
     }
 
-    // Representa uma submissão pendente de aprovação
     public record PendingSubmissionResponse(
         Guid                Id,
         DateTime            CreatedAt,
@@ -50,15 +46,12 @@ namespace Pyrra.Api.Dtos.Desafios {
             ChallengeResponse.FromEntity(p.Challenge), UserSummaryResponse.FromSummary(p.Submitter));
     }
 
-    // Representa uma posição no ranking de membros do time
     public record TeamMemberRankingResponse(int Position, UserSummaryResponse User, int Points) {
         public static TeamMemberRankingResponse FromRanking(TeamMemberRanking r) =>
             new(r.Position, UserSummaryResponse.FromSummary(r.User), r.Points);
     }
 
-    // Representa um desafio disponível de um torneio específico — de catálogo vinculado ou
-    // próprio (Fase 5b), separado dos desafios normais do time acima. Goal/Unit/Progress nulos =
-    // desafio sem meta configurada, continua binário (Fase 5c).
+    // desafio disponível de um torneio (de catálogo vinculado ou próprio), separado dos desafios normais do time acima — goal/unit/progress nulos quando não tem meta
     public record AvailableTournamentChallengeResponse(
         Guid Id, string Title, string? Description, int Points, string Source,
         decimal? Goal, string? Unit, decimal? Progress, string? MySubmissionStatus) {
@@ -67,8 +60,7 @@ namespace Pyrra.Api.Dtos.Desafios {
             a.Goal, a.Unit, a.Progress, a.MySubmissionStatus?.ToString());
     }
 
-    // Representa uma submissão pendente de um desafio de torneio, pro dono do torneio avaliar.
-    // Quantity nula = desafio sem meta (Fase 5c).
+    // submissão pendente de um desafio de torneio, pro dono avaliar — quantity nula quando não tem meta
     public record PendingTournamentSubmissionResponse(
         Guid Id, DateTime CreatedAt, string ChallengeTitle, int ChallengePoints, string Source,
         decimal? Quantity, UserSummaryResponse Submitter) {

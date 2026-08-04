@@ -22,21 +22,20 @@ namespace Pyrra.Application.Tests.Comunidade {
         private static (TeamService service, FakeTeamRepository teams, FakeTeamMemberRepository members,
             FakeTeamInviteRepository invites, FakeFriendshipRepository friendships,
             FakeTeamBannerStorageService bannerStorage, FakeClock clock)
-            // tournamentTeams/tournaments são opcionais — default vazio, sem tocar nos ~40 call
-            // sites existentes; só os testes de ActiveTournament (Fase 4d) passam fakes próprios.
+            // tournamentTeams/tournaments são opcionais, default vazio 
             Build(FakeTournamentTeamRepository? tournamentTeams = null, FakeTournamentRepository? tournaments = null) {
             var users = new FakeUserRepository(
                 MakeUser(Alice, "Alice", "alice"),
                 MakeUser(Bob, "Bob", "bob"),
                 MakeUser(Carol, "Carol", "carol"),
                 MakeUser(Dave, "Dave", "dave"));
-            var friendships = new FakeFriendshipRepository();
-            var members = new FakeTeamMemberRepository();
-            var teams = new FakeTeamRepository(members);
-            var invites = new FakeTeamInviteRepository();
+            var friendships   = new FakeFriendshipRepository();
+            var members       = new FakeTeamMemberRepository();
+            var teams         = new FakeTeamRepository(members);
+            var invites       = new FakeTeamInviteRepository();
             var bannerStorage = new FakeTeamBannerStorageService();
-            var clock = new FakeClock();
-            var service = new TeamService(
+            var clock         = new FakeClock();
+            var service       = new TeamService(
                 teams, members, invites, friendships, users, bannerStorage, clock,
                 tournamentTeams ?? new FakeTournamentTeamRepository(), tournaments ?? new FakeTournamentRepository(),
                 new AdminAuthorizationService(users));
@@ -66,7 +65,7 @@ namespace Pyrra.Application.Tests.Comunidade {
             Assert.Equal(clock.UtcNow, team.CreatedAt);
 
             Assert.True(summary.IsOwner);
-            Assert.Equal(1, summary.MemberCount); // só o dono, sem TeamMember
+            Assert.Equal(1, summary.MemberCount); // só o dono
         }
 
         [Fact]
@@ -283,7 +282,7 @@ namespace Pyrra.Application.Tests.Comunidade {
             MakeFriends(friendships, Bob, Carol, clock);
             members.Members.Add(new TeamMember { Id = Guid.NewGuid(), TeamId = team.Id, UserId = Bob, JoinedAt = clock.UtcNow });
 
-            // Bob é membro, mas não é o dono — não pode convidar.
+            // Bob é membro, mas não é o dono — não pode convidar
             await Assert.ThrowsAsync<NotFoundException>(() => service.InviteFriendAsync(Bob, team.Id, Carol));
         }
 
@@ -340,7 +339,7 @@ namespace Pyrra.Application.Tests.Comunidade {
         [Fact]
         public async Task AcceptTeamInvite_TimeCheio_Lanca() {
             var (service, _, members, _, friendships, _, clock) = Build();
-            // Limite 1: só o dono já ocupa a vaga inteira.
+            // limite 1: só o dono já ocupa a vaga inteira
             var team = await service.CreateAsync(Alice, "Time", null, 1);
             MakeFriends(friendships, Alice, Bob, clock);
             await service.InviteFriendAsync(Alice, team.Id, Bob);
@@ -618,22 +617,20 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         // ---- time com dono removido (conta excluída — soft delete) ----
 
-        // Variante que também devolve o FakeUserRepository — só usada pelos testes abaixo, que
-        // precisam marcar DeletedAt num usuário depois de criar o time. Mesmo padrão de
-        // TournamentServiceTests.BuildWithUsers.
+        // variante que também devolve o FakeUserRepository, usada pelos testes que precisam marcar DeletedAt depois de criar o time — mesmo padrão de TournamentServiceTests.BuildWithUsers
         private static (TeamService service, FakeTeamRepository teams, FakeUserRepository users) BuildWithUsers() {
             var users = new FakeUserRepository(
                 MakeUser(Alice, "Alice", "alice"),
                 MakeUser(Bob, "Bob", "bob"),
                 MakeUser(Carol, "Carol", "carol"),
                 MakeUser(Dave, "Dave", "dave"));
-            var friendships = new FakeFriendshipRepository();
-            var members = new FakeTeamMemberRepository();
-            var teams = new FakeTeamRepository(members);
-            var invites = new FakeTeamInviteRepository();
+            var friendships   = new FakeFriendshipRepository();
+            var members       = new FakeTeamMemberRepository();
+            var teams         = new FakeTeamRepository(members);
+            var invites       = new FakeTeamInviteRepository();
             var bannerStorage = new FakeTeamBannerStorageService();
-            var clock = new FakeClock();
-            var service = new TeamService(
+            var clock         = new FakeClock();
+            var service       = new TeamService(
                 teams, members, invites, friendships, users, bannerStorage, clock,
                 new FakeTournamentTeamRepository(), new FakeTournamentRepository(),
                 new AdminAuthorizationService(users));
@@ -646,8 +643,7 @@ namespace Pyrra.Application.Tests.Comunidade {
             var normal = await service.CreateAsync(Bob, "Time Normal", null, 5, visibility: TeamVisibility.Publico);
             var orphan = await service.CreateAsync(Alice, "Time Orfao", null, 5, visibility: TeamVisibility.Publico);
 
-            // Dono do time "órfão" exclui a própria conta — soft delete, mesmo critério de
-            // UserAccountService.DeleteAccountAsync (o usuário "some" de qualquer busca).
+            // dono do time órfão exclui a própria conta — mesmo critério do UserAccountService.DeleteAccountAsync, o usuário some de qualquer busca
             users.Users.Single(u => u.Id == Alice).DeletedAt = DateTime.UtcNow;
 
             var publicTeams = await service.GetPublicTeamsAsync(Carol);
@@ -685,13 +681,12 @@ namespace Pyrra.Application.Tests.Comunidade {
             var orphan = await service.CreateAsync(Alice, "Time Orfao", null, 5);
             users.Users.Single(u => u.Id == Alice).DeletedAt = DateTime.UtcNow;
 
-            // Alice "é" a dona (OwnerId bate) mas a conta foi excluída — um token antigo ainda
-            // válido não pode conseguir mais nada além de um 404 coerente, nunca um 500.
+            // Alice ainda bate como dona, mas a conta foi excluída — token antigo só pode dar 404, nunca 500
             await Assert.ThrowsAsync<NotFoundException>(() =>
                 service.SetBannerThemeAsync(Alice, orphan.Id, TeamBannerTheme.Roxo));
         }
 
-        // ---- listar todos os times (admin, Fase Admin-2.1) ----
+        // ---- listar todos os times (admin) ----
 
         [Fact]
         public async Task GetAllTeams_ComoAdmin_ListaPublicosEPrivadosDeQualquerDono() {
@@ -729,7 +724,7 @@ namespace Pyrra.Application.Tests.Comunidade {
             Assert.DoesNotContain(all, t => t.Id == orphan.Id);
         }
 
-        // ---- ActiveTournaments (Fase 4d, listado a partir da Fase 5b) ----
+        // ---- ActiveTournaments ----
 
         [Fact]
         public async Task GetDetails_SemEntradaEmTorneio_ActiveTournamentsVazio() {
@@ -845,8 +840,7 @@ namespace Pyrra.Application.Tests.Comunidade {
             Assert.Contains(eligible, t => t.Id == team.Id);
         }
 
-        // Fase 5b: uma entrada ativa isolada não esgota mais o limite — o time continua elegível
-        // enquanto tiver menos de MaxTournamentsPerTeam entradas ativas.
+        // uma entrada ativa isolada não esgota mais o limite — time continua elegível enquanto tiver menos de MaxTournamentsPerTeam entradas ativas
         [Fact]
         public async Task GetMyEligibleForTournament_TimeComUmaEntradaPendente_AindaInclui() {
             var tournamentTeams = new FakeTournamentTeamRepository();

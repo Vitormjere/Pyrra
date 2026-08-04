@@ -2,7 +2,6 @@ using System;
 using Pyrra.Application.Usuario;
 
 namespace Pyrra.Api.Dtos.Usuario {
-    // Retorna as informações públicas do usuário
     public record PublicProfileResponse(
         Guid    Id,
         string  Name,

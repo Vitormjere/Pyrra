@@ -16,7 +16,7 @@ export async function register(payload: RegisterRequest): Promise<AuthResponse> 
   return data
 }
 
-// Serve como validação do token salvo: se ele expirou, este endpoint responde 401.
+// serve como validação do token salvo, se expirou o endpoint responde 401
 export async function me(): Promise<UserResponse> {
   const { data } = await api.get<UserResponse>('/api/auth/me')
   return data

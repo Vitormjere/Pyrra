@@ -10,7 +10,7 @@ namespace Pyrra.Api.Dtos.Streaks {
             new(item.Id, item.Date);
     }
 
-    // Quando nenhum ID é informado, confirma todas as submissões pendentes
+    // quando não vem nenhum id, confirma todas as pendentes
     public record AcknowledgeFreezeUsesRequest(IReadOnlyList<Guid>? Ids);
 
     public record AcknowledgeFreezeUsesResponse(int Acknowledged);

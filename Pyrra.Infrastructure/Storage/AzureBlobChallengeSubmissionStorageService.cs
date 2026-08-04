@@ -10,11 +10,6 @@ using Pyrra.Application.Common.Exceptions;
 using Pyrra.Application.Common.Interfaces;
 
 namespace Pyrra.Infrastructure.Storage {
-    // Implementação do upload/download de prova por foto via Azure Blob Storage — mesmo desenho
-    // de AzureBlobTeamBannerStorageService (BlobServiceClient sob demanda, container criado
-    // manualmente no Portal, sem CreateIfNotExistsAsync). Diferente do banner, o container é
-    // PRIVADO: download só acontece autenticado, via BlobServiceClient com a connection string
-    // (que já tem a chave da conta), nunca por URL pública.
     public class AzureBlobChallengeSubmissionStorageService : IChallengeSubmissionStorageService {
         private const string DefaultContainerName = "challenge-submissions";
 
@@ -49,9 +44,6 @@ namespace Pyrra.Infrastructure.Storage {
                 throw new NotFoundException("Foto da submissão não encontrada.");
             }
         }
-
-        // Sem extensão de propósito, mesmo motivo do banner de time: o Content-Type vai nos
-        // metadados do blob.
         private static string BlobName(Guid submissionId) => submissionId.ToString("N");
 
         private BlobContainerClient GetContainerClient() {

@@ -149,8 +149,6 @@ namespace Pyrra.Application.Tests.Desafios {
             return Task.CompletedTask;
         }
 
-        // GetAsync já devolve a referência real da lista — mutar e chamar isso é redundante, mas
-        // mantém o fake fiel à interface (mesmo padrão de outros Update no arquivo).
         public Task UpdateAsync(TournamentChallenge tournamentChallenge, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public Task RemoveAsync(TournamentChallenge tournamentChallenge, CancellationToken cancellationToken = default) {
@@ -182,10 +180,6 @@ namespace Pyrra.Application.Tests.Desafios {
         }
     }
 
-    // Guarda os bytes em memória (chaveado por submissionId) pra permitir round-trip nos testes de
-    // GetSubmissionPhotoAsync — mesmo espírito de FakeTeamBannerStorageService (Comunidade), mas
-    // com download de verdade em vez de só contar chamadas, já que agora há um endpoint que lê de
-    // volta.
     internal sealed class FakeChallengeSubmissionStorageService : IChallengeSubmissionStorageService {
         public int UploadCallCount { get; private set; }
         private readonly Dictionary<Guid, (byte[] Bytes, string ContentType)> _blobs = new();

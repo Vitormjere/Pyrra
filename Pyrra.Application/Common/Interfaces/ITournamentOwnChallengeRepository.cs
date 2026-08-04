@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Pyrra.Domain.Desafios;
 
 namespace Pyrra.Application.Common.Interfaces {
-    // Desafios próprios de torneios (Fase 5b)
+    // desafios próprios de torneios, fora do catálogo geral
     public interface ITournamentOwnChallengeRepository {
         Task<IReadOnlyList<TournamentOwnChallenge>> GetByTournamentAsync(Guid tournamentId, CancellationToken cancellationToken = default);
         Task<TournamentOwnChallenge?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);

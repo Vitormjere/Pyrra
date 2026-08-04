@@ -6,10 +6,10 @@ using Pyrra.Domain.Treinos;
 
 namespace Pyrra.Application.Common.Interfaces {
     public interface IWorkoutPlanDayRepository {
-        // Retorna apenas os dias registrados no banco
+        // só os dias que já foram registrados no banco
         Task<IReadOnlyList<WorkoutPlanDay>> GetByUserAsync(Guid userId, CancellationToken cancellationToken = default);
 
-        // Salva o plano completo, criando ou atualizando cada registro existente
+        // salva o plano completo, criando ou atualizando cada dia
         Task UpsertManyAsync(Guid userId, IReadOnlyList<WorkoutPlanDay> days, CancellationToken cancellationToken = default);
     }
 }

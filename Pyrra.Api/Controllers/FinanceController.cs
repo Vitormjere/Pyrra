@@ -87,7 +87,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Reaproveita CreateFinanceEntryRequest: mesma forma de corpo da criação.
+        // Usa o mesmo corpo da criação
         [HttpPut("lancamentos/{id:guid}")]
         public async Task<ActionResult<FinanceEntryResponse>> UpdateEntry(Guid id, CreateFinanceEntryRequest request, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -127,7 +127,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Lançamentos de um intervalo arbitrário — usado pela Agenda.
+        // lançamentos de um intervalo arbitrário, usado pela Agenda
         [HttpGet("lancamentos")]
         public async Task<ActionResult<IEnumerable<FinanceEntryResponse>>> GetEntriesForRange(
             [FromQuery(Name = "inicio")] DateOnly inicio,
@@ -155,7 +155,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Série do saldo para o gráfico. Sempre `dias` pontos, terminando hoje.
+        // Saldo dos últimos dias pro gráfico
         [HttpGet("historico")]
         public async Task<ActionResult<IEnumerable<DailyBalanceResponse>>> GetBalanceHistory([FromQuery(Name = "dias")] int dias = 30, CancellationToken cancellationToken = default) {
             if (!TryGetUserId(out var userId)) {

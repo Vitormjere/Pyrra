@@ -5,13 +5,7 @@ interface StreakPillProps {
   freezes: number
 }
 
-// Streak em formato compacto. Antes era um card grande no topo do dashboard;
-// virou pill porque o número de dias é referência, não a informação principal
-// da tela — quem abre o app precisa ver o que FAZER hoje, não o placar.
-//
-// A escala cresceu junto: ícone 13→18, texto xs→sm, padding 2.5/1→3/1.5. O
-// conjunto continua abaixo do H1 ao lado (text-3xl), então ganha presença sem
-// disputar com o título da página.
+// virou pill porque o número de dias é referência, não a info principal — o que importa é o que fazer hoje
 export function StreakPill({ days, freezes }: StreakPillProps) {
   return (
     <div className="flex items-center gap-2">

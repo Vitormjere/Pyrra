@@ -62,7 +62,7 @@ namespace Pyrra.Api.Controllers {
             return Ok(plan.Select(WorkoutPlanDayResponse.FromEntity));
         }
 
-        // Adiciona um exercício ao dia, definindo a ordem automaticamente
+        // ordem do exercício é definida automaticamente
         [HttpPost("plano/{diaDaSemana}/exercicios")]
         public async Task<ActionResult<WorkoutPlanExerciseResponse>> AddPlanExercise(
             WeekDay diaDaSemana,
@@ -119,12 +119,12 @@ namespace Pyrra.Api.Controllers {
 
             await _workoutService.SavePlanAsync(userId, days, cancellationToken);
 
-            // Retorna o plano completo para manter o mesmo formato de resposta do GET
+            // retorna o plano completo, mesmo formato do GET
             var plan = await _workoutService.GetPlanWithExercisesAsync(userId, cancellationToken);
             return Ok(plan.Select(WorkoutPlanDayResponse.FromEntity));
         }
 
-        // Reutiliza o CreateWorkoutRequest por ter a mesma estrutura da criação
+        // reaproveita o CreateWorkoutRequest, mesma estrutura da criação
         [HttpPut("{id:guid}")]
         public async Task<ActionResult<WorkoutResponse>> Update(Guid id, CreateWorkoutRequest request, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -157,7 +157,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Busca as tarefas do período informado, usado pela Agenda
+        // busca os treinos do período informado, usado pela Agenda
         [HttpGet("intervalo")]
         public async Task<ActionResult<IEnumerable<WorkoutResponse>>> GetForRange(
             [FromQuery(Name = "inicio")] DateOnly inicio,

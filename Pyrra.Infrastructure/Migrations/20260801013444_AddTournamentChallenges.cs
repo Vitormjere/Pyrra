@@ -15,10 +15,10 @@ namespace Pyrra.Infrastructure.Migrations
                 name: "TournamentChallenges",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id           = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     TournamentId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    ChallengeId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    LinkedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    ChallengeId  = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    LinkedAt     = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -29,13 +29,13 @@ namespace Pyrra.Infrastructure.Migrations
                 name: "TournamentOwnChallenges",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id           = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     TournamentId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Title = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    Description = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
-                    Points = table.Column<int>(type: "int", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    Title        = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    Description  = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
+                    Points       = table.Column<int>(type: "int", nullable: false),
+                    CreatedAt    = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    UpdatedAt    = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
                 {

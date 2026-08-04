@@ -12,7 +12,6 @@ namespace Pyrra.Api.Dtos.Nutricao {
             new(item.Id, item.ItemName, item.Quantity);
     }
 
-    // Retorna a refeição e o dia em formato de texto
     public record PlanMealGroupResponse(
         string Meal,
         IEnumerable<NutritionPlanItemResponse> Items) {

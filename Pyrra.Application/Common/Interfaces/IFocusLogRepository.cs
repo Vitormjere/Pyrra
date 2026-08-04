@@ -8,7 +8,6 @@ namespace Pyrra.Application.Common.Interfaces {
     public interface IFocusLogRepository {
         Task<FocusLog?> GetByFocusAndDateAsync(Guid dailyFocusId, DateOnly date, CancellationToken cancellationToken = default);
 
-        // Retorna todos os logs dos focos do usuário na data informada
         Task<IReadOnlyList<FocusLog>> GetByFocusIdsAndDateAsync(IReadOnlyCollection<Guid> dailyFocusIds, DateOnly date, CancellationToken cancellationToken = default);
 
         Task AddAsync(FocusLog log, CancellationToken cancellationToken = default);

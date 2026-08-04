@@ -39,21 +39,18 @@ namespace Pyrra.Application.Desafios {
         // mostra ranking individual dos membros do time
         Task<IReadOnlyList<TeamMemberRanking>> GetTeamRankingAsync(Guid callerId, Guid teamId, CancellationToken cancellationToken = default);
 
-        // ---- Desafios de torneio (Fase 5b) — separados dos desafios normais do time acima ----
+        // desafios de torneio — separados dos desafios normais do time acima
 
-        // lista desafios disponíveis de um torneio específico em que o time está Aprovado
-        // (catálogo vinculado + próprios), pro membro submeter prova
+        // lista desafios de um torneio em que o time está aprovado (catálogo vinculado + próprios), pro membro submeter prova
         Task<IReadOnlyList<AvailableTournamentChallenge>> GetAvailableTournamentChallengesAsync(
             Guid userId, Guid teamId, Guid tournamentId, CancellationToken cancellationToken = default);
 
-        // envia prova de um desafio do catálogo geral vinculado ao torneio. quantity é exigida só
-        // quando o desafio tem meta configurada (Fase 5c) — sem meta, é ignorada.
+        // envia prova de um desafio do catálogo vinculado ao torneio — quantity só é exigida quando o desafio tem meta, sem meta é ignorada
         Task<ChallengeSubmission> SubmitTournamentCatalogChallengeProofAsync(
             Guid userId, Guid teamId, Guid tournamentId, Guid challengeId, decimal? quantity, Stream content, string contentType, long contentLength,
             CancellationToken cancellationToken = default);
 
-        // envia prova de um desafio próprio do torneio. quantity é exigida só quando o desafio tem
-        // meta configurada (Fase 5c) — sem meta, é ignorada.
+        // envia prova de um desafio próprio do torneio — quantity só é exigida quando tem meta, sem meta é ignorada
         Task<ChallengeSubmission> SubmitTournamentOwnChallengeProofAsync(
             Guid userId, Guid teamId, Guid tournamentId, Guid ownChallengeId, decimal? quantity, Stream content, string contentType, long contentLength,
             CancellationToken cancellationToken = default);

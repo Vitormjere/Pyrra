@@ -37,8 +37,7 @@ namespace Pyrra.Application.Chat {
 
             var result = new List<ChatConversationSummary>();
             foreach (var counterpartId in counterpartIds) {
-                // Contraparte com conta excluída: ignora, mesmo critério de listagens em outros
-                // módulos (ex.: GetPendingRequestsAsync) — não quebra a lista por causa de UMA.
+                // ignora contraparte com conta excluída, mesmo critério usado nas outras listagens
                 if (!counterparts.TryGetValue(counterpartId, out var counterpart)) {
                     continue;
                 }
@@ -67,8 +66,7 @@ namespace Pyrra.Application.Chat {
 
             var result = new List<ChatMessageSummary>(messages.Count);
             foreach (var message in messages.OrderBy(m => m.CreatedAt)) {
-                // Remetente com conta excluída: a mensagem já foi lida por quem manda essa
-                // requisição, então continua aparecendo — só não teria como resolver Sender.Name.
+                // remetente com conta excluída ainda aparece, já foi lida (só não dá pra resolver o nome dele)
                 if (!senders.TryGetValue(message.SenderId, out var sender)) {
                     continue;
                 }
@@ -100,8 +98,7 @@ namespace Pyrra.Application.Chat {
                 throw new NotFoundException("Usuário não encontrado.");
             }
 
-            // Conversa é sempre entre um admin e um jogador — nunca admin-admin, nunca
-            // jogador-jogador. IsAdmin igual dos dois lados quebra essa regra.
+            // conversa é sempre admin com jogador (nunca dois do mesmo tipo)
             if (sender.IsAdmin == recipient.IsAdmin) {
                 throw new InvalidChatMessageException("Conversas só acontecem entre um admin e um jogador.");
             }
@@ -122,8 +119,7 @@ namespace Pyrra.Application.Chat {
             _messageRepository.MarkConversationAsReadAsync(userId, counterpartId, _clock.UtcNow, cancellationToken);
 
         public async Task<IReadOnlyList<UserSummary>> GetActiveAdminsAsync(CancellationToken cancellationToken = default) {
-            // catálogo pequeno de admins, busca completa em memória simplifica (mesmo critério do
-            // resto do projeto) — GetAllAsync já existe desde a Fase Admin-2/2.1.
+            // poucos admins no catálogo, então busca tudo e filtra em memória em vez de complicar a query
             var all = await _userRepository.GetAllAsync(cancellationToken);
             return all
                 .Where(u => u.IsAdmin && u.DeletedAt is null)

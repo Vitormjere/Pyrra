@@ -1,5 +1,5 @@
 namespace Pyrra.Application.Common.Exceptions {
-    // Indica que o usuário não tem permissão para fazer a ação
+    // fala que o usuário não tem permissão pra fazer isso
     public class ForbiddenException : Exception {
         public ForbiddenException(string message) : base(message) { }
     }

@@ -1,16 +1,16 @@
 using System;
 
 namespace Pyrra.Application.Comunidade {
-    // Dados públicos de um usuário, sem informações sensíveis
+    // dados públicos do usuário, sem informação sensível
     public record UserSummary(Guid Id, string Name, string? Username);
 
-    // Dados de uma amizade confirmada
+    // dados de uma amizade já confirmada
     public record FriendSummary(Guid FriendshipId, UserSummary User, DateTime Since);
 
-    // Dados de um pedido de amizade pendente
+    // dados de um pedido de amizade pendente
     public record FriendRequestSummary(Guid FriendshipId, UserSummary Requester, DateTime CreatedAt);
 
-    // Estado do relacionamento entre o usuário e outro resultado de busca
+    // estado do relacionamento entre o usuário e um resultado de busca
     public enum FriendRelationState {
         None,            // sem vínculo
         RequestSent,     // pedido enviado
@@ -20,7 +20,7 @@ namespace Pyrra.Application.Comunidade {
 
     public record UserSearchResult(UserSummary User, FriendRelationState State);
 
-    // Resultado da tentativa de uso de um convite
+    // resultado de tentar usar um convite
     public enum InviteOutcome {
         RequestSent,
         AlreadyFriends,

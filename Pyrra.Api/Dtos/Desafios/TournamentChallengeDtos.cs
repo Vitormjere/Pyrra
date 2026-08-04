@@ -7,8 +7,7 @@ using Pyrra.Application.Desafios;
 using Pyrra.Domain.Desafios;
 
 namespace Pyrra.Api.Dtos.Desafios {
-    // Desafio do catálogo geral com o status de vínculo a um torneio específico. Goal/Unit vêm
-    // do VÍNCULO, não do desafio original — nulos quando não vinculado ou vinculado sem meta.
+    // goal/unit vêm do vínculo com o torneio, não do desafio original — nulos se não vinculado ou sem meta
     public record TournamentCatalogChallengeResponse(
         Guid      Id,
         string    Title,
@@ -24,11 +23,9 @@ namespace Pyrra.Api.Dtos.Desafios {
             ChallengeCategoryResponse.FromEntity(s.Category), s.IsLinked, s.Goal, s.Unit);
     }
 
-    // Dados para vincular (ou atualizar a meta/unidade de um vínculo já existente com) um
-    // desafio do catálogo geral ao torneio. Goal/Unit são opcionais — ambos nulos = sem meta.
+    // vincula um desafio do catálogo ao torneio, ou atualiza a meta de um vínculo existente — goal/unit nulos = sem meta
     public record LinkTournamentCatalogChallengeRequest(decimal? Goal, string? Unit);
 
-    // Desafio próprio de um torneio
     public record TournamentOwnChallengeResponse(
         Guid     Id,
         Guid     TournamentId,
@@ -57,9 +54,7 @@ namespace Pyrra.Api.Dtos.Desafios {
         decimal? Goal,
         string? Unit);
 
-    // Submissão pendente de um desafio de torneio, de QUALQUER time participante — a fila do
-    // dono do torneio, com o time incluído (pode ser mais de um). Quantity nula = desafio sem
-    // meta (Fase 5c).
+    // fila do dono do torneio, com submissões de qualquer time participante — quantity nula quando o desafio não tem meta
     public record PendingTournamentSubmissionWithTeamResponse(
         Guid Id, DateTime CreatedAt, string ChallengeTitle, int ChallengePoints, string Source,
         decimal? Quantity, UserSummaryResponse Submitter, Guid TeamId, string TeamName) {
@@ -68,13 +63,12 @@ namespace Pyrra.Api.Dtos.Desafios {
             p.Quantity, UserSummaryResponse.FromSummary(p.Submitter), p.TeamId, p.TeamName);
     }
 
-    // Progresso de um time num desafio com meta, dentro da visão agregada abaixo (Fase 5c).
+    // progresso de um time num desafio com meta, usado na visão agregada abaixo
     public record TeamChallengeProgressResponse(Guid TeamId, string TeamName, decimal Progress) {
         public static TeamChallengeProgressResponse FromProgress(TeamChallengeProgress p) => new(p.TeamId, p.TeamName, p.Progress);
     }
 
-    // Progresso agregado de um desafio COM META, cruzando todos os times Aprovados no torneio —
-    // só o dono vê (Fase 5c). Desafios sem meta não aparecem aqui.
+    // progresso agregado cruzando todos os times aprovados no torneio, só o dono vê — desafios sem meta não aparecem aqui
     public record TournamentChallengeProgressResponse(
         Guid ChallengeId, string ChallengeTitle, string Source, decimal Goal, string Unit,
         IReadOnlyList<TeamChallengeProgressResponse> Teams) {

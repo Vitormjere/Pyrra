@@ -7,7 +7,7 @@ namespace Pyrra.Application.Common.Interfaces {
     public interface IZeloQueryLogRepository {
         Task<ZeloQueryLog?> GetByUserAndDateAsync(Guid userId, DateOnly date, CancellationToken cancellationToken = default);
 
-        // Cria o registro ou atualiza a contagem existente
+        // cria o registro ou atualiza a contagem existente
         Task<ZeloQueryLog> UpsertAsync(ZeloQueryLog log, CancellationToken cancellationToken = default);
     }
 }

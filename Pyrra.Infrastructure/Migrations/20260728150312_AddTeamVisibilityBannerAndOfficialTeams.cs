@@ -8,10 +8,6 @@ namespace Pyrra.Infrastructure.Migrations
     /// <inheritdoc />
     public partial class AddTeamVisibilityBannerAndOfficialTeams : Migration
     {
-        // Guid fixo do usuário de sistema, dono dos times oficiais. Ninguém consegue autenticar
-        // como ele (email reservado, hash de senha inutilizável, sem Username), então na prática
-        // os times oficiais não têm dono operável pela API — sem precisar de um campo IsOfficial
-        // nem tornar Team.OwnerId opcional.
         private static readonly Guid SystemUserId = new("d0000000-0000-4000-8000-000000000001");
 
         private static readonly DateTime SeedDate = new(2026, 7, 28, 12, 0, 0, DateTimeKind.Utc);
@@ -37,9 +33,6 @@ namespace Pyrra.Infrastructure.Migrations
                 name: "IX_Teams_Visibility",
                 table: "Teams",
                 column: "Visibility");
-
-            // Usuário de sistema: Guid FIXO (mesmo raciocínio das categorias padrão de Finanças —
-            // gerado a cada execução produziria ids diferentes entre dev e produção).
             migrationBuilder.InsertData(
                 table: "Users",
                 columns: new[] {
@@ -53,10 +46,6 @@ namespace Pyrra.Infrastructure.Migrations
                     0, new TimeOnly(21, 0), 0, 0,
                     null, null, SeedDate, SeedDate
                 });
-
-            // Times oficiais: todos Público, dono é o usuário de sistema acima, limite alto (não é
-            // uma trava de negócio, só "sem limite prático"). Tokens de convite FIXOS pelo mesmo
-            // motivo do Guid do usuário de sistema.
             migrationBuilder.InsertData(
                 table: "Teams",
                 columns: new[] {

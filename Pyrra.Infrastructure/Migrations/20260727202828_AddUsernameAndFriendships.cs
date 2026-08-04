@@ -12,16 +12,16 @@ namespace Pyrra.Infrastructure.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<string>(
-                name: "InviteToken",
-                table: "Users",
-                type: "nvarchar(32)",
+                name:      "InviteToken",
+                table:     "Users",
+                type:      "nvarchar(32)",
                 maxLength: 32,
-                nullable: true);
+                nullable:  true);
 
             migrationBuilder.AddColumn<string>(
-                name: "Username",
+                name:  "Username",
                 table: "Users",
-                type: "nvarchar(20)",
+                type:  "nvarchar(20)",
                 maxLength: 20,
                 nullable: true);
 
@@ -32,8 +32,8 @@ namespace Pyrra.Infrastructure.Migrations
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     RequesterId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     AddresseeId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Status = table.Column<int>(type: "int", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Status      = table.Column<int>(type: "int", nullable: false),
+                    CreatedAt   = table.Column<DateTime>(type: "datetime2", nullable: false),
                     RespondedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
                 },
                 constraints: table =>
@@ -42,33 +42,33 @@ namespace Pyrra.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_Users_InviteToken",
-                table: "Users",
+                name:   "IX_Users_InviteToken",
+                table:  "Users",
                 column: "InviteToken",
                 unique: true,
                 filter: "[InviteToken] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Users_Username",
-                table: "Users",
+                name:   "IX_Users_Username",
+                table:  "Users",
                 column: "Username",
                 unique: true,
                 filter: "[Username] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Friendships_AddresseeId_Status",
-                table: "Friendships",
+                name:    "IX_Friendships_AddresseeId_Status",
+                table:   "Friendships",
                 columns: new[] { "AddresseeId", "Status" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_Friendships_RequesterId_AddresseeId",
-                table: "Friendships",
+                name:    "IX_Friendships_RequesterId_AddresseeId",
+                table:   "Friendships",
                 columns: new[] { "RequesterId", "AddresseeId" },
-                unique: true);
+                unique:  true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_Friendships_RequesterId_Status",
-                table: "Friendships",
+                name:    "IX_Friendships_RequesterId_Status",
+                table:   "Friendships",
                 columns: new[] { "RequesterId", "Status" });
         }
 
@@ -79,19 +79,19 @@ namespace Pyrra.Infrastructure.Migrations
                 name: "Friendships");
 
             migrationBuilder.DropIndex(
-                name: "IX_Users_InviteToken",
+                name:  "IX_Users_InviteToken",
                 table: "Users");
 
             migrationBuilder.DropIndex(
-                name: "IX_Users_Username",
+                name:  "IX_Users_Username",
                 table: "Users");
 
             migrationBuilder.DropColumn(
-                name: "InviteToken",
+                name:  "InviteToken",
                 table: "Users");
 
             migrationBuilder.DropColumn(
-                name: "Username",
+                name:  "Username",
                 table: "Users");
         }
     }

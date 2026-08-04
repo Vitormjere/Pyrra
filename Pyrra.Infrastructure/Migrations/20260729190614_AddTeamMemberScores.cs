@@ -15,10 +15,10 @@ namespace Pyrra.Infrastructure.Migrations
                 name: "TeamMemberScores",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    TeamId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Points = table.Column<int>(type: "int", nullable: false),
+                    Id        = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    TeamId    = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId    = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Points    = table.Column<int>(type: "int", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>

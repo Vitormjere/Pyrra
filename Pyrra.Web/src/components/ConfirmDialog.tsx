@@ -11,9 +11,7 @@ interface ConfirmDialogProps {
   onCancel: () => void
 }
 
-// Modal de confirmação com a identidade do app (tema escuro, acento Spring Green),
-// no lugar do window.confirm nativo. Segue o padrão do MilestoneCelebration e do
-// menu de adição da Agenda: overlay escuro, Esc cancela, toque fora cancela.
+// modal com a identidade do app no lugar do window.confirm nativo — overlay escuro, esc ou toque fora cancela
 export function ConfirmDialog({
   title,
   message,
@@ -23,8 +21,7 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
-  // Esc cancela, como em qualquer diálogo — sem isso o modal vira uma parede para
-  // quem navega por teclado.
+  // esc cancela, senão o modal vira uma parede pra quem navega por teclado
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') onCancel()

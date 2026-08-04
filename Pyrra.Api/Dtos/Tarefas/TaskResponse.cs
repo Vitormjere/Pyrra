@@ -9,7 +9,6 @@ namespace Pyrra.Api.Dtos.Tarefas {
         DateOnly Date,
         bool     Completed,
         DateTime CreatedAt) {
-        //  Retorna a prioridade em formato de texto
         public static TaskResponse FromEntity(PriorityTask task) =>
             new(task.Id, task.Title, task.Priority.ToString(), task.Date, task.Completed, task.CreatedAt);
     }

@@ -13,10 +13,7 @@ export function Login() {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  // Some com o erro assim que o usuário começa a corrigir o que digitou: manter a
-  // mensagem na tela enquanto ele reescreve o e-mail passa a impressão de que a
-  // correção não surtiu efeito. O guard evita disparar setState a cada tecla
-  // quando já não há erro nenhum para limpar.
+  // some com o erro assim que o usuário começa a corrigir, senão parece que a correção não fez efeito
   function clearError() {
     if (error !== null) {
       setError(null)
@@ -31,8 +28,7 @@ export function Login() {
 
     try {
       await login(email, password)
-      // replace: o login não deve ficar no histórico — o "voltar" a partir de
-      // /hoje levaria de volta a um formulário que não faz mais sentido.
+      // replace: o login não deve ficar no histórico, senão o "voltar" a partir de /hoje volta pro formulário
       navigate('/hoje', { replace: true })
     } catch (err) {
       setError(

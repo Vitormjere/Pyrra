@@ -5,8 +5,7 @@ using System.Threading.Tasks;
 using Pyrra.Application.Streaks;
 
 namespace Pyrra.Application.Tests.Usuario {
-    // Só GetStatusAsync é exercitado pelo UserProfileService — os demais métodos não são chamados
-    // nos testes que usam este fake, então lançam se algum dia forem.
+    // só GetStatusAsync é exercitado pelo UserProfileService — os outros métodos lançam se algum dia forem chamados
     internal sealed class FakeStreakService : IStreakService {
         private readonly Dictionary<Guid, StreakStatusResult> _statusByUser = new();
 

@@ -56,8 +56,7 @@ function ContactListRow({ row, active, onClick }: { row: ContactRow; active: boo
   )
 }
 
-// Chat do admin com jogadores (Fase Admin-4a) — lista à esquerda (conversas existentes, ou busca
-// pra iniciar uma nova), painel de conversa à direita. Sem tempo real ainda: ver ChatPanel.
+// lista de conversas à esquerda (ou busca pra iniciar uma nova), painel de conversa à direita
 export function AdminMensagens() {
   const [players, setPlayers] = useState<UserSummary[] | null>(null)
   const [conversations, setConversations] = useState<ChatConversation[] | null>(null)
@@ -95,12 +94,11 @@ export function AdminMensagens() {
 
     const term = search.trim().toLowerCase()
     if (!term) {
-      // Sem busca: só quem já tem conversa, mais recente primeiro (ordem que já vem da API).
+      // sem busca: só quem já tem conversa, mais recente primeiro (ordem que já vem da API)
       return conversations.map((c) => ({ player: c.counterpart, conversation: c }))
     }
 
-    // Com busca: qualquer jogador que bata o termo, com ou sem histórico — é como se inicia uma
-    // conversa nova.
+    // com busca: qualquer jogador que bata o termo, com ou sem histórico — é como iniciar uma conversa nova
     return players
       .filter(
         (p) =>

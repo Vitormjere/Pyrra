@@ -29,8 +29,6 @@ namespace Pyrra.Infrastructure.Repositories {
                 return streak;
             }
 
-            // Se o chamador já mutou a instância rastreada, existing e streak são o mesmo objeto —
-            // as atribuições viram no-ops e o SaveChanges persiste do mesmo jeito.
             existing.CurrentCount      = streak.CurrentCount;
             existing.BestCount         = streak.BestCount;
             existing.LastSettledDate   = streak.LastSettledDate;

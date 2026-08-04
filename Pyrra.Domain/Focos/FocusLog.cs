@@ -8,8 +8,7 @@ namespace Pyrra.Domain.Focos {
         public bool Completed { get; set; }
         public DateTime? CompletedAt { get; set; }
 
-        // Peso do DailyFocus no momento do check-in. Congelado aqui para que editar o peso do
-        // foco depois não altere retroativamente a pontuação de dias já registrados.
+        // peso do foco congelado no check-in 
         public int WeightAtTimeOfLog { get; set; }
     }
 }

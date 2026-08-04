@@ -5,8 +5,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useChatConnection } from '../hooks/useChatConnection'
 import { ChatUnreadContext } from './chat-unread-context'
 
-// Provider do total de mensagens não lidas. Mesmo papel do TeamInvitesProvider: fica ACIMA do
-// RootLayout (admin e jogador), pro badge do menu e a tela de chat lerem a mesma contagem.
+// fica acima do RootLayout pro badge do menu e a tela de chat lerem a mesma contagem
 export function ChatUnreadProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()
   const connection = useChatConnection()
@@ -17,7 +16,7 @@ export function ChatUnreadProvider({ children }: { children: ReactNode }) {
       const conversations = await getChatConversations()
       setCount(conversations.reduce((total, c) => total + c.unreadCount, 0))
     } catch {
-      // Silencioso: o badge é secundário, um erro aqui não deve estourar na tela.
+      // badge é secundário, erro aqui não deve estourar na tela
     }
   }, [])
 
@@ -30,7 +29,7 @@ export function ChatUnreadProvider({ children }: { children: ReactNode }) {
         const conversations = await getChatConversations()
         if (active) setCount(conversations.reduce((total, c) => total + c.unreadCount, 0))
       } catch {
-        // Silencioso, mesmo critério do refresh manual.
+        // mesmo critério do refresh manual, falha aqui não aparece pro usuário
       }
     }
 
@@ -40,16 +39,11 @@ export function ChatUnreadProvider({ children }: { children: ReactNode }) {
     }
   }, [user])
 
-  // Tempo real (Fase Admin-4b): qualquer mensagem recebida via Hub sobe o badge na hora, sem
-  // precisar navegar/recarregar. Reconsulta em vez de incrementar na mão — mais simples e sempre
-  // correto, evita duplicar contagem se o ChatPanel já estiver marcando como lida ao mesmo tempo.
+  // mensagem recebida via hub sobe o badge na hora, reconsulta em vez de incrementar pra nunca duplicar contagem
   useEffect(() => {
     if (!connection) return
 
-    // A mesma conexão é compartilhada com o ChatPanel que estiver aberto (cada um registra seu
-    // próprio handler via connection.on). off() PRECISA da referência exata do handler — chamado
-    // só com o nome do evento, ele removeria TODOS os handlers de "ReceiveMessage", inclusive o
-    // do ChatPanel.
+    // off() precisa da referência exata do handler, senão remove todos os listeners de "ReceiveMessage" (inclusive o do ChatPanel)
     function handleReceiveMessage() {
       void refresh()
     }

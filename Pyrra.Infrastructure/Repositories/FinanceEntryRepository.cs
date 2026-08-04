@@ -16,7 +16,6 @@ namespace Pyrra.Infrastructure.Repositories {
             _context = context;
         }
 
-        // Mais recentes primeiro; CreatedAt desempata lançamentos do mesmo dia.
         public async Task<IReadOnlyList<FinanceEntry>> GetEntriesByUserAndDateRangeAsync(Guid userId, DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken = default) =>
             await _context.FinanceEntries
                 .Where(e => e.UserId == userId && e.Date >= startDate && e.Date <= endDate)
@@ -24,12 +23,6 @@ namespace Pyrra.Infrastructure.Repositories {
                 .ThenByDescending(e => e.CreatedAt)
                 .ToListAsync(cancellationToken);
 
-        // Um GROUP BY Type com SUM no banco: devolve no máximo duas linhas, independente de o
-        // usuário ter dez ou dez mil lançamentos.
-        //
-        // Agrupar (em vez de dois SumAsync) também contorna o SUM de conjunto vazio, que volta
-        // NULL do SQL e quebraria a projeção para decimal não-anulável: sem lançamentos, não
-        // vem linha nenhuma e os totais ficam zero.
         public async Task<FinanceTotals> GetTotalsAsync(Guid userId, DateOnly? startDate = null, DateOnly? endDate = null, CancellationToken cancellationToken = default) {
             var query = _context.FinanceEntries.Where(e => e.UserId == userId);
 

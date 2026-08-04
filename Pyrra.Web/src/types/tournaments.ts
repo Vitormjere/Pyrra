@@ -1,4 +1,4 @@
-// Espelha os DTOs de Pyrra.Api/Dtos/Comunidade/TournamentDtos.cs.
+// espelha os DTOs de Pyrra.Api/Dtos/Comunidade/TournamentDtos.cs
 
 import type { UserSummary } from './community'
 import type { TeamBannerTheme } from './teams'
@@ -27,9 +27,7 @@ export interface TournamentDetails {
   invitePath: string
 }
 
-// POST /api/torneios/solicitacoes — solicitação de criação, aguardando aprovação de um admin.
-// status/reviewedAt existem desde a Fase 4a no backend, mas só passaram a ser expostos aqui na
-// Fase Admin-3 (histórico) — antes disso, esta tela só via solicitações Pendentes.
+// POST /api/torneios/solicitacoes — solicitação de criação de torneio, aguardando aprovação de um admin
 export interface TournamentRequest {
   id: string
   proposedName: string
@@ -40,8 +38,7 @@ export interface TournamentRequest {
   reviewedAt: string | null
 }
 
-// Um time participando (ou solicitando participar) de um torneio — usado tanto na fila de
-// entradas pendentes (dono do torneio) quanto no ranking (times Aprovados, por Score).
+// um time participando (ou solicitando participar) de um torneio, usado na fila de entradas e no ranking
 export interface TournamentTeamEntry {
   id: string
   tournamentId: string

@@ -11,9 +11,7 @@ using Pyrra.Application.Common.Exceptions;
 using Pyrra.Application.Usuario;
 
 namespace Pyrra.Api.Controllers {
-    // Gestão administrativa de contas (Fase Admin-2) — restrita a quem já é admin, verificado pelo
-    // serviço (IAdminAuthorizationService), não por [Authorize(Roles=...)] — mesmo critério de
-    // ChallengeCatalogController/TournamentController.
+    // gestão de contas (só admin acessa)
     [ApiController]
     [Authorize]
     [Route("api/admin")]
@@ -50,7 +48,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // lista todos os usuários, inclusive excluídos
+        // lista todos os usuários, até os excluídos
         [HttpGet("usuarios")]
         public async Task<ActionResult<IEnumerable<AdminUserResponse>>> GetUsers(CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -65,7 +63,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // exclui (soft delete) a conta de um jogador, sem exigir a senha dele
+        // exclui a conta de um jogador, sem exigir a senha dele
         [HttpDelete("usuarios/{id:guid}")]
         public async Task<IActionResult> DeleteUser(Guid id, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {

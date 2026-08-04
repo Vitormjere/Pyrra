@@ -2,8 +2,7 @@ import { useContext } from 'react'
 import { AuthContext } from '../contexts/auth-context'
 import type { AuthContextValue } from '../contexts/auth-context'
 
-// Acesso à sessão atual. Fica em arquivo próprio, separado do AuthProvider, para
-// o Fast Refresh continuar funcionando no arquivo do provider.
+// acesso à sessão atual, em arquivo próprio pra não quebrar o fast refresh do provider
 export function useAuth(): AuthContextValue {
   const context = useContext(AuthContext)
   if (context === undefined) {

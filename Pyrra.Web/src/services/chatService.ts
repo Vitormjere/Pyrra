@@ -2,13 +2,13 @@ import api from './api'
 import type { ChatConversation, ChatMessage } from '../types/chat'
 import type { UserSummary } from '../types/community'
 
-// Admins ativos — o jogador usa isso pra saber com quem pode começar uma conversa.
+// admins ativos, o jogador usa isso pra saber com quem pode começar uma conversa
 export async function getActiveAdmins(): Promise<UserSummary[]> {
   const { data } = await api.get<UserSummary[]>('/api/chat/admins')
   return data
 }
 
-// Conversas do usuário — uma por contraparte com quem já houve troca de mensagem.
+// conversas do usuário, uma por contraparte com quem já houve troca de mensagem
 export async function getChatConversations(): Promise<ChatConversation[]> {
   const { data } = await api.get<ChatConversation[]>('/api/chat/conversas')
   return data

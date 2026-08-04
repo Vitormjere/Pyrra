@@ -11,14 +11,12 @@ using Pyrra.Domain.Users;
 
 namespace Pyrra.Application.Usuario {
     public class AdminUserService : IAdminUserService {
-        // Mesmo formato de UsernameService — duplicado aqui porque aquele serviço opera sobre um
-        // usuário JÁ existente (SetUsernameAsync recebe um userId pra carregar), enquanto esta conta
-        // ainda nem foi inserida no momento da validação.
+        // mesmo formato de UsernameService, duplicado aqui porque essa conta ainda não existe pra carregar como lá
         private static readonly Regex UsernameFormat = new("^[a-z0-9_]{3,20}$", RegexOptions.Compiled);
 
-        private readonly IUserRepository            _userRepository;
-        private readonly IAdminAuthorizationService _adminAuth;
-        private readonly IPasswordHasher<User>       _passwordHasher;
+        private readonly IUserRepository              _userRepository;
+        private readonly IAdminAuthorizationService   _adminAuth;
+        private readonly IPasswordHasher<User>        _passwordHasher;
         private readonly IClockService                _clock;
 
         public AdminUserService(
@@ -66,8 +64,7 @@ namespace Pyrra.Application.Usuario {
                 Name                  = normalizedName,
                 Username              = normalizedUsername,
                 IsAdmin               = true,
-                // Mesmo padrão da conta admin original (migration AddDedicatedAdminAccount): não
-                // passa por onboarding nem pelo gate de username, já nasce pronta.
+                // conta admin já nasce pronta, sem passar por onboarding ou gate de username
                 OnboardingCompletedAt = now,
                 CreatedAt             = now,
                 UpdatedAt             = now
@@ -93,9 +90,7 @@ namespace Pyrra.Application.Usuario {
                 throw new NotFoundException("Usuário não encontrado.");
             }
 
-            // Proteção contra acidente: excluir um admin por aqui não é o fluxo certo (fica pra uma
-            // ação separada, futura) — evita inclusive um admin se auto-excluir sem querer, já que
-            // a própria conta também é IsAdmin.
+            // excluir admin não é o fluxo daqui, isso também evita um admin se auto-excluir sem querer
             if (target.IsAdmin) {
                 throw new InvalidAccountException("Não é possível excluir uma conta de administrador por aqui.");
             }
