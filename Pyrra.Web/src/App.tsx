@@ -6,6 +6,7 @@ import RequireOnboarding from './components/RequireOnboarding'
 import RequireUsername from './components/RequireUsername'
 import RootLayout from './components/RootLayout'
 import { AuthProvider } from './contexts/AuthContext'
+import { ChatUnreadProvider } from './contexts/ChatUnreadProvider'
 import { FriendRequestsProvider } from './contexts/FriendRequestsProvider'
 import { TeamInvitesProvider } from './contexts/TeamInvitesProvider'
 import Agenda from './pages/Agenda'
@@ -27,6 +28,7 @@ import Nutricao from './pages/Nutricao'
 import Onboarding from './pages/Onboarding'
 import Perfil from './pages/Perfil'
 import PerfilPublico from './pages/PerfilPublico'
+import Suporte from './pages/Suporte'
 import Tarefas from './pages/Tarefas'
 import Termos from './pages/Termos'
 import CriarTime from './pages/Times/Criar'
@@ -85,14 +87,18 @@ function App() {
                     tela de Amigos lerem a mesma contagem — e onde o convite pendente é consumido. */}
                 {/* TeamInvitesProvider aninhado ao FriendRequestsProvider: mesma posição acima do
                     layout, para o badge do menu e a tela de Times lerem a mesma contagem — e
-                    onde o convite de time pendente é consumido. */}
-                <Route element={<FriendRequestsProvider><TeamInvitesProvider><Outlet /></TeamInvitesProvider></FriendRequestsProvider>}>
+                    onde o convite de time pendente é consumido. ChatUnreadProvider por cima dos
+                    dois, mesma posição — o badge de "Suporte"/"Mensagens" precisa da mesma
+                    contagem nos dois layouts (Fase Admin-4a). */}
+                <Route element={<FriendRequestsProvider><TeamInvitesProvider><ChatUnreadProvider><Outlet /></ChatUnreadProvider></TeamInvitesProvider></FriendRequestsProvider>}>
                   {/* RootLayout escolhe AppLayout ou AdminLayout conforme IsAdmin (Fase Admin-1) —
                       monta uma vez por sessão, então nem ele nem os providers acima remontam ao
                       navegar entre seções, admin ou não. */}
                   <Route element={<RootLayout />}>
                     {/* Seções operacionais do dia a dia — fora do alcance de contas admin, que não
-                        têm essas seções no menu (ver AdminLayout/RequireNotAdmin). */}
+                        têm essas seções no menu (ver AdminLayout/RequireNotAdmin). Suporte entra
+                        aqui: é o chat do JOGADOR com o admin — quem já é admin tem "Mensagens" no
+                        próprio menu, não "Suporte". */}
                     <Route element={<RequireNotAdmin />}>
                       <Route path="/hoje" element={<Hoje />} />
                       <Route path="/agenda" element={<Agenda />} />
@@ -103,6 +109,7 @@ function App() {
                       <Route path="/zelo" element={<Zelo />} />
                       <Route path="/diario" element={<Diario />} />
                       <Route path="/amigos" element={<Amigos />} />
+                      <Route path="/suporte" element={<Suporte />} />
                     </Route>
 
                     {/* Compartilhadas entre app comum e admin — mesmas telas para os dois. */}

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
+import { useChatUnread } from '../hooks/useChatUnread'
 
 interface NavItem {
   to: string
@@ -20,10 +21,9 @@ interface NavItem {
   icon: LucideIcon
 }
 
-// Índice do menu admin (Fase Admin-1): só estrutura — Contas/Solicitações/Mensagens são
-// placeholders sem funcionalidade ainda (Admin-2/3/4). Times e Torneios são as MESMAS telas do
-// app comum, só alcançadas por aqui agora. Sem os itens operacionais do dia a dia (Hoje, Zelo,
-// Agenda, Treino, Tarefas, Finanças, Nutrição, Diário, Amigos) — ver RequireNotAdmin.
+// Índice do menu admin. Times e Torneios são as MESMAS telas do app comum, só alcançadas por
+// aqui agora. Sem os itens operacionais do dia a dia (Hoje, Zelo, Agenda, Treino, Tarefas,
+// Finanças, Nutrição, Diário, Amigos) — ver RequireNotAdmin.
 const ADMIN_SECTIONS: NavItem[] = [
   { to: '/times', label: 'Times', icon: Shield },
   { to: '/torneios', label: 'Torneios', icon: Trophy },
@@ -45,35 +45,48 @@ function AdminBadge() {
 }
 
 function SectionNav({ onNavigate }: { onNavigate?: () => void }) {
+  // Contagem de mensagens não lidas para o badge de "Mensagens" (Fase Admin-4a) — mesmo provider
+  // usado pelo "Suporte" do AppLayout, já que a contagem é simétrica (soma de todas as conversas).
+  const { count: chatUnreadCount } = useChatUnread()
+
   return (
     <ul className="flex-1 overflow-y-auto p-3">
-      {ADMIN_SECTIONS.map(({ to, label, icon: Icon }) => (
-        <li key={to}>
-          <NavLink
-            to={to}
-            onClick={onNavigate}
-            className={({ isActive }) =>
-              [
-                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition',
-                isActive
-                  ? 'bg-surface font-medium text-ink'
-                  : 'text-slate-400 hover:bg-surface hover:text-slate-200',
-              ].join(' ')
-            }
-          >
-            {({ isActive }) => (
-              <>
-                <Icon
-                  size={18}
-                  aria-hidden="true"
-                  className={isActive ? 'text-brand-green' : undefined}
-                />
-                <span className="flex-1">{label}</span>
-              </>
-            )}
-          </NavLink>
-        </li>
-      ))}
+      {ADMIN_SECTIONS.map(({ to, label, icon: Icon }) => {
+        const badge = to === '/admin/mensagens' ? chatUnreadCount : 0
+
+        return (
+          <li key={to}>
+            <NavLink
+              to={to}
+              onClick={onNavigate}
+              className={({ isActive }) =>
+                [
+                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition',
+                  isActive
+                    ? 'bg-surface font-medium text-ink'
+                    : 'text-slate-400 hover:bg-surface hover:text-slate-200',
+                ].join(' ')
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <Icon
+                    size={18}
+                    aria-hidden="true"
+                    className={isActive ? 'text-brand-green' : undefined}
+                  />
+                  <span className="flex-1">{label}</span>
+                  {badge > 0 && (
+                    <span className="rounded-full bg-brand-green px-1.5 py-0.5 text-[10px] font-semibold text-brand-dark tabular-nums">
+                      {badge}
+                    </span>
+                  )}
+                </>
+              )}
+            </NavLink>
+          </li>
+        )
+      })}
     </ul>
   )
 }

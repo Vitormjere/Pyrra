@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Pyrra.Application.Auth;
+using Pyrra.Application.Chat;
 using Pyrra.Application.Common;
 using Pyrra.Application.Common.Interfaces;
 using Pyrra.Application.Comunidade;
@@ -146,6 +147,10 @@ builder.Services.AddScoped<INightlyMessageService, NightlyMessageService>();
 // IAdminUserService depende de IAdminAuthorizationService (registrado abaixo, junto com o resto
 // do módulo administrativo) — gestão de contas da Fase Admin-2.
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
+
+// Chat entre admin e jogadores (Fase Admin-4a) — sem tempo real ainda (chega na 4b).
+builder.Services.AddScoped<IChatMessageRepository, ChatMessageRepository>();
+builder.Services.AddScoped<IChatService, ChatService>();
 
 builder.Services.AddScoped<IFriendshipRepository, FriendshipRepository>();
 builder.Services.AddScoped<IFriendshipService, FriendshipService>();

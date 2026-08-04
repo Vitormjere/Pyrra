@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
+using Pyrra.Domain.Chat;
 using Pyrra.Domain.Comunidade;
 using Pyrra.Domain.Desafios;
 using Pyrra.Domain.Financas;
@@ -48,6 +49,7 @@ namespace Pyrra.Infrastructure.Data {
         public DbSet<TeamMemberScore> TeamMemberScores => Set<TeamMemberScore>();
         public DbSet<TournamentChallenge> TournamentChallenges => Set<TournamentChallenge>();
         public DbSet<TournamentOwnChallenge> TournamentOwnChallenges => Set<TournamentOwnChallenge>();
+        public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder) {
             modelBuilder.Entity<User>()
@@ -456,6 +458,25 @@ namespace Pyrra.Infrastructure.Data {
             // Cobre a listagem de desafios próprios de um torneio.
             modelBuilder.Entity<TournamentOwnChallenge>()
                 .HasIndex(c => c.TournamentId);
+
+            // Chat entre admin e jogadores (Fase Admin-4a) — sem entidade de conversa própria, o
+            // par (SenderId, RecipientId) já identifica ela.
+            modelBuilder.Entity<ChatMessage>()
+                .Property(m => m.Content)
+                .HasMaxLength(2000);
+
+            // Cobre GetConversationAsync (histórico de um par) nos dois sentidos possíveis.
+            modelBuilder.Entity<ChatMessage>()
+                .HasIndex(m => new { m.SenderId, m.RecipientId });
+
+            modelBuilder.Entity<ChatMessage>()
+                .HasIndex(m => new { m.RecipientId, m.SenderId });
+
+            // Cobre GetAllForUserAsync (lista de conversas) — cada usuário aparece como remetente OU
+            // destinatário em consultas separadas, então os dois índices acima já bastam; este aqui
+            // é só para a contagem de não lidas (RecipientId + ReadAt), que filtra por um Id só.
+            modelBuilder.Entity<ChatMessage>()
+                .HasIndex(m => new { m.RecipientId, m.ReadAt });
         }
     }
 }

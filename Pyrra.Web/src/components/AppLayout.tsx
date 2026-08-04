@@ -5,6 +5,7 @@ import {
   CalendarDays,
   Dumbbell,
   Flame,
+  LifeBuoy,
   ListChecks,
   Menu,
   NotebookPen,
@@ -19,6 +20,7 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
+import { useChatUnread } from '../hooks/useChatUnread'
 import { useFriendRequests } from '../hooks/useFriendRequests'
 import { useTeamInvites } from '../hooks/useTeamInvites'
 
@@ -45,6 +47,9 @@ const ALL_SECTIONS: NavItem[] = [
   { to: '/times', label: 'Times', icon: Shield },
   { to: '/torneios', label: 'Torneios', icon: Trophy },
   { to: '/perfil', label: 'Perfil', icon: User },
+  // Chat com o admin (Fase Admin-4a) — mesmo critério de Configurações logo abaixo: destino
+  // ocasional, não uso diário, por isso só no menu completo, não em QUICK_SECTIONS.
+  { to: '/suporte', label: 'Suporte', icon: LifeBuoy },
   // Destino ocasional (edição de conta), não uso diário — por isso só entra aqui (menu completo),
   // não em QUICK_SECTIONS, que já tem seus 5 slots de telas de consulta diária ocupados.
   { to: '/configuracoes', label: 'Configurações', icon: Settings },
@@ -90,16 +95,18 @@ function BottomNavItem({ to, label, icon: Icon }: NavItem) {
 // deixa o drawer fechar ao clicar num item; a sidebar permanente não passa nada,
 // pois não fecha. Manter uma cópia única evita as duas navegações divergirem.
 function SectionNav({ onNavigate }: { onNavigate?: () => void }) {
-  // Contagem de pedidos/convites pendentes para os badges de "Amigos" e "Times". O SectionNav
-  // sempre é renderizado dentro dos dois providers (que envolvem o AppLayout), então os hooks
-  // estão disponíveis.
+  // Contagem de pedidos/convites/mensagens pendentes para os badges de "Amigos", "Times" e
+  // "Suporte". O SectionNav sempre é renderizado dentro dos três providers (que envolvem o
+  // AppLayout), então os hooks estão disponíveis.
   const { count } = useFriendRequests()
   const { count: teamInviteCount } = useTeamInvites()
+  const { count: chatUnreadCount } = useChatUnread()
 
   return (
     <ul className="flex-1 overflow-y-auto p-3">
       {ALL_SECTIONS.map(({ to, label, icon: Icon }) => {
-        const badge = to === '/amigos' ? count : to === '/times' ? teamInviteCount : 0
+        const badge =
+          to === '/amigos' ? count : to === '/times' ? teamInviteCount : to === '/suporte' ? chatUnreadCount : 0
 
         return (
           <li key={to}>
