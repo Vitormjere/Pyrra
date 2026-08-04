@@ -42,5 +42,18 @@ namespace Pyrra.Infrastructure.Repositories {
             _context.WorkoutPlanExercises.Remove(exercise);
             await _context.SaveChangesAsync(cancellationToken);
         }
+
+        // Apaga tudo do usuário e grava a nova lista num SaveChanges só, para a troca ser atômica:
+        // um erro no meio não deixaria a semana meio apagada. Remover primeiro é o que impede que
+        // exercícios de um plano anterior sobrem em dias que a nova lista não cobre.
+        public async Task ReplaceAllForUserAsync(Guid userId, IReadOnlyList<WorkoutPlanExercise> exercises, CancellationToken cancellationToken = default) {
+            var existing = await _context.WorkoutPlanExercises
+                .Where(e => e.UserId == userId)
+                .ToListAsync(cancellationToken);
+
+            _context.WorkoutPlanExercises.RemoveRange(existing);
+            await _context.WorkoutPlanExercises.AddRangeAsync(exercises, cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
     }
 }

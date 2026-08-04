@@ -8,6 +8,7 @@ using Pyrra.Domain.Tarefas;
 using Pyrra.Domain.Treinos;
 using Pyrra.Domain.Users;
 using Pyrra.Domain.Zelo;
+using Pyrra.Infrastructure.Data.Seed;
 
 namespace Pyrra.Infrastructure.Data {
     public class PyrraDbContext : DbContext {
@@ -29,6 +30,9 @@ namespace Pyrra.Infrastructure.Data {
         public DbSet<NutritionEntry> NutritionEntries => Set<NutritionEntry>();
         public DbSet<WorkoutPlanDay> WorkoutPlanDays => Set<WorkoutPlanDay>();
         public DbSet<WorkoutPlanExercise> WorkoutPlanExercises => Set<WorkoutPlanExercise>();
+        public DbSet<WorkoutTemplate> WorkoutTemplates => Set<WorkoutTemplate>();
+        public DbSet<WorkoutTemplateDay> WorkoutTemplateDays => Set<WorkoutTemplateDay>();
+        public DbSet<WorkoutTemplateExercise> WorkoutTemplateExercises => Set<WorkoutTemplateExercise>();
         public DbSet<NutritionPlanItem> NutritionPlanItems => Set<NutritionPlanItem>();
         public DbSet<NutritionPlanSeedLog> NutritionPlanSeedLogs => Set<NutritionPlanSeedLog>();
         public DbSet<ZeloQueryLog> ZeloQueryLogs => Set<ZeloQueryLog>();
@@ -200,6 +204,44 @@ namespace Pyrra.Infrastructure.Data {
             modelBuilder.Entity<ZeloQueryLog>()
                 .HasIndex(l => new { l.UserId, l.Date })
                 .IsUnique();
+
+            // Templates de treino: catálogo fixo (seed). Cascade nas duas relações para que apagar
+            // um template no futuro leve embora seus dias e exercícios sem deixar órfãos. As
+            // navegações não têm volta (o dia não referencia o template de volta), daí WithOne()
+            // sem parâmetro.
+            modelBuilder.Entity<WorkoutTemplate>()
+                .Property(t => t.Name)
+                .HasMaxLength(100);
+
+            modelBuilder.Entity<WorkoutTemplate>()
+                .Property(t => t.Description)
+                .HasMaxLength(300);
+
+            modelBuilder.Entity<WorkoutTemplate>()
+                .HasMany(t => t.Days)
+                .WithOne()
+                .HasForeignKey(d => d.TemplateId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<WorkoutTemplateDay>()
+                .Property(d => d.Label)
+                .HasMaxLength(200);
+
+            modelBuilder.Entity<WorkoutTemplateDay>()
+                .HasMany(d => d.Exercises)
+                .WithOne()
+                .HasForeignKey(e => e.TemplateDayId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<WorkoutTemplateExercise>()
+                .Property(e => e.ExerciseName)
+                .HasMaxLength(200);
+
+            // Seed do catálogo. A fonte é o WorkoutTemplateSeed (dados declarativos + GUIDs
+            // determinísticos); acrescentar templates lá e gerar uma migration é toda a manutenção.
+            modelBuilder.Entity<WorkoutTemplate>().HasData(WorkoutTemplateSeed.Templates);
+            modelBuilder.Entity<WorkoutTemplateDay>().HasData(WorkoutTemplateSeed.Days);
+            modelBuilder.Entity<WorkoutTemplateExercise>().HasData(WorkoutTemplateSeed.Exercises);
         }
     }
 }

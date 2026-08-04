@@ -16,5 +16,11 @@ namespace Pyrra.Application.Common.Interfaces {
         Task<WorkoutPlanExercise?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
         Task AddAsync(WorkoutPlanExercise exercise, CancellationToken cancellationToken = default);
         Task DeleteAsync(WorkoutPlanExercise exercise, CancellationToken cancellationToken = default);
+
+        // Troca a semana inteira de exercícios do usuário numa transação só: apaga TODOS os
+        // existentes e grava a nova lista. É o que "aplicar template" usa — remover primeiro é o
+        // que garante que exercícios de um plano anterior não sobrem em dias que o novo template
+        // deixa vazios (os "órfãos" que a sobrescrita não pode deixar).
+        Task ReplaceAllForUserAsync(Guid userId, IReadOnlyList<WorkoutPlanExercise> exercises, CancellationToken cancellationToken = default);
     }
 }

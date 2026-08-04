@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Plus, X } from 'lucide-react'
+import { LayoutTemplate, Plus, X } from 'lucide-react'
 import SectionHeader from './SectionHeader'
 import Segmented from './Segmented'
+import WorkoutTemplatePicker from './WorkoutTemplatePicker'
 import {
   addPlanExercise,
   getWorkoutPlan,
@@ -51,7 +52,27 @@ export function WorkoutPlanSection() {
   const [adding, setAdding] = useState(false)
   const [removingId, setRemovingId] = useState<string | null>(null)
 
+  // Modal de escolha de template.
+  const [pickerOpen, setPickerOpen] = useState(false)
+
   const today = todayWeekDay()
+
+  // A semana "tem conteúdo" se algum dia tem label ou exercício — decide se aplicar um template
+  // precisa confirmar a sobrescrita.
+  const weekHasContent = days.some(
+    (day) => (day.label ?? '').trim() !== '' || day.exercises.length > 0,
+  )
+
+  // Aplicar um template devolve o plano inteiro já montado: troca o estado local e a referência
+  // de labels salvos, para os próximos blur não dispararem PUT à toa.
+  function handleTemplateApplied(plan: WorkoutPlanDayResponse[]) {
+    setDays(plan)
+    savedLabels.current = Object.fromEntries(
+      plan.map((day) => [day.dayOfWeek, day.label ?? '']),
+    )
+    setState('idle')
+    setError(null)
+  }
 
   async function handleAddExercise(
     event: FormEvent<HTMLFormElement>,
@@ -175,17 +196,27 @@ export function WorkoutPlanSection() {
     <section className="flex flex-col gap-2">
       <SectionHeader
         trailing={
-          <span
-            aria-live="polite"
-            className={[
-              'text-[11px]',
-              state === 'error' ? 'text-red-300' : 'text-slate-500',
-            ].join(' ')}
-          >
-            {state === 'saving' && 'Salvando...'}
-            {state === 'saved' && 'Salvo'}
-            {state === 'error' && (error ?? 'Erro ao salvar')}
-          </span>
+          <div className="flex items-center gap-3">
+            <span
+              aria-live="polite"
+              className={[
+                'text-[11px]',
+                state === 'error' ? 'text-red-300' : 'text-slate-500',
+              ].join(' ')}
+            >
+              {state === 'saving' && 'Salvando...'}
+              {state === 'saved' && 'Salvo'}
+              {state === 'error' && (error ?? 'Erro ao salvar')}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPickerOpen(true)}
+              className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium text-brand-green ring-1 ring-brand-green/30 transition hover:bg-brand-green/10"
+            >
+              <LayoutTemplate size={13} aria-hidden="true" />
+              Aplicar template
+            </button>
+          </div>
         }
       >
         Plano da semana
@@ -338,6 +369,14 @@ export function WorkoutPlanSection() {
           </li>
         ))}
       </ul>
+
+      {pickerOpen && (
+        <WorkoutTemplatePicker
+          weekHasContent={weekHasContent}
+          onApplied={handleTemplateApplied}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
     </section>
   )
 }

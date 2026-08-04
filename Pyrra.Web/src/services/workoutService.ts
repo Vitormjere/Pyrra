@@ -4,6 +4,7 @@ import type {
   WorkoutPlanDayResponse,
   WorkoutPlanExerciseResponse,
   WorkoutResponse,
+  WorkoutTemplate,
   WorkoutType,
 } from '../types/workout'
 import type { WeekDay } from '../types/plan'
@@ -84,6 +85,23 @@ export async function addPlanExercise(
 
 export async function removePlanExercise(exerciseId: string): Promise<void> {
   await api.delete(`/api/treinos/plano/exercicios/${exerciseId}`)
+}
+
+// Catálogo de templates prontos, com dias e exercícios para o preview.
+export async function getWorkoutTemplates(): Promise<WorkoutTemplate[]> {
+  const { data } = await api.get<WorkoutTemplate[]>('/api/treinos/templates')
+  return data
+}
+
+// Aplica o template ao Plano da Semana (sobrescreve) e devolve o plano resultante,
+// no mesmo formato do getWorkoutPlan — a tela recarrega sem um segundo caminho.
+export async function applyWorkoutTemplate(
+  templateId: string,
+): Promise<WorkoutPlanDayResponse[]> {
+  const { data } = await api.post<WorkoutPlanDayResponse[]>(
+    `/api/treinos/templates/${templateId}/aplicar`,
+  )
+  return data
 }
 
 // Mesma forma de payload da criação; o backend revalida por tipo.
