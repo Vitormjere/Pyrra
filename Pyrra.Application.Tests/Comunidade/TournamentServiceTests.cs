@@ -124,6 +124,56 @@ namespace Pyrra.Application.Tests.Comunidade {
             await Assert.ThrowsAsync<ForbiddenException>(() => service.GetPendingRequestsAsync(RegularId));
         }
 
+        // ---- listar todas as solicitações (histórico, Fase Admin-3) ----
+
+        [Fact]
+        public async Task GetAllRequests_ComoAdmin_ListaPendentesEAvaliadasMaisRecentePrimeiro() {
+            var (service, _, _, _, _, _, clock) = Build();
+            var pending = await service.RequestTournamentAsync(RegularId, "Liga Pendente", null);
+            clock.UtcNow = clock.UtcNow.AddMinutes(1);
+            var approved = await service.RequestTournamentAsync(RegularId, "Liga Aprovada", null);
+            await service.ApproveRequestAsync(AdminId, approved.Id);
+            clock.UtcNow = clock.UtcNow.AddMinutes(1);
+            var rejected = await service.RequestTournamentAsync(OtherId, "Liga Recusada", null);
+            await service.RejectRequestAsync(AdminId, rejected.Id);
+
+            var all = await service.GetAllRequestsAsync(AdminId);
+
+            Assert.Equal(3, all.Count);
+            // Mais recente primeiro: a última criada (rejected) vem antes da primeira (pending).
+            Assert.Equal(rejected.Id, all[0].Id);
+            Assert.Equal(pending.Id, all[2].Id);
+            Assert.Equal(TournamentRequestStatus.Pendente, all.Single(r => r.Id == pending.Id).Status);
+            Assert.Equal(TournamentRequestStatus.Aprovado, all.Single(r => r.Id == approved.Id).Status);
+            Assert.Equal(TournamentRequestStatus.Recusado, all.Single(r => r.Id == rejected.Id).Status);
+            Assert.Null(all.Single(r => r.Id == pending.Id).ReviewedAt);
+            Assert.NotNull(all.Single(r => r.Id == approved.Id).ReviewedAt);
+        }
+
+        [Fact]
+        public async Task GetAllRequests_ComoNaoAdmin_Lanca() {
+            var (service, _, _, _, _, _, _) = Build();
+
+            await Assert.ThrowsAsync<ForbiddenException>(() => service.GetAllRequestsAsync(RegularId));
+        }
+
+        [Fact]
+        public async Task GetAllRequests_SolicitanteRemovido_IgnoraParaNaoQuebrarListagem() {
+            var (service, _, requests, _, _, _, _) = Build();
+            await service.RequestTournamentAsync(RegularId, "Liga Normal", null);
+            var orphanRequest = await service.RequestTournamentAsync(OtherId, "Liga Orfa", null);
+            requests.Requests.Remove(requests.Requests.Single(r => r.Id == orphanRequest.Id));
+            requests.Requests.Add(new TournamentRequest {
+                Id = orphanRequest.Id, RequesterId = Guid.NewGuid(), ProposedName = "Liga Orfa",
+                Status = TournamentRequestStatus.Pendente, CreatedAt = DateTime.UtcNow
+            });
+
+            var all = await service.GetAllRequestsAsync(AdminId);
+
+            var single = Assert.Single(all);
+            Assert.Equal("Liga Normal", single.ProposedName);
+        }
+
         [Fact]
         public async Task ApproveRequest_ComoAdmin_CriaTorneioComSolicitanteComoOwner() {
             var (service, tournaments, requests, _, _, _, _) = Build();

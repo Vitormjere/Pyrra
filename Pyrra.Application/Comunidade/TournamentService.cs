@@ -78,7 +78,9 @@ namespace Pyrra.Application.Comunidade {
                 throw new NotFoundException("Usuário não encontrado.");
             }
 
-            return new TournamentRequestSummary(request.Id, request.ProposedName, request.ProposedDescription, ToSummary(requester), request.CreatedAt);
+            return new TournamentRequestSummary(
+                request.Id, request.ProposedName, request.ProposedDescription, ToSummary(requester),
+                request.CreatedAt, request.Status, request.ReviewedAt);
         }
 
         public async Task<IReadOnlyList<TournamentRequestSummary>> GetPendingRequestsAsync(Guid adminUserId, CancellationToken cancellationToken = default) {
@@ -97,7 +99,9 @@ namespace Pyrra.Application.Comunidade {
                 if (!requesters.TryGetValue(request.RequesterId, out var requester)) {
                     continue;
                 }
-                result.Add(new TournamentRequestSummary(request.Id, request.ProposedName, request.ProposedDescription, ToSummary(requester), request.CreatedAt));
+                result.Add(new TournamentRequestSummary(
+                    request.Id, request.ProposedName, request.ProposedDescription, ToSummary(requester),
+                    request.CreatedAt, request.Status, request.ReviewedAt));
             }
 
             return result.OrderBy(r => r.CreatedAt).ToList();
@@ -129,6 +133,35 @@ namespace Pyrra.Application.Comunidade {
             request.ReviewedAt       = _clock.UtcNow;
             request.ReviewedByUserId = adminUserId;
             await _requestRepository.UpdateAsync(request, cancellationToken);
+        }
+
+        // TODAS as solicitações, qualquer status — a tela administrativa (Fase Admin-3) usa isso
+        // pra montar Pendentes + Histórico de uma vez só, em vez de duas chamadas. Diferente de
+        // GetPendingRequestsAsync acima (que continua existindo, sem uso duplicado): aqui não há
+        // filtro de status na query, e a ordenação é mais recente primeiro — faz mais sentido pra
+        // quem está olhando o histórico do que o "mais antigo primeiro" da fila de pendentes.
+        public async Task<IReadOnlyList<TournamentRequestSummary>> GetAllRequestsAsync(Guid adminUserId, CancellationToken cancellationToken = default) {
+            await _adminAuth.EnsureAdminAsync(adminUserId, cancellationToken);
+
+            var all = await _requestRepository.GetAllAsync(cancellationToken);
+            if (all.Count == 0) {
+                return Array.Empty<TournamentRequestSummary>();
+            }
+
+            var requesters = await LoadUsersAsync(all.Select(r => r.RequesterId), cancellationToken);
+
+            var result = new List<TournamentRequestSummary>(all.Count);
+            foreach (var request in all) {
+                // Solicitante removido: ignora para não quebrar a listagem
+                if (!requesters.TryGetValue(request.RequesterId, out var requester)) {
+                    continue;
+                }
+                result.Add(new TournamentRequestSummary(
+                    request.Id, request.ProposedName, request.ProposedDescription, ToSummary(requester),
+                    request.CreatedAt, request.Status, request.ReviewedAt));
+            }
+
+            return result.OrderByDescending(r => r.CreatedAt).ToList();
         }
 
         public async Task<IReadOnlyList<TournamentSummary>> GetAllAsync(Guid userId, CancellationToken cancellationToken = default) {

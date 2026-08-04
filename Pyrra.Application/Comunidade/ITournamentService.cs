@@ -20,6 +20,9 @@ namespace Pyrra.Application.Comunidade {
         // Retorna solicitações pendentes de criação
         Task<IReadOnlyList<TournamentRequestSummary>> GetPendingRequestsAsync(Guid adminUserId, CancellationToken cancellationToken = default);
 
+        // Retorna TODAS as solicitações, qualquer status — Pendentes + Histórico (Fase Admin-3)
+        Task<IReadOnlyList<TournamentRequestSummary>> GetAllRequestsAsync(Guid adminUserId, CancellationToken cancellationToken = default);
+
         // Aprova uma solicitação de criação de torneio
         Task<TournamentSummary> ApproveRequestAsync(Guid adminUserId, Guid requestId, CancellationToken cancellationToken = default);
 

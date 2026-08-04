@@ -5,6 +5,8 @@ import type { TeamBannerTheme } from './teams'
 
 export type TournamentTeamStatus = 'Pendente' | 'Aprovado' | 'Recusado'
 
+export type TournamentRequestStatus = 'Pendente' | 'Aprovado' | 'Recusado'
+
 // GET /api/torneios, GET /api/torneios/meus, POST /api/torneios
 export interface Tournament {
   id: string
@@ -26,12 +28,16 @@ export interface TournamentDetails {
 }
 
 // POST /api/torneios/solicitacoes — solicitação de criação, aguardando aprovação de um admin.
+// status/reviewedAt existem desde a Fase 4a no backend, mas só passaram a ser expostos aqui na
+// Fase Admin-3 (histórico) — antes disso, esta tela só via solicitações Pendentes.
 export interface TournamentRequest {
   id: string
   proposedName: string
   proposedDescription: string | null
   requester: UserSummary
   createdAt: string
+  status: TournamentRequestStatus
+  reviewedAt: string | null
 }
 
 // Um time participando (ou solicitando participar) de um torneio — usado tanto na fila de

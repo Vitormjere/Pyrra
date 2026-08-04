@@ -72,6 +72,21 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
+        // TODAS as solicitações, qualquer status — Pendentes + Histórico (admin, Fase Admin-3)
+        [HttpGet("solicitacoes/todas")]
+        public async Task<ActionResult<IEnumerable<TournamentRequestResponse>>> GetAllRequests(CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            try {
+                var all = await _tournamentService.GetAllRequestsAsync(userId, cancellationToken);
+                return Ok(all.Select(TournamentRequestResponse.FromSummary));
+            } catch (ForbiddenException ex) {
+                return StatusCode(403, new { message = ex.Message });
+            }
+        }
+
         // Aprova a solicitação (dono pede, admin deixa)
         [HttpPost("solicitacoes/{requestId:guid}/aprovar")]
         public async Task<ActionResult<TournamentSummaryResponse>> ApproveRequest(Guid requestId, CancellationToken cancellationToken) {

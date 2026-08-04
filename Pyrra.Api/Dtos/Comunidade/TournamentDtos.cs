@@ -24,14 +24,19 @@ namespace Pyrra.Api.Dtos.Comunidade {
             $"/torneios/convite/{d.InviteToken}");
     }
 
+    // Status/ReviewedAt existem desde a Fase 4a na entidade, mas só passaram a ser expostos aqui
+    // na Fase Admin-3 (histórico) — ver comentário em TournamentRequestSummary.
     public record TournamentRequestResponse(
         Guid Id,
         string ProposedName,
         string? ProposedDescription,
         UserSummaryResponse Requester,
-        DateTime CreatedAt) {
+        DateTime CreatedAt,
+        string Status,
+        DateTime? ReviewedAt) {
         public static TournamentRequestResponse FromSummary(TournamentRequestSummary s) => new(
-            s.Id, s.ProposedName, s.ProposedDescription, UserSummaryResponse.FromSummary(s.Requester), s.CreatedAt);
+            s.Id, s.ProposedName, s.ProposedDescription, UserSummaryResponse.FromSummary(s.Requester), s.CreatedAt,
+            s.Status.ToString(), s.ReviewedAt);
     }
 
     // Dados para criar um torneio

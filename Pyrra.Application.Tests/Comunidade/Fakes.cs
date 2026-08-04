@@ -289,6 +289,9 @@ namespace Pyrra.Application.Tests.Comunidade {
             Task.FromResult<IReadOnlyList<TournamentRequest>>(
                 Requests.Where(r => r.Status == TournamentRequestStatus.Pendente).ToList());
 
+        public Task<IReadOnlyList<TournamentRequest>> GetAllAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<TournamentRequest>>(Requests.ToList());
+
         public Task AddAsync(TournamentRequest request, CancellationToken cancellationToken = default) {
             Requests.Add(request);
             return Task.CompletedTask;

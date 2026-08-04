@@ -24,6 +24,9 @@ namespace Pyrra.Infrastructure.Repositories {
                 .Where(r => r.Status == TournamentRequestStatus.Pendente)
                 .ToListAsync(cancellationToken);
 
+        public async Task<IReadOnlyList<TournamentRequest>> GetAllAsync(CancellationToken cancellationToken = default) =>
+            await _context.TournamentRequests.ToListAsync(cancellationToken);
+
         public async Task AddAsync(TournamentRequest request, CancellationToken cancellationToken = default) {
             await _context.TournamentRequests.AddAsync(request, cancellationToken);
             await _context.SaveChangesAsync(cancellationToken);

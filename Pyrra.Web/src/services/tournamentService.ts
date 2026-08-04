@@ -25,6 +25,22 @@ export async function requestTournament(name: string, description: string | null
   return data
 }
 
+// TODAS as solicitações, qualquer status — Pendentes + Histórico (admin, Fase Admin-3).
+export async function getAllTournamentRequests(): Promise<TournamentRequest[]> {
+  const { data } = await api.get<TournamentRequest[]>('/api/torneios/solicitacoes/todas')
+  return data
+}
+
+// Aprova a solicitação — cria o torneio e devolve com o solicitante já como dono.
+export async function approveTournamentRequest(requestId: string): Promise<Tournament> {
+  const { data } = await api.post<Tournament>(`/api/torneios/solicitacoes/${requestId}/aprovar`)
+  return data
+}
+
+export async function rejectTournamentRequest(requestId: string): Promise<void> {
+  await api.post(`/api/torneios/solicitacoes/${requestId}/recusar`)
+}
+
 // Cria o torneio direto, sem passar por solicitação/aprovação — só admin (o backend devolve 403
 // pra quem não for). Quem chama já vira o dono.
 export async function createTournament(
