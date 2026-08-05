@@ -30,29 +30,57 @@ interface NavItem {
   icon: LucideIcon
 }
 
-// índice completo do app, compartilhado pelo drawer (mobile) e pela sidebar permanente (desktop)
-const ALL_SECTIONS: NavItem[] = [
-  { to: '/hoje', label: 'Hoje', icon: Flame },
-  { to: '/zelo', label: 'Zelo', icon: Sparkles },
-  { to: '/agenda', label: 'Agenda', icon: CalendarDays },
-  { to: '/treino', label: 'Treino', icon: Dumbbell },
-  { to: '/tarefas', label: 'Tarefas', icon: ListChecks },
-  { to: '/financas', label: 'Finanças', icon: Wallet },
-  { to: '/nutricao', label: 'Nutrição', icon: Apple },
-  { to: '/diario', label: 'Diário', icon: NotebookPen },
-  { to: '/amigos', label: 'Amigos', icon: Users },
-  // shield em vez de UsersRound: a variante arredondada de Users confundia com o ícone de Amigos
-  { to: '/times', label: 'Times', icon: Shield },
-  { to: '/torneios', label: 'Torneios', icon: Trophy },
-  { to: '/perfil', label: 'Perfil', icon: User },
-  // destino ocasional, não uso diário, por isso só entra no menu completo
-  { to: '/suporte', label: 'Suporte', icon: LifeBuoy },
-  // mesmo critério do Suporte acima: ocasional, fora dos 5 slots do QUICK_SECTIONS
-  { to: '/configuracoes', label: 'Configurações', icon: Settings },
+interface NavGroup {
+  // null no primeiro grupo — é o topo do menu, não precisa de rótulo pra se identificar
+  title: string | null
+  items: NavItem[]
+}
+
+// índice completo do app, agrupado por afinidade — compartilhado pelo drawer (mobile) e pela sidebar permanente (desktop)
+const NAV_GROUPS: NavGroup[] = [
+  {
+    title: null,
+    items: [
+      { to: '/hoje', label: 'Hoje', icon: Flame },
+      { to: '/zelo', label: 'Zelo', icon: Sparkles },
+    ],
+  },
+  {
+    title: 'Rotina',
+    items: [
+      { to: '/treino', label: 'Treino', icon: Dumbbell },
+      { to: '/nutricao', label: 'Nutrição', icon: Apple },
+      { to: '/financas', label: 'Finanças', icon: Wallet },
+      { to: '/diario', label: 'Diário', icon: NotebookPen },
+      { to: '/agenda', label: 'Agenda', icon: CalendarDays },
+      { to: '/tarefas', label: 'Tarefas', icon: ListChecks },
+    ],
+  },
+  {
+    title: 'Comunidade',
+    items: [
+      { to: '/amigos', label: 'Amigos', icon: Users },
+      // shield em vez de UsersRound: a variante arredondada de Users confundia com o ícone de Amigos
+      { to: '/times', label: 'Times', icon: Shield },
+      { to: '/torneios', label: 'Torneios', icon: Trophy },
+    ],
+  },
+  {
+    title: 'Conta',
+    items: [
+      // destino ocasional, não uso diário, por isso só entra no menu completo
+      { to: '/suporte', label: 'Suporte', icon: LifeBuoy },
+      { to: '/perfil', label: 'Perfil', icon: User },
+      // mesmo critério do Suporte acima: ocasional, fora dos 5 slots do QUICK_SECTIONS
+      { to: '/configuracoes', label: 'Configurações', icon: Settings },
+    ],
+  },
 ]
 
+const ALL_SECTIONS: NavItem[] = NAV_GROUPS.flatMap((group) => group.items)
+
 // barra inferior
-const QUICK_ROUTES = ['/hoje', '/financas', '/zelo', '/nutricao', '/perfil']
+const QUICK_ROUTES = ['/hoje', '/treino', '/zelo', '/times', '/perfil']
 const QUICK_SECTIONS: NavItem[] = QUICK_ROUTES.map(
   (route) => ALL_SECTIONS.find((section) => section.to === route)!,
 )
@@ -95,46 +123,58 @@ function SectionNav({ onNavigate }: { onNavigate?: () => void }) {
   const { count: chatUnreadCount } = useChatUnread()
 
   return (
-    <ul className="flex-1 overflow-y-auto p-3">
-      {ALL_SECTIONS.map(({ to, label, icon: Icon }) => {
-        const badge =
-          to === '/amigos' ? count : to === '/times' ? teamInviteCount : to === '/suporte' ? chatUnreadCount : 0
+    <div className="flex-1 space-y-4 overflow-y-auto p-3">
+      {NAV_GROUPS.map((group, index) => (
+        // key pelo índice: título pode ser null e repetir não é um risco aqui, a lista é estática
+        <div key={index}>
+          {group.title && (
+            <p className="px-3 pb-1 text-[11px] font-medium tracking-wide text-slate-500/80">
+              {group.title}
+            </p>
+          )}
+          <ul>
+            {group.items.map(({ to, label, icon: Icon }) => {
+              const badge =
+                to === '/amigos' ? count : to === '/times' ? teamInviteCount : to === '/suporte' ? chatUnreadCount : 0
 
-        return (
-          <li key={to}>
-            <NavLink
-              to={to}
-              // fecha ao navegar — é reação ao clique, não sincronização com a rota
-              onClick={onNavigate}
-              className={({ isActive }) =>
-                [
-                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition',
-                  isActive
-                    ? 'bg-surface font-medium text-ink'
-                    : 'text-slate-400 hover:bg-surface hover:text-slate-200',
-                ].join(' ')
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <Icon
-                    size={18}
-                    aria-hidden="true"
-                    className={isActive ? 'text-brand-green' : undefined}
-                  />
-                  <span className="flex-1">{label}</span>
-                  {badge > 0 && (
-                    <span className="rounded-full bg-brand-green px-1.5 py-0.5 text-[10px] font-semibold text-brand-dark tabular-nums">
-                      {badge}
-                    </span>
-                  )}
-                </>
-              )}
-            </NavLink>
-          </li>
-        )
-      })}
-    </ul>
+              return (
+                <li key={to}>
+                  <NavLink
+                    to={to}
+                    // fecha ao navegar — é reação ao clique, não sincronização com a rota
+                    onClick={onNavigate}
+                    className={({ isActive }) =>
+                      [
+                        'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition',
+                        isActive
+                          ? 'bg-surface font-medium text-ink'
+                          : 'text-slate-400 hover:bg-surface hover:text-slate-200',
+                      ].join(' ')
+                    }
+                  >
+                    {({ isActive }) => (
+                      <>
+                        <Icon
+                          size={18}
+                          aria-hidden="true"
+                          className={isActive ? 'text-brand-green' : undefined}
+                        />
+                        <span className="flex-1">{label}</span>
+                        {badge > 0 && (
+                          <span className="rounded-full bg-brand-green px-1.5 py-0.5 text-[10px] font-semibold text-brand-dark tabular-nums">
+                            {badge}
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </NavLink>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      ))}
+    </div>
   )
 }
 
