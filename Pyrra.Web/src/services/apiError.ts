@@ -1,19 +1,10 @@
 import { isAxiosError } from 'axios'
 
-// A requisição nem chegou ao servidor: API fora do ar, CORS ou o certificado
-// self-signed do https://localhost ainda não aceito no navegador.
+// requisição nem chegou ao servidor: API fora do ar, CORS ou certificado self-signed não aceito
 export const NETWORK_ERROR_MESSAGE =
   'Não foi possível falar com o servidor. Verifique se a API está no ar.'
 
-/**
- * Converte um erro de requisição na mensagem que o usuário vê.
- *
- * A ordem é deliberada: status conhecido pela tela vence, depois o { message }
- * que o backend manda nos erros tratados, e por último o texto genérico.
- *
- * @param statusMessages textos específicos da tela por código HTTP (ex.: { 409: '...' })
- * @param fallback usado quando nada mais explica a falha
- */
+// converte um erro de requisição na mensagem pro usuário: status conhecido vence, depois o message do backend, por último o fallback
 export function getApiErrorMessage(
   error: unknown,
   statusMessages: Record<number, string>,

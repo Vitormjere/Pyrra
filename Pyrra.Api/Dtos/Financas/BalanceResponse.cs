@@ -3,7 +3,7 @@ using Pyrra.Application.Financas;
 using Pyrra.Domain.Financas;
 
 namespace Pyrra.Api.Dtos.Financas {
-    // Um ponto da série do gráfico de saldo.
+    // ponto da série do gráfico de saldo
     public record DailyBalanceResponse(DateOnly Date, decimal Balance) {
         public static DailyBalanceResponse FromResult(DailyBalance item) =>
             new(item.Date, item.Balance);

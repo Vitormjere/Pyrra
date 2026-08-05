@@ -53,10 +53,6 @@ namespace Pyrra.Infrastructure.Migrations
                 table:   "FinanceEntries",
                 columns: new[] { "UserId", "Date" });
 
-            // Categorias padrão do sistema: UserId null (visíveis para todos) e IsDefault true.
-            // Os Guids são FIXOS e escritos à mão de propósito — se fossem gerados a cada execução,
-            // rodar a migration em dois ambientes produziria ids diferentes para a mesma categoria,
-            // e qualquer referência a elas deixaria de bater entre banco de dev e de produção.
             migrationBuilder.InsertData(
                 table: "FinanceCategories",
                 columns: new[] { "Id", "UserId", "Name", "IsDefault" },

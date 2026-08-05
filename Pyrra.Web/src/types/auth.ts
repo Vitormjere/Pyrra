@@ -9,6 +9,10 @@ export type CommunicationTone = 'Direto' | 'Acolhedor' | 'Desafiador'
 
 export type UserPlan = 'Free' | 'Premium'
 
+// Quem pode ver o perfil público do usuário. Publico: qualquer usuário logado. SomenteAmigos: só
+// amigos confirmados — pedido pendente não conta.
+export type ProfileVisibility = 'Publico' | 'SomenteAmigos'
+
 // POST /api/auth/login e POST /api/auth/register
 export interface AuthResponse {
   userId: string
@@ -25,15 +29,21 @@ export interface UserResponse {
   id: string
   email: string
   name: string
+  /** Identificador público (ex.: "vitorj", exibido como "@vitorj"). null até ser escolhido —
+   *  é o que o gate de username usa para forçar a escolha no primeiro acesso. Vem sem "@". */
+  username: string | null
   /** IANA time zone (ex.: "America/Sao_Paulo"). */
   timezone: string
   communicationTone: CommunicationTone
   /** Hora local no formato "HH:mm". */
   eveningNotificationTime: string
   plan: UserPlan
+  profileVisibility: ProfileVisibility
   /** true depois que o usuário concluiu ou pulou o onboarding de primeiro acesso. */
   onboardingCompleted: boolean
   createdAt: string
+  /** Libera ações administrativas na UI (ex.: criar torneio direto, sem passar por solicitação). */
+  isAdmin: boolean
 }
 
 export interface LoginRequest {

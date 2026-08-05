@@ -25,8 +25,7 @@ namespace Pyrra.Application.Planejamento {
         public async Task<DailyPlanNote> SaveAsync(Guid userId, DateOnly? date, string content, CancellationToken cancellationToken = default) {
             var targetDate = await ResolveDateAsync(userId, date, cancellationToken);
 
-            // Conteúdo vazio é gravado como string vazia, não como null: apagar o texto é uma
-            // edição legítima da nota do dia, e o registro continua existindo (com UpdatedAt novo).
+            // permite nota vazia como edição válida sem remover o registro
             var note = new DailyPlanNote {
                 UserId    = userId,
                 Date      = targetDate,
@@ -44,24 +43,19 @@ namespace Pyrra.Application.Planejamento {
         }
 
         public async Task<IReadOnlyList<DailyPlanNote>> GetHistoryAsync(Guid userId, int days = 30, CancellationToken cancellationToken = default) {
-            // Piso de 1 dia: days zero ou negativo daria uma janela invertida, em que
-            // fromDate ficaria no futuro e a consulta voltaria vazia sem explicação.
+            // garante uma janela válida com pelo menos um dia de histórico
             var window = Math.Max(1, days);
 
             var today = await TodayAsync(userId, cancellationToken);
             var notes = await _repository.GetRecentByUserAsync(userId, today.AddDays(-window), cancellationToken);
 
-            // Nota existe para todo dia em que o usuário abriu o campo e salvou, mesmo
-            // que depois tenha apagado o texto. Esses registros em branco não são
-            // reflexão nenhuma e só afastariam do topo o que de fato foi escrito.
+            // ignora notas vazias no histórico para destacar apenas conteúdo escrito
             return notes
                 .Where(note => !string.IsNullOrWhiteSpace(note.Content))
                 .ToList();
         }
 
-        // Sem trava de data futura, ao contrário do check-in e do treino: planejar é justamente
-        // uma atividade voltada para frente — escrever à noite o plano de amanhã é o caso de uso
-        // central do módulo. Datas passadas também valem, para reler ou corrigir o que foi escrito.
+        // permite notas futuras e passadas, pois planejamento e correção fazem parte do módulo
         private async Task<DateOnly> ResolveDateAsync(Guid userId, DateOnly? date, CancellationToken cancellationToken) {
             if (date is not null) {
                 return date.Value;

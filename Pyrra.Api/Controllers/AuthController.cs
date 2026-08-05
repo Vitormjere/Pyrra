@@ -16,7 +16,7 @@ namespace Pyrra.Api.Controllers {
         private readonly IUserRepository _userRepository;
 
         public AuthController(IAuthService authService, IUserRepository userRepository) {
-            _authService = authService;
+            _authService    = authService;
             _userRepository = userRepository;
         }
 

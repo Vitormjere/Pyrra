@@ -33,7 +33,7 @@ namespace Pyrra.Application.Nutricao {
         }
 
         public async Task<NutritionEntry> AddItemAsync(Guid userId, MealType mealType, string itemName, string quantity, DateOnly? date = null, CancellationToken cancellationToken = default) {
-            // [Required] no DTO barra null e "", mas deixa passar "   ".
+            // [Required] no DTO barra null e "", mas deixa passar "   "
             var normalizedItemName = itemName?.Trim();
             if (string.IsNullOrEmpty(normalizedItemName)) {
                 throw new InvalidNutritionEntryException("O nome do item é obrigatório.");
@@ -48,8 +48,7 @@ namespace Pyrra.Application.Nutricao {
                 throw new InvalidNutritionEntryException($"Refeição '{mealType}' não é válida.");
             }
 
-            // Sem trava de data futura, como nos demais módulos de registro: quem quiser deixar
-            // o almoço de amanhã anotado não está fazendo nada inválido.
+            // permite registros futuros, como nos demais módulos
             var targetDate = date ?? await TodayAsync(userId, cancellationToken);
 
             var entry = new NutritionEntry {
@@ -71,19 +70,11 @@ namespace Pyrra.Application.Nutricao {
             var targetDate = date ?? today;
             var entries    = await _repository.GetByUserAndDateAsync(userId, targetDate, cancellationToken);
 
-            // Semeadura do plano: só HOJE e só se ainda não tiver ocorrido para este dia.
-            //
-            // O gatilho é o registro em NutritionPlanSeedLog, não a lista estar vazia. Isso
-            // separa "nunca copiei" de "copiei e o usuário apagou": apagar tudo agora deixa
-            // o dia vazio de verdade, sem o plano voltar na próxima carga.
-            //
-            // Dias passados ficam de fora porque copiar plano para trás reescreveria
-            // histórico; dias futuros, porque o plano ainda pode mudar até lá.
+            // copia o plano apenas hoje e uma vez por dia, sem reescrever histórico
             if (targetDate == today && !await _seedLogRepository.HasSeededAsync(userId, today, cancellationToken)) {
                 var seeded = await SeedFromPlanAsync(userId, today, cancellationToken);
                 if (seeded.Count > 0) {
-                    // Anexa em vez de substituir: o dia pode já ter itens lançados à mão
-                    // antes desta primeira leitura, e descartá-los seria perder dado real.
+                    // adiciona ao que já existe sem substituir dados manuais
                     entries = entries.Concat(seeded).OrderBy(e => e.MealType).ThenBy(e => e.CreatedAt).ToList();
                 }
             }
@@ -91,15 +82,11 @@ namespace Pyrra.Application.Nutricao {
             return BuildDay(targetDate, entries);
         }
 
-        // Copia os itens planejados do dia da semana correspondente para entries reais.
-        // A partir daí eles são itens comuns: editáveis e removíveis como qualquer outro,
-        // sem vínculo com o plano de origem.
+        // copia o plano para itens reais, sem manter vínculo com a origem
         private async Task<IReadOnlyList<NutritionEntry>> SeedFromPlanAsync(Guid userId, DateOnly today, CancellationToken cancellationToken) {
             var planItems = await _planRepository.GetByUserAndDayAsync(userId, ToWeekDay(today), cancellationToken);
 
-            // Plano vazio para este dia da semana: NÃO marca como semeado. Nada foi copiado,
-            // e registrar a marca impediria a cópia caso o usuário monte o plano mais tarde
-            // no mesmo dia.
+            // plano vazio não é marcado como semeado para permitir cópia depois
             if (planItems.Count == 0) {
                 return Array.Empty<NutritionEntry>();
             }
@@ -119,15 +106,13 @@ namespace Pyrra.Application.Nutricao {
 
             await _repository.AddRangeAsync(entries, cancellationToken);
 
-            // Marca DEPOIS de gravar: se a cópia falhar, o dia continua não semeado e a
-            // próxima carga tenta de novo, em vez de registrar uma semeadura que não houve.
+            // marca como semeado só após copiar com sucesso
             await _seedLogRepository.MarkSeededAsync(userId, today, now, cancellationToken);
 
             return entries;
         }
 
-        // DateOnly.DayOfWeek começa no domingo; o WeekDay do domínio começa na segunda,
-        // como o WeekRange. Este deslocamento é a única ponte entre as duas convenções.
+        // converte o dia da semana do .NET para o padrão do domínio
         private static WeekDay ToWeekDay(DateOnly date) =>
             (WeekDay)(((int)date.DayOfWeek + 6) % 7);
 
@@ -137,12 +122,10 @@ namespace Pyrra.Application.Nutricao {
 
             var entries = await _repository.GetByUserAndDateRangeAsync(userId, start, end, cancellationToken);
 
-            // Uma query só para a semana inteira, agrupada em memória: sete consultas dia a dia
-            // seriam sete idas ao banco para os mesmos dados.
+            // busca a semana inteira em uma única consulta e agrupa em memória
             var byDate = entries.GroupBy(e => e.Date).ToDictionary(g => g.Key, g => (IReadOnlyList<NutritionEntry>)g.ToList());
 
-            // Os sete dias sempre presentes, na ordem, mesmo os sem nenhum item: é o que faz a
-            // aba da semana mostrar o PADRÃO — um dia em branco no meio da semana é informação.
+            // mantém os 7 dias na ordem, incluindo dias vazios, para a grade semanal completa
             var days = Enumerable.Range(0, 7)
                 .Select(offset => start.AddDays(offset))
                 .Select(date => BuildDay(date, byDate.TryGetValue(date, out var dayEntries) ? dayEntries : Array.Empty<NutritionEntry>()))
@@ -176,8 +159,7 @@ namespace Pyrra.Application.Nutricao {
             await _repository.DeleteAsync(entry, cancellationToken);
         }
 
-        // Mesmo NotFoundException genérico dos outros módulos: item inexistente ou de outro
-        // usuário são indistinguíveis para quem chama.
+        // trata item inexistente ou de outro usuário como não encontrado
         private async Task<NutritionEntry> GetOwnedEntryAsync(Guid userId, Guid itemId, CancellationToken cancellationToken) {
             var entry = await _repository.GetByIdAsync(itemId, cancellationToken);
             if (entry is null || entry.UserId != userId) {
@@ -189,8 +171,7 @@ namespace Pyrra.Application.Nutricao {
         public async Task<IReadOnlyList<PlanDay>> GetPlanAsync(Guid userId, CancellationToken cancellationToken = default) {
             var items = await _planRepository.GetByUserAsync(userId, cancellationToken);
 
-            // Grade completa 7x4, mesmo critério do BuildDay: refeição sem item vira lista
-            // vazia, nunca grupo ausente.
+            // mantém a grade completa 7x4 com refeições vazias quando não há itens
             return Enum.GetValues<WeekDay>()
                 .Select(day => new PlanDay(
                     day,
@@ -237,8 +218,7 @@ namespace Pyrra.Application.Nutricao {
         public async Task RemovePlanItemAsync(Guid userId, Guid itemId, CancellationToken cancellationToken = default) {
             var item = await _planRepository.GetByIdAsync(itemId, cancellationToken);
 
-            // Mesmo NotFoundException genérico dos outros módulos: item inexistente ou de
-            // outro usuário são indistinguíveis para quem chama.
+            // trata item inexistente ou de outro usuário como não encontrado
             if (item is null || item.UserId != userId) {
                 throw new NotFoundException($"Item de plano '{itemId}' não encontrado.");
             }
@@ -246,8 +226,7 @@ namespace Pyrra.Application.Nutricao {
             await _planRepository.DeleteAsync(item, cancellationToken);
         }
 
-        // Monta as quatro refeições na ordem do enum, cada uma com os itens já ordenados pelo
-        // repositório. Refeição sem item vira lista vazia, nunca grupo ausente.
+        // monta as quatro refeições na ordem do enum, mantendo grupos vazios quando necessário
         private static DayNutrition BuildDay(DateOnly date, IReadOnlyList<NutritionEntry> entries) {
             var meals = AllMeals
                 .Select(meal => new MealGroup(

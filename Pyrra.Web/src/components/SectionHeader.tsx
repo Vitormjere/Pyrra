@@ -6,10 +6,7 @@ interface SectionHeaderProps {
   trailing?: ReactNode
 }
 
-// Cabeçalho de seção. Ganhou peso em relação à primeira versão: corpo maior,
-// bold e uma barra verde à esquerda. Num layout que agora agrupa listas inteiras
-// numa superfície só, é o header que marca onde uma seção termina e a próxima
-// começa — antes esse trabalho era feito pelos cards separados.
+// marca onde uma seção termina e a próxima começa, já que as listas agora vivem numa superfície só
 export function SectionHeader({ children, trailing }: SectionHeaderProps) {
   return (
     <div className="flex items-center justify-between gap-3">

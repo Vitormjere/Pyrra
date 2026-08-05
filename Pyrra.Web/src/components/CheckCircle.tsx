@@ -4,9 +4,7 @@ interface CheckCircleProps {
   checked: boolean
 }
 
-// Marcador de conclusão: círculo de contorno fino, sem preenchimento chapado.
-// Concluído troca o contorno para verde e mostra um check discreto — a mudança
-// se percebe sem que o item vire um bloco de cor no meio da lista.
+// contorno vira verde com check ao concluir, sem virar um bloco de cor chapado na lista
 export function CheckCircle({ checked }: CheckCircleProps) {
   return (
     <span

@@ -53,7 +53,7 @@ namespace Pyrra.Api.Controllers {
             return Ok(logs.Select(WorkoutResponse.FromEntity));
         }
 
-        // Plano semanal: sempre os 7 dias, mesmo os sem label.
+        // os 7 dias do plano semanal, mesmo sem refeições cadastradas
         [HttpGet("plano")]
         public async Task<ActionResult<IEnumerable<WorkoutPlanDayResponse>>> GetPlan(CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -64,7 +64,7 @@ namespace Pyrra.Api.Controllers {
             return Ok(plan.Select(WorkoutPlanDayResponse.FromEntity));
         }
 
-        // Acrescenta um exercício ao dia. O Order é calculado no service.
+        // ordem do exercício é definida automaticamente
         [HttpPost("plano/{diaDaSemana}/exercicios")]
         public async Task<ActionResult<WorkoutPlanExerciseResponse>> AddPlanExercise(
             WeekDay diaDaSemana,
@@ -121,24 +121,19 @@ namespace Pyrra.Api.Controllers {
 
             await _workoutService.SavePlanAsync(userId, days, cancellationToken);
 
-            // Devolve o plano COMPLETO, com exercícios: o PUT só altera labels, mas
-            // responder num formato diferente do GET faria a tela ter dois caminhos
-            // para o mesmo dado.
+            // retorna o plano completo, mesmo formato do GET
             var plan = await _workoutService.GetPlanWithExercisesAsync(userId, cancellationToken);
             return Ok(plan.Select(WorkoutPlanDayResponse.FromEntity));
         }
 
-        // Catálogo de templates prontos. Não depende do usuário — é dado fixo —, mas fica sob
-        // [Authorize] como o resto do controller: só faz sentido para quem vai aplicar um.
+        // catálogo de templates prontos — não depende do usuário, mas fica sob [Authorize] igual ao resto do controller
         [HttpGet("templates")]
         public async Task<ActionResult<IEnumerable<WorkoutTemplateResponse>>> GetTemplates(CancellationToken cancellationToken) {
             var templates = await _templateService.GetAllAsync(cancellationToken);
             return Ok(templates.Select(WorkoutTemplateResponse.FromEntity));
         }
 
-        // Aplica um template ao Plano da Semana, SOBRESCREVENDO o que houver. Devolve o plano
-        // resultante no mesmo formato do GET plano, para a tela recarregar sem um segundo caminho.
-        // A confirmação de "já tem algo preenchido" é do front; aqui a sobrescrita é incondicional.
+        // aplica o template sobrescrevendo o plano da semana sem confirmação — quem avisa o usuário é o front
         [HttpPost("templates/{id:guid}/aplicar")]
         public async Task<ActionResult<IEnumerable<WorkoutPlanDayResponse>>> ApplyTemplate(Guid id, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -155,7 +150,7 @@ namespace Pyrra.Api.Controllers {
             return Ok(plan.Select(WorkoutPlanDayResponse.FromEntity));
         }
 
-        // Reaproveita CreateWorkoutRequest: a forma do corpo é idêntica à da criação.
+        // reaproveita o CreateWorkoutRequest, mesma estrutura da criação
         [HttpPut("{id:guid}")]
         public async Task<ActionResult<WorkoutResponse>> Update(Guid id, CreateWorkoutRequest request, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -188,9 +183,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // Intervalo arbitrário — usado pela Agenda. Rota própria em vez de
-        // parâmetros opcionais no GET raiz: o filtro por tipo e o por período
-        // respondem a perguntas diferentes e misturá-los deixaria a assinatura ambígua.
+        // busca os treinos do período informado, usado pela Agenda
         [HttpGet("intervalo")]
         public async Task<ActionResult<IEnumerable<WorkoutResponse>>> GetForRange(
             [FromQuery(Name = "inicio")] DateOnly inicio,
@@ -218,8 +211,6 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // O userId vem SEMPRE do token (claim NameIdentifier), nunca do corpo da requisição,
-        // impedindo que um usuário registre ou leia treinos de outro passando outro id no payload.
         private bool TryGetUserId(out Guid userId) {
             var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
             return Guid.TryParse(claim, out userId);

@@ -11,16 +11,14 @@ interface FreezeUseNoticeProps {
   onConfirm: () => void
 }
 
-// Mesmo formato de modal do MilestoneCelebration, com paleta fria (sky) em vez do
-// verde de conquista: um freeze usado não é vitória a celebrar, é um alívio a
-// comunicar — "sua sequência estava em risco e foi salva".
+// mesmo modal do MilestoneCelebration mas em paleta fria (sky) — freeze é alívio, não conquista
 export function FreezeUseNotice({
   freezeUse,
   remaining,
   submitting,
   onConfirm,
 }: FreezeUseNoticeProps) {
-  // Esc fecha, como em qualquer diálogo — igual ao MilestoneCelebration.
+  // esc fecha, como em qualquer diálogo — igual ao MilestoneCelebration
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {

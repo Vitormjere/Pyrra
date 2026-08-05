@@ -12,10 +12,7 @@ interface EmptyStateProps {
   action?: ReactNode
 }
 
-// Estado vazio padrão do app: card centralizado com ícone opcional, título
-// convidativo, descrição curta e um slot de CTA. Padroniza os empties que antes
-// eram <div>s montados à mão com pequenas variações; o visual segue o do Diário,
-// que já era a referência de qualidade.
+// padroniza os empties que antes eram divs montadas à mão, seguindo o visual do Diário
 export function EmptyState({
   icon: Icon,
   iconClassName = 'text-slate-500',

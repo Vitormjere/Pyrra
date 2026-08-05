@@ -19,8 +19,6 @@ namespace Pyrra.Infrastructure.Repositories {
         public Task<NutritionEntry?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
             _context.NutritionEntries.FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
 
-        // Ordena por refeição e depois por criação: dentro do café da manhã, os itens aparecem na
-        // ordem em que o usuário digitou. O agrupamento em si é feito no service.
         public async Task<IReadOnlyList<NutritionEntry>> GetByUserAndDateAsync(Guid userId, DateOnly date, CancellationToken cancellationToken = default) =>
             await _context.NutritionEntries
                 .Where(e => e.UserId == userId && e.Date == date)
@@ -51,8 +49,6 @@ namespace Pyrra.Infrastructure.Repositories {
             await _context.SaveChangesAsync(cancellationToken);
         }
 
-        // Recebe a entidade, não o id: o service já carregou o item para checar a posse, e passar
-        // a instância evita uma segunda ida ao banco só para remover.
         public async Task DeleteAsync(NutritionEntry entry, CancellationToken cancellationToken = default) {
             _context.NutritionEntries.Remove(entry);
             await _context.SaveChangesAsync(cancellationToken);

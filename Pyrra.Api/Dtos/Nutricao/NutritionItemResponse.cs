@@ -2,7 +2,7 @@ using System;
 using Pyrra.Domain.Nutricao;
 
 namespace Pyrra.Api.Dtos.Nutricao {
-    // MealType não se repete aqui: o item já vive dentro do grupo da sua refeição.
+    // refeição não vem aqui, já tá definida no grupo correspondente
     public record NutritionItemResponse(
         Guid     Id,
         string   ItemName,

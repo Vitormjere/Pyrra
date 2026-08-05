@@ -4,8 +4,6 @@ using System.Linq;
 using Pyrra.Application.Nutricao;
 
 namespace Pyrra.Api.Dtos.Nutricao {
-    // WeekStart/WeekEnd vão na resposta porque o service normaliza a data recebida para a
-    // segunda-feira da semana: sem devolvê-las, o cliente não saberia qual intervalo respondeu.
     public record WeekNutritionResponse(
         DateOnly WeekStart,
         DateOnly WeekEnd,

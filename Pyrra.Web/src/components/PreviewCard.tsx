@@ -13,8 +13,7 @@ interface PreviewCardProps {
   children: ReactNode
 }
 
-// Cartão de prévia do dashboard: cabeçalho com módulo e ícone, corpo livre, e o
-// card inteiro navegando para a tela completa.
+// cartão de prévia do dashboard — o card inteiro navega para a tela completa
 export function PreviewCard({
   to,
   title,

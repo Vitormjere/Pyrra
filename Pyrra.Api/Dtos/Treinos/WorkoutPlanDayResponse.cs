@@ -7,14 +7,13 @@ using Pyrra.Domain.Common;
 using Pyrra.Domain.Treinos;
 
 namespace Pyrra.Api.Dtos.Treinos {
-    // Order NÃO é exposto: ele só existe para o backend devolver a lista na ordem certa,
-    // e o cliente consome a sequência como veio.
+    // campo de ordem é usado só internamente pelo backend
     public record WorkoutPlanExerciseResponse(
         Guid Id,
         string Type,
         string ExerciseName,
-        int? Sets,
-        int? Reps) {
+        int?   Sets,
+        int?   Reps) {
         public static WorkoutPlanExerciseResponse FromEntity(WorkoutPlanExercise exercise) =>
             new(exercise.Id,
                 exercise.Type.ToString(),
@@ -23,9 +22,8 @@ namespace Pyrra.Api.Dtos.Treinos {
                 exercise.Reps);
     }
 
-    // DayOfWeek vai como nome ("Segunda"), mesmo critério dos demais enums.
     public record WorkoutPlanDayResponse(
-        string DayOfWeek,
+        string  DayOfWeek,
         string? Label,
         IEnumerable<WorkoutPlanExerciseResponse> Exercises) {
         public static WorkoutPlanDayResponse FromEntity(WorkoutPlanDayWithExercises day) =>
@@ -38,8 +36,6 @@ namespace Pyrra.Api.Dtos.Treinos {
         [Required] WeekDay? DayOfWeek,
         [MaxLength(200)] string? Label);
 
-    // A lista completa dos 7 dias. Enviar o plano inteiro (em vez de um PATCH por dia)
-    // deixa a tela salvar o que está na sua frente, sem diffs.
     public record SaveWorkoutPlanRequest(
         [Required] IReadOnlyList<WorkoutPlanDayInput> Days);
 

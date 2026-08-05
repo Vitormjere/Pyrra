@@ -2,10 +2,15 @@ using System.Text;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Pyrra.Application.Auth;
+using Pyrra.Application.Chat;
+using Pyrra.Application.Common;
 using Pyrra.Application.Common.Interfaces;
+using Pyrra.Application.Comunidade;
+using Pyrra.Application.Desafios;
 using Pyrra.Application.Financas;
 using Pyrra.Application.Focos;
 using Pyrra.Application.Notificacoes;
@@ -17,30 +22,24 @@ using Pyrra.Application.Tarefas;
 using Pyrra.Application.Treinos;
 using Pyrra.Application.Zelo;
 using Pyrra.Domain.Users;
+using Pyrra.Api.Hubs;
 using Pyrra.Infrastructure.Auth;
 using Pyrra.Infrastructure.Common;
 using Pyrra.Infrastructure.Data;
 using Pyrra.Infrastructure.Repositories;
+using Pyrra.Infrastructure.Storage;
 using Pyrra.Infrastructure.Zelo;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
-// Enums trafegam como NOME ("Academia"), não como índice. As respostas já faziam isso à mão
-// (FocusResponse.Category, UserResponse.Plan, WorkoutResponse.Type usam .ToString()); o converter
-// fecha o outro lado do contrato, deixando o corpo da requisição aceitar o mesmo texto que a
-// resposta devolve. Sem ele, System.Text.Json só aceitaria o número.
+// enums trafegam como nome, não índice (as respostas já faziam isso na mão, o converter fecha esse contrato também pro corpo da requisição aceitar o mesmo texto)
 builder.Services.AddControllers()
     .AddJsonOptions(options => {
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 
-// O Azure SQL Serverless entra em auto-pause após inatividade; a primeira conexão que o acorda
-// costuma falhar de forma transitória (erro 40613 "Database not currently available") enquanto o
-// banco volta a ficar disponível. EnableRetryOnFailure ativa a estratégia de execução resiliente do
-// EF Core, que reexecuta a operação com backoff exponencial em vez de propagar a falha na hora.
+// Azure SQL Serverless auto-pausa e a primeira conexão que acorda ele costuma falhar
 builder.Services.AddDbContext<PyrraDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection"),
@@ -49,10 +48,7 @@ builder.Services.AddDbContext<PyrraDbContext>(options =>
             maxRetryDelay: TimeSpan.FromSeconds(30),
             errorNumbersToAdd: null)));
 
-// Origins vêm da configuração, nunca do código: trocar o do frontend em produção é editar o
-// appsettings do ambiente, sem recompilar. Falha alto se a seção sumir — uma lista vazia
-// registraria uma política que bloqueia tudo silenciosamente, o pior modo de descobrir o erro
-// (o navegador só diria "CORS blocked", sem apontar a configuração ausente).
+// Lê os origins da configuração e falha se não existirem
 const string FrontendCorsPolicy = "AllowFrontendDev";
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
@@ -63,9 +59,7 @@ if (allowedOrigins is null || allowedOrigins.Length == 0) {
 builder.Services.AddCors(options => {
     options.AddPolicy(FrontendCorsPolicy, policy =>
         policy.WithOrigins(allowedOrigins)
-              // AllowCredentials é o que faz o header Authorization atravessar; ele é incompatível
-              // com AllowAnyOrigin, então a lista explícita de WithOrigins não é só preferência —
-              // é requisito para os dois funcionarem juntos.
+              // Com credenciais, é preciso definir os origins permitidos
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials());
@@ -82,17 +76,31 @@ builder.Services.AddAuthentication(options => {
 })
 .AddJwtBearer(options => {
     options.TokenValidationParameters = new TokenValidationParameters {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
+        ValidateIssuer           = true,
+        ValidateAudience         = true,
+        ValidateLifetime         = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtSettings.Issuer,
-        ValidAudience = jwtSettings.Audience,
+        ValidIssuer      = jwtSettings.Issuer,
+        ValidAudience    = jwtSettings.Audience,
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Key))
+    };
+    // No Hub, o JWT vem pela query; no resto, pelo Authorization
+    options.Events = new JwtBearerEvents {
+        OnMessageReceived = context => {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/chat")) {
+                context.Token = accessToken;
+            }
+            return Task.CompletedTask;
+        }
     };
 });
 
 builder.Services.AddAuthorization();
+
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<IUserIdProvider, NameIdentifierUserIdProvider>();
 
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ITokenService, JwtTokenService>();
@@ -137,13 +145,57 @@ builder.Services.AddScoped<INutritionPlanSeedLogRepository, NutritionPlanSeedLog
 builder.Services.AddScoped<INutritionService, NutritionService>();
 
 builder.Services.AddScoped<IUserPreferencesService, UserPreferencesService>();
+builder.Services.AddScoped<IUsernameService, UsernameService>();
+builder.Services.AddScoped<IUserAccountService, UserAccountService>();
 builder.Services.AddScoped<INightlyMessageService, NightlyMessageService>();
+// Serviço de usuários do módulo administrativo
+builder.Services.AddScoped<IAdminUserService, AdminUserService>();
 
-// Cliente nomeado para a API da Anthropic. BaseAddress termina em / e os caminhos relativos
-// (v1/messages) não começam com /, para o Uri concatenar em vez de substituir. A x-api-key sai da
-// configuração — vazia no appsettings, preenchida por user-secrets em dev e App Settings em produção;
-// TryAddWithoutValidation aceita o valor placeholder sem quebrar o registro. Timeout curto porque a
-// resposta é curta: uma chamada que se arrasta vira erro amigável em vez de prender a requisição.
+// Chat em tempo real entre admin e jogador
+builder.Services.AddScoped<IChatMessageRepository, ChatMessageRepository>();
+builder.Services.AddScoped<IChatService, ChatService>();
+
+builder.Services.AddScoped<IFriendshipRepository, FriendshipRepository>();
+builder.Services.AddScoped<IFriendshipService, FriendshipService>();
+
+builder.Services.AddScoped<ITeamRepository, TeamRepository>();
+builder.Services.AddScoped<ITeamMemberRepository, TeamMemberRepository>();
+builder.Services.AddScoped<ITeamInviteRepository, TeamInviteRepository>();
+builder.Services.AddScoped<ITeamBannerStorageService, AzureBlobTeamBannerStorageService>();
+builder.Services.AddScoped<ITeamService, TeamService>();
+
+// Ranking baseado no streak dos amigos
+builder.Services.AddScoped<IRankingService, RankingService>();
+
+// Perfil público com informações de streak
+builder.Services.AddScoped<IUserProfileService, UserProfileService>();
+
+// Serviços administrativos de desafios
+builder.Services.AddScoped<IAdminAuthorizationService, AdminAuthorizationService>();
+builder.Services.AddScoped<IChallengeCategoryRepository, ChallengeCategoryRepository>();
+builder.Services.AddScoped<IChallengeRepository, ChallengeRepository>();
+builder.Services.AddScoped<IChallengeCatalogService, ChallengeCatalogService>();
+
+// Gerencia desafios das equipes
+builder.Services.AddScoped<ITeamActiveCategoryRepository, TeamActiveCategoryRepository>();
+builder.Services.AddScoped<IChallengeSubmissionRepository, ChallengeSubmissionRepository>();
+builder.Services.AddScoped<ITeamMemberScoreRepository, TeamMemberScoreRepository>();
+builder.Services.AddScoped<IChallengeSubmissionStorageService, AzureBlobChallengeSubmissionStorageService>();
+builder.Services.AddScoped<ITeamChallengeService, TeamChallengeService>();
+
+// Gerencia torneios e aprova solicitações
+builder.Services.AddScoped<ITournamentRepository, TournamentRepository>();
+builder.Services.AddScoped<ITournamentRequestRepository, TournamentRequestRepository>();
+builder.Services.AddScoped<ITournamentTeamRepository, TournamentTeamRepository>();
+builder.Services.AddScoped<ITournamentBannerStorageService, AzureBlobTournamentBannerStorageService>();
+builder.Services.AddScoped<ITournamentService, TournamentService>();
+
+// Desafios vinculados aos torneios
+builder.Services.AddScoped<ITournamentChallengeRepository, TournamentChallengeRepository>();
+builder.Services.AddScoped<ITournamentOwnChallengeRepository, TournamentOwnChallengeRepository>();
+builder.Services.AddScoped<ITournamentChallengeService, TournamentChallengeService>();
+
+// Cliente HTTP da API da Anthropic
 builder.Services.AddHttpClient("AnthropicClient", client => {
     client.BaseAddress = new Uri("https://api.anthropic.com/");
     client.Timeout = TimeSpan.FromSeconds(30);
@@ -158,16 +210,11 @@ builder.Services.AddScoped<IZeloService, ZeloService>();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment()) {
     app.MapOpenApi();
 }
 
-// ANTES do UseHttpsRedirection, não só antes do UseAuthorization: o preflight OPTIONS que o
-// navegador dispara não segue redirecionamento. Se o React chamar o endpoint http (5104), o
-// redirect 307 para https mataria o preflight com "Redirect is not allowed for a preflight
-// request", antes de qualquer middleware de CORS ser consultado. Aqui o CORS responde o
-// preflight e encerra a requisição sem passar pelo redirect.
+// CORS precisa vir antes do redirecionamento HTTPS
 app.UseCors(FrontendCorsPolicy);
 
 app.UseHttpsRedirection();
@@ -176,5 +223,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<ChatHub>("/hubs/chat");
 
 app.Run();

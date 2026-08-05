@@ -18,10 +18,6 @@ namespace Pyrra.Infrastructure.Repositories {
             _context.NutritionPlanSeedLogs
                 .AnyAsync(l => l.UserId == userId && l.Date == date, cancellationToken);
 
-        // Tolera a marca já existente: duas requisições simultâneas para o mesmo dia podem
-        // passar pelo HasSeeded antes de qualquer uma gravar, e o índice único barra a
-        // segunda no banco. Como o efeito desejado — "está marcado" — já foi alcançado pela
-        // primeira, engolir a violação é correto, não um remendo.
         public async Task MarkSeededAsync(Guid userId, DateOnly date, DateTime seededAt, CancellationToken cancellationToken = default) {
             var log = new NutritionPlanSeedLog {
                 Id       = Guid.NewGuid(),
@@ -35,12 +31,8 @@ namespace Pyrra.Infrastructure.Repositories {
             try {
                 await _context.SaveChangesAsync(cancellationToken);
             } catch (DbUpdateException) {
-                // Solta a linha que falhou: mantida como Added, ela seria reenviada no
-                // próximo SaveChanges do mesmo contexto e o erro voltaria.
                 _context.Entry(log).State = EntityState.Detached;
 
-                // Se a marca já existe, o objetivo foi cumprido por outra requisição. Só
-                // então engolimos — qualquer outra falha de escrita continua subindo.
                 var alreadyMarked = await _context.NutritionPlanSeedLogs
                     .AsNoTracking()
                     .AnyAsync(l => l.UserId == userId && l.Date == date, cancellationToken);

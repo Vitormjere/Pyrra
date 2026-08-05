@@ -10,9 +10,7 @@ import type { CommunicationTone } from '../../types/auth'
 
 const TONES: readonly CommunicationTone[] = ['Direto', 'Acolhedor', 'Desafiador']
 
-// Resumo visual dos módulos, mostrado na tela de boas-vindas: ícones (os mesmos
-// da navegação) + nome curto + uma linha, para dar a visão geral do que o app faz
-// sem virar um tutorial extenso.
+// resumo visual dos módulos na tela de boas-vindas, pra dar a visão geral do app sem virar um tutorial
 const MODULES: readonly { name: string; description: string; icon: LucideIcon }[] = [
   { name: 'Foco & hábitos', description: 'Hábitos do dia com streak para manter a sequência', icon: Flame },
   { name: 'Treino', description: 'Registre academia e corrida', icon: Dumbbell },
@@ -21,9 +19,7 @@ const MODULES: readonly { name: string; description: string; icon: LucideIcon }[
   { name: 'Zelo', description: 'Assistente de IA que responde sobre seus dados', icon: Sparkles },
 ]
 
-// Só o PRIMEIRO nome, nunca o e-mail. Campo vazio ou que claramente não é nome
-// (contém "@", como uma conta que digitou o e-mail no lugar do nome) devolve null,
-// e o cumprimento cai num "Bem-vindo!" neutro em vez de exibir o e-mail.
+// só o primeiro nome, nunca o e-mail — vazio ou contendo "@" devolve null e o cumprimento cai num "Bem-vindo!" neutro
 function firstNameOf(name: string): string | null {
   const first = name.trim().split(/\s+/)[0] ?? ''
   if (!first || first.includes('@')) {
@@ -32,16 +28,14 @@ function firstNameOf(name: string): string | null {
   return first
 }
 
-// Espelha os textos do Perfil, para o significado de cada tom ser o mesmo nos
-// dois lugares onde ele é escolhido.
+// espelha os textos do Perfil, pro significado de cada tom ser o mesmo nos dois lugares
 const TONE_HINTS: Record<CommunicationTone, string> = {
   Direto: 'Objetivo, sem rodeios.',
   Acolhedor: 'Gentil e compreensivo.',
   Desafiador: 'Provocador, te cutuca a ir além.',
 }
 
-// Horário sensato para a mensagem noturna quando o usuário nunca escolheu um: o
-// registro nasce com 00:00 (meia-noite), que não serve como lembrete.
+// horário padrão pra mensagem noturna — o registro nasce com 00:00, que não serve como lembrete
 const DEFAULT_NOTIFICATION_TIME = '21:00'
 
 const TOTAL_STEPS = 3
@@ -71,15 +65,13 @@ export function Onboarding() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // A sessão é garantida pelo ProtectedRoute; o guard é só defensivo.
+  // a sessão já é garantida pelo ProtectedRoute, esse guard aqui é só defensivo
   if (!user) return null
 
-  // Acesso manual à URL depois de concluído não deve reabrir o fluxo.
+  // acesso manual à URL depois de concluído não deve reabrir o fluxo
   if (user.onboardingCompleted) return <Navigate to="/hoje" replace />
 
-  // Chama o backend com as preferências (ou só o horário, ao pular), aplica o
-  // usuário atualizado no contexto e cai na tela Hoje. O gate RequireOnboarding
-  // deixa de redirecionar assim que onboardingCompleted vira true.
+  // chama o backend, aplica o usuário atualizado no contexto e cai na tela Hoje — o RequireOnboarding para de redirecionar assim que onboardingCompleted vira true
   async function finish(prefs?: {
     communicationTone?: CommunicationTone
     eveningNotificationTime?: string
@@ -101,16 +93,15 @@ export function Onboarding() {
       )
       setSubmitting(false)
     }
-    // Em caso de sucesso não zeramos submitting: a tela é substituída por /hoje.
+    // em caso de sucesso não zeramos submitting — a tela é substituída por /hoje
   }
 
-  // Concluir: salva as duas preferências escolhidas.
+  // concluir: salva as duas preferências escolhidas
   function handleFinish() {
     void finish({ communicationTone: tone, eveningNotificationTime: time })
   }
 
-  // Pular: mantém o tom no default do registro e só aplica 21:00 como horário,
-  // para a mensagem noturna não ficar à meia-noite sem o usuário ter escolhido.
+  // pular: mantém o tom padrão e só aplica 21:00 como horário, pra mensagem noturna não ficar à meia-noite
   function handleSkip() {
     void finish({ eveningNotificationTime: DEFAULT_NOTIFICATION_TIME })
   }

@@ -16,7 +16,7 @@ namespace Pyrra.Infrastructure.Repositories {
             _context = context;
         }
 
-        // As padrão primeiro, depois as do usuário — cada bloco em ordem alfabética.
+        // as padrão primeiro, depois as do usuário — cada bloco em ordem alfabética
         public async Task<IReadOnlyList<FinanceCategory>> GetCategoriesForUserAsync(Guid userId, CancellationToken cancellationToken = default) =>
             await _context.FinanceCategories
                 .Where(c => c.UserId == null || c.UserId == userId)
@@ -24,9 +24,6 @@ namespace Pyrra.Infrastructure.Repositories {
                 .ThenBy(c => c.Name)
                 .ToListAsync(cancellationToken);
 
-        // Sem filtro de dono: devolve a categoria de qualquer um. Quem decide se ela é visível
-        // para o usuário é o FinanceService — deixar a checagem lá evita duas regras de
-        // visibilidade em lugares diferentes.
         public Task<FinanceCategory?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
             _context.FinanceCategories.FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 

@@ -22,15 +22,14 @@ const MEAL_LABELS: Record<MealType, string> = {
 const inputClasses =
   'w-full rounded-md bg-surface-hi px-3 py-2 text-sm text-ink ring-1 ring-line transition outline-none placeholder:text-slate-600 focus:ring-2 focus:ring-brand-green'
 
-// Chave do formulário aberto: dia + refeição. Só um por vez, senão a grade
-// viraria 28 formulários empilhados.
+// dia + refeição, só um formulário aberto por vez pra não virar 28 empilhados
 type OpenSlot = { day: WeekDay; meal: MealType } | null
 
 export function NutritionPlanSection() {
   const [plan, setPlan] = useState<PlanDayResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  // Dia expandido. Começa no de hoje: é o mais provável de se querer ajustar.
+  // dia expandido começa no de hoje, é o mais provável de se querer ajustar
   const [openDay, setOpenDay] = useState<WeekDay>(todayWeekDay())
   const [openSlot, setOpenSlot] = useState<OpenSlot>(null)
   const [itemName, setItemName] = useState('')
@@ -95,7 +94,7 @@ export function NutritionPlanSection() {
 
       setItemName('')
       setQuantity('')
-      // Formulário segue aberto: montar uma refeição é listar vários itens.
+      // segue aberto: montar uma refeição é listar vários itens
       itemInputRef.current?.focus()
     } catch (err) {
       setError(getApiErrorMessage(err, {}, 'Não foi possível adicionar o item.'))

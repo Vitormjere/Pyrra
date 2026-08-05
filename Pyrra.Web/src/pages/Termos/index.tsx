@@ -2,17 +2,12 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 
-// Página pública (fora do guard de sessão): precisa ser legível antes do
-// cadastro, já que é no Cadastro que o usuário declara o aceite. Segue o mesmo
-// shell das telas de auth (wordmark + container centralizado), mas com largura
-// maior (max-w-lg) por ser texto corrido, e sem centralização vertical.
+// página pública, fora do guard de sessão — precisa ser legível antes do cadastro, já que é lá que o usuário declara o aceite
 
-// Data da última revisão destes termos. Constante única para o cabeçalho não
-// divergir de eventuais referências futuras.
+// data da última revisão, numa constante única pro cabeçalho não divergir de outras referências
 const LAST_UPDATED = '26 de julho de 2026'
 
-// Título de seção numerada + corpo. Mantém o espaçamento uniforme entre as 12
-// seções sem repetir as mesmas classes em cada uma.
+// título de seção numerada + corpo, pra manter o espaçamento uniforme entre as seções
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="flex flex-col gap-2">
@@ -28,7 +23,7 @@ function Paragraph({ children }: { children: ReactNode }) {
   return <p className="text-sm leading-relaxed text-slate-300">{children}</p>
 }
 
-// Lista com marcador, no mesmo tom secundário dos parágrafos.
+// lista com marcador, no mesmo tom secundário dos parágrafos
 function List({ items }: { items: ReactNode[] }) {
   return (
     <ul className="flex list-disc flex-col gap-1.5 pl-5 text-sm leading-relaxed text-slate-300 marker:text-slate-600">

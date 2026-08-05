@@ -72,7 +72,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // PLANO SEMANAL — a grade 7x4 completa, mesmo com refeições vazias.
+        // a grade completa do plano semanal, mesmo com refeições vazias
         [HttpGet("plano")]
         public async Task<ActionResult<IEnumerable<PlanDayResponse>>> GetPlan(CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -148,8 +148,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // O userId vem SEMPRE do token (claim NameIdentifier), nunca do corpo da requisição,
-        // impedindo que um usuário leia ou remova itens de outro.
+        // usuário é identificado pelo token, impedindo acesso aos dados de outras contas
         private bool TryGetUserId(out Guid userId) {
             var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
             return Guid.TryParse(claim, out userId);

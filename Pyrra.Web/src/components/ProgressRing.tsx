@@ -10,8 +10,7 @@ interface ProgressRingProps {
   size?: number
 }
 
-// Anel de progresso. O arco é um círculo SVG com stroke-dasharray: o traço
-// desenhado equivale ao percentual e o resto fica vazado sobre a trilha.
+// arco é um círculo SVG com stroke-dasharray — o traço desenhado equivale ao percentual
 export function ProgressRing({
   percent,
   value,
@@ -22,7 +21,7 @@ export function ProgressRing({
   const stroke = 8
   const radius = (size - stroke) / 2
   const circumference = 2 * Math.PI * radius
-  // Clamp: um percentual acima de 100 daria offset negativo e o arco vazaria.
+  // clamp: percentual acima de 100 daria offset negativo e o arco vazaria
   const safePercent = Math.max(0, Math.min(100, percent))
   const offset = circumference * (1 - safePercent / 100)
 
@@ -73,9 +72,7 @@ export function ProgressRing({
           strokeDashoffset={offset}
           className={[
             'transition-[stroke-dashoffset] duration-500',
-            // Sem a meta batida o arco fica em cinza claro: o verde pleno é o
-            // sinal de conquista, não a cor padrão do progresso. O glow só
-            // acompanha o verde — cinza brilhando não significaria nada.
+            // verde pleno só quando a meta é batida, o glow acompanha ele
             accent ? 'text-brand-green glow-ring' : 'text-slate-500',
           ].join(' ')}
         />

@@ -4,6 +4,7 @@
     <ProjectReference Include="..\Pyrra.Application\Pyrra.Application.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.29.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.3">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>

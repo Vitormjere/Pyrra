@@ -10,12 +10,12 @@ namespace Pyrra.Application.Streaks {
 
         Task<IReadOnlyList<PendingMilestoneItem>> GetPendingMilestonesAsync(Guid userId, CancellationToken cancellationToken = default);
 
-        // ids nulo/vazio confirma todos os pendentes. Devolve quantos foram confirmados.
+        // ids vazios confirmam todos os pendentes e retornam a quantidade confirmada
         Task<int> AcknowledgeMilestonesAsync(Guid userId, IReadOnlyCollection<Guid>? ids, CancellationToken cancellationToken = default);
 
         Task<IReadOnlyList<PendingFreezeUseItem>> GetPendingFreezeUsesAsync(Guid userId, CancellationToken cancellationToken = default);
 
-        // ids nulo/vazio confirma todos os pendentes. Devolve quantos foram confirmados.
+        // ids vazios confirmam todos os pendentes e retornam a quantidade confirmada
         Task<int> AcknowledgeFreezeUsesAsync(Guid userId, IReadOnlyCollection<Guid>? ids, CancellationToken cancellationToken = default);
     }
 }

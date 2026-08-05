@@ -8,14 +8,11 @@ using Microsoft.Extensions.Logging;
 using Pyrra.Application.Zelo;
 
 namespace Pyrra.Infrastructure.Zelo {
-    // Implementação da fronteira com a Anthropic. Vive na Infrastructure porque fala HTTP; a
-    // Application só conhece a interface IZeloAssistant, mesmo padrão do JwtTokenService.
+    // fica na Infrastructure porque fala HTTP — Application só conhece a interface IZeloAssistant, mesmo padrão do JwtTokenService
     public class AnthropicZeloAssistant : IZeloAssistant {
-        // O identificador do Haiku mais recente. Barato e rápido, o suficiente para respostas
-        // curtas de 2 a 4 frases.
+        // Haiku mais recente — barato e rápido, o suficiente pra respostas curtas de 2 a 4 frases
         private const string Model = "claude-haiku-4-5";
 
-        // Respostas curtas por decisão de produto: teto baixo de tokens segura custo e latência.
         private const int MaxTokens = 300;
 
         private const string SystemPrompt =
@@ -23,8 +20,7 @@ namespace Pyrra.Infrastructure.Zelo {
             "breve (2-4 frases) e encorajadora, baseado apenas nos dados fornecidos. Se não houver " +
             "dado suficiente para responder algo, diga isso honestamente.";
 
-        // Mensagem única para qualquer falha (timeout, 4xx/5xx, resposta ilegível): o usuário nunca
-        // vê detalhe técnico, só um convite a tentar de novo.
+        // mensagem única pra qualquer falha (timeout, 4xx/5xx, resposta ilegível) — usuário nunca vê detalhe técnico
         private const string FriendlyErrorMessage =
             "O Zelo está indisponível no momento. Tente novamente em alguns instantes.";
 
@@ -53,12 +49,10 @@ namespace Pyrra.Infrastructure.Zelo {
             try {
                 response = await client.PostAsync("v1/messages", body, cancellationToken);
             } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
-                // Cancelamento vindo do cliente (ex.: usuário saiu da tela) não é falha nossa —
-                // deixa propagar em vez de virar mensagem amigável.
+                // cancelamento vindo do cliente (ex.: usuário saiu da tela) não é falha nossa, deixa propagar
                 throw;
             } catch (Exception ex) {
-                // Timeout (o HttpClient cancela por conta própria, sem o token do chamador) ou falha
-                // de rede caem aqui.
+                // timeout (HttpClient cancela por conta própria, sem o token do chamador) ou falha de rede caem aqui
                 _logger.LogError(ex, "Falha ao chamar a API da Anthropic para o Zelo.");
                 return new ZeloAssistantResult(false, FriendlyErrorMessage);
             }

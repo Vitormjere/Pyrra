@@ -9,8 +9,7 @@ interface SegmentedProps<T extends string> {
   label: string
 }
 
-// Seletor segmentado: um toque para escolher, contra dois de um select nativo
-// (abrir + selecionar). É a diferença que importa no celular.
+// um toque pra escolher, contra dois de um select nativo (abrir + selecionar) — importa no celular
 export function Segmented<T extends string>({
   options,
   value,

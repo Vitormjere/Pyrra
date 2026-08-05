@@ -12,15 +12,12 @@ using Pyrra.Domain.Nutricao;
 using Pyrra.Domain.Treinos;
 
 namespace Pyrra.Application.Zelo {
-    // Monta um texto curto e legível com um resumo de cada módulo, para caber num prompt pequeno.
-    // Não cruza módulos nem calcula nada além de médias simples: é só o retrato de "onde o usuário
-    // está hoje" que o modelo lê antes de responder.
+    // monta um resumo do usuário para o prompt
     public class ZeloContextBuilder : IZeloContextBuilder {
-        // Janela de olhar para trás em nutrição e para a média de foco: uma semana é curto o
-        // suficiente para ser "recente" e longo o bastante para pegar o último dia com registro.
+        // usa uma janela de 7 dias para os dados recentes
         private const int LookbackDays = 7;
 
-        // Quantos treinos recentes entram no resumo. Poucos, para o texto ficar enxuto.
+        // limita a quantidade de treinos no resumo
         private const int RecentWorkoutCount = 5;
 
         private static readonly IReadOnlyDictionary<MealType, string> MealLabels = new Dictionary<MealType, string> {
@@ -30,7 +27,7 @@ namespace Pyrra.Application.Zelo {
             [MealType.Jantar]      = "Jantar",
         };
 
-        private readonly IStreakService              _streakService;
+        private readonly IStreakService               _streakService;
         private readonly IDailyFocusRepository        _focusRepository;
         private readonly IFocusLogRepository          _focusLogRepository;
         private readonly IDailyScoreRepository        _scoreRepository;
@@ -40,7 +37,7 @@ namespace Pyrra.Application.Zelo {
         private readonly IClockService                _clock;
 
         public ZeloContextBuilder(
-            IStreakService              streakService,
+            IStreakService               streakService,
             IDailyFocusRepository        focusRepository,
             IFocusLogRepository          focusLogRepository,
             IDailyScoreRepository        scoreRepository,
@@ -81,15 +78,13 @@ namespace Pyrra.Application.Zelo {
         private async Task AppendFocusSectionAsync(StringBuilder sb, Guid userId, DateOnly today, CancellationToken cancellationToken) {
             sb.AppendLine("FOCO/HÁBITOS");
 
-            // GetStatusAsync roda o acerto do streak (mesmo caminho do dashboard) e devolve os
-            // números já consolidados de hoje: sequência atual, melhor e se a meta do dia foi batida.
+            // retorna o streak já atualizado e consolidado
             var streak = await _streakService.GetStatusAsync(userId, cancellationToken);
             sb.Append("- Sequência atual: ").Append(streak.DisplayCount)
               .Append(" dia(s) (melhor: ").Append(streak.BestCount).AppendLine(").");
             sb.Append("- Meta de hoje: ").AppendLine(streak.TodayGoalMet ? "batida." : "ainda não batida.");
 
-            // Média de aproveitamento dos últimos 7 dias. Percentage é fração (0 a 1); dias sem
-            // score nenhum ficam de fora, mesmo critério do cálculo de marcos.
+            // calcula a média dos últimos 7 dias com scores válidos
             var scores = await _scoreRepository.GetByUserAndDateRangeAsync(userId, today.AddDays(-(LookbackDays - 1)), today, cancellationToken);
             if (scores.Count > 0) {
                 var average = (int)Math.Round(scores.Average(s => s.Percentage) * 100m);
@@ -107,7 +102,7 @@ namespace Pyrra.Application.Zelo {
                 return;
             }
 
-            // Um log por foco por dia diz se ele foi concluído hoje. Traz todos de uma vez.
+            // traz o status de conclusão dos focos do dia
             var logs = await _focusLogRepository.GetByFocusIdsAndDateAsync(focuses.Select(f => f.Id).ToList(), today, cancellationToken);
             var completedIds = logs.Where(l => l.Completed).Select(l => l.DailyFocusId).ToHashSet();
 
@@ -119,7 +114,7 @@ namespace Pyrra.Application.Zelo {
         private async Task AppendWorkoutSectionAsync(StringBuilder sb, Guid userId, CancellationToken cancellationToken) {
             sb.AppendLine("TREINO (registros recentes)");
 
-            // Já vem ordenado do mais recente para o mais antigo; pegamos só os primeiros.
+            // pega os registros mais recentes já ordenados
             var workouts = (await _workoutRepository.GetAllByUserIdAsync(userId, cancellationToken: cancellationToken))
                 .Take(RecentWorkoutCount)
                 .ToList();
@@ -136,8 +131,7 @@ namespace Pyrra.Application.Zelo {
             }
         }
 
-        // Cada modalidade mostra só o que a identifica: Academia pelo exercício principal (e carga,
-        // quando houver), Corrida pela distância e pace.
+        // retorna o resumo específico de cada modalidade
         private static string DescribeWorkout(WorkoutLog w) {
             if (w.Type == WorkoutType.Corrida) {
                 var parts = new List<string>();
@@ -158,8 +152,7 @@ namespace Pyrra.Application.Zelo {
         }
 
         private async Task AppendNutritionSectionAsync(StringBuilder sb, Guid userId, DateOnly today, CancellationToken cancellationToken) {
-            // Refeições de hoje ou, se hoje não tiver nada, do dia mais recente com registro dentro
-            // da janela. Uma busca por intervalo evita um método novo de repositório só para isso.
+            // busca a alimentação recente dentro da janela
             var recent = await _nutritionRepository.GetByUserAndDateRangeAsync(userId, today.AddDays(-(LookbackDays - 1)), today, cancellationToken);
 
             if (recent.Count == 0) {

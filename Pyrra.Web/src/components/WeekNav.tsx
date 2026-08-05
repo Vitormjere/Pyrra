@@ -14,8 +14,7 @@ interface WeekNavProps {
   onNext: () => void
 }
 
-// Navegação anterior/próxima semana, com o intervalo visível no meio. Usada
-// idêntica em Tarefas e Finanças para as duas telas navegarem igual.
+// navegação anterior/próxima semana, usada idêntica em Tarefas e Finanças
 export function WeekNav({
   weekStart,
   weekEnd,

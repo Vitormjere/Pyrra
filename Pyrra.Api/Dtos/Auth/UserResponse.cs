@@ -3,28 +3,32 @@ using Pyrra.Domain.Users;
 
 namespace Pyrra.Api.Dtos.Auth {
     public record UserResponse(
-        Guid Id,
+        Guid   Id,
         string Email,
         string Name,
-        string Timezone,
-        string CommunicationTone,
-        string EveningNotificationTime,
-        string Plan,
-        // Booleano em vez do timestamp: o frontend só precisa saber SE o onboarding já foi feito,
-        // para decidir mostrar o fluxo. O instante em si não tem uso na UI.
-        bool OnboardingCompleted,
-        DateTime CreatedAt) {
-        // PasswordHash NUNCA entra aqui: a projeção explícita campo a campo é o que impede a senha
-        // de vazar numa resposta. Enums vão como nome; a hora, como HH:mm.
+        // vem sem o "@" na frente e pode não estar definido
+        string?  Username,
+        string   Timezone,
+        string   CommunicationTone,
+        string   EveningNotificationTime,
+        string   Plan,
+        string   ProfileVisibility,
+        bool     OnboardingCompleted,
+        DateTime CreatedAt,
+        bool     IsAdmin) {
+        // só copia os campos permitidos, pra não expor a senha
         public static UserResponse FromEntity(User user) =>
             new(user.Id,
                 user.Email,
                 user.Name,
+                user.Username,
                 user.Timezone,
                 user.CommunicationTone.ToString(),
                 user.EveningNotificationTime.ToString("HH:mm"),
                 user.Plan.ToString(),
+                user.ProfileVisibility.ToString(),
                 user.OnboardingCompletedAt is not null,
-                user.CreatedAt);
+                user.CreatedAt,
+                user.IsAdmin);
     }
 }

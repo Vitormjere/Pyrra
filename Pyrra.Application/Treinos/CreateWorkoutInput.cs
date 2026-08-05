@@ -2,9 +2,7 @@ using System;
 using Pyrra.Domain.Treinos;
 
 namespace Pyrra.Application.Treinos {
-    // Carrega os campos das duas modalidades porque a validação de quais deles podem vir
-    // preenchidos é justamente responsabilidade do WorkoutService, não do chamador.
-    // Date nula significa "hoje" no fuso do usuário.
+    // valida os campos no service e usa hoje se a data não for informada
     public record CreateWorkoutInput(
         WorkoutType Type,
         DateOnly? Date = null,

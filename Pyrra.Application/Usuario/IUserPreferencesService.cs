@@ -5,12 +5,10 @@ using Pyrra.Domain.Users;
 
 namespace Pyrra.Application.Usuario {
     public interface IUserPreferencesService {
-        // Atualiza tom e horário do usuário AUTENTICADO. O userId vem do JWT, nunca do corpo —
-        // não há como pedir a alteração de outro usuário.
+        // atualiza as preferências do usuário autenticado
         Task<User> UpdatePreferencesAsync(Guid userId, CommunicationTone tone, TimeOnly eveningNotificationTime, CancellationToken cancellationToken = default);
 
-        // Conclui (ou pula) o onboarding de primeiro acesso. Aplica as preferências informadas
-        // (cada uma opcional; nula = não mexe) e marca OnboardingCompletedAt uma única vez.
+        // conclui o onboarding e salva as preferências
         Task<User> CompleteOnboardingAsync(Guid userId, CommunicationTone? tone, TimeOnly? eveningNotificationTime, CancellationToken cancellationToken = default);
     }
 }

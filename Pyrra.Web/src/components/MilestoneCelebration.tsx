@@ -10,17 +10,14 @@ interface MilestoneCelebrationProps {
   onConfirm: () => void
 }
 
-// Verde sólido de propósito: é a mesma regra do card do foguinho quando a meta é
-// batida — preenchimento pleno em brand-green fica reservado a ação e conquista,
-// e um marco de streak é o ápice da segunda categoria.
+// verde sólido reservado a ação e conquista, mesma regra do card do foguinho na meta batida
 export function MilestoneCelebration({
   milestone,
   remaining,
   submitting,
   onConfirm,
 }: MilestoneCelebrationProps) {
-  // Esc fecha, como em qualquer diálogo. Sem isso o modal vira uma parede para
-  // quem navega por teclado.
+  // esc fecha, senão o modal vira uma parede pra quem navega por teclado
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {

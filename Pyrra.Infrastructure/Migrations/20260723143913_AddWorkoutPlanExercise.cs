@@ -15,11 +15,11 @@ namespace Pyrra.Infrastructure.Migrations
                 name: "WorkoutPlanExercises",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    DayOfWeek = table.Column<int>(type: "int", nullable: false),
+                    Id           = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId       = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    DayOfWeek    = table.Column<int>(type: "int", nullable: false),
                     ExerciseName = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    Order = table.Column<int>(type: "int", nullable: false)
+                    Order        = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -27,8 +27,8 @@ namespace Pyrra.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_WorkoutPlanExercises_UserId_DayOfWeek",
-                table: "WorkoutPlanExercises",
+                name:   "IX_WorkoutPlanExercises_UserId_DayOfWeek",
+                table:  "WorkoutPlanExercises",
                 columns: new[] { "UserId", "DayOfWeek" });
         }
 

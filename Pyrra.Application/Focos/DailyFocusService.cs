@@ -16,7 +16,7 @@ namespace Pyrra.Application.Focos {
         }
 
         public async Task<DailyFocus> CreateAsync(Guid userId, string name, CancellationToken cancellationToken = default) {
-            // Normaliza antes de comparar E de gravar: " Beber Agua " e "beber agua" são o mesmo foco.
+            // normaliza antes de comparar e salvar
             var normalizedName = name.Trim();
 
             await EnsureNameIsNotTakenAsync(userId, normalizedName, cancellationToken);
@@ -58,12 +58,10 @@ namespace Pyrra.Application.Focos {
                 throw new InvalidFocusNameException();
             }
 
-            // Renomear para o mesmo nome (só mudou capitalização/espaços) é permitido e não
-            // dispara duplicidade — o próprio foco é excluído da checagem.
+            // permite renomear o próprio foco sem gerar duplicidade
             await EnsureNameIsNotTakenAsync(userId, normalizedName, cancellationToken, focusId);
 
-            // Category e Weight são função do nome: mudou o nome, recalcula os dois. O peso
-            // congelado nos FocusLog passados não é afetado — só o peso atual do foco muda.
+            // recalcula categoria e peso ao alterar o nome do foco
             var (category, weight) = FocusCategoryMapper.Categorize(normalizedName);
 
             focus.Name     = normalizedName;
@@ -81,8 +79,7 @@ namespace Pyrra.Application.Focos {
             await _repository.UpdateAsync(focus, cancellationToken);
         }
 
-        // A duplicidade só considera focos ATIVOS: um foco desativado não bloqueia recriar o mesmo
-        // nome depois. Comparação em memória com OrdinalIgnoreCase para não depender do collation do banco.
+        // verifica duplicidade apenas entre focos ativos
         private async Task EnsureNameIsNotTakenAsync(Guid userId, string normalizedName, CancellationToken cancellationToken, Guid? excludeFocusId = null) {
             var focuses = await _repository.GetAllByUserIdAsync(userId, cancellationToken);
 
@@ -96,8 +93,7 @@ namespace Pyrra.Application.Focos {
             }
         }
 
-        // Carrega o foco garantindo a posse: se não existir OU pertencer a outro usuário,
-        // lança o mesmo NotFoundException genérico — nunca revela que o foco existe mas é de outro dono.
+        // garante que o foco pertence ao usuário sem revelar outros donos
         private async Task<DailyFocus> GetOwnedFocusAsync(Guid userId, Guid focusId, CancellationToken cancellationToken) {
             var focus = await _repository.GetByIdAsync(focusId, cancellationToken);
             if (focus is null || focus.UserId != userId) {

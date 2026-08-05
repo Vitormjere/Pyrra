@@ -48,8 +48,7 @@ namespace Pyrra.Application.Treinos {
             var log  = await GetOwnedLogAsync(userId, workoutId, cancellationToken);
             var date = await ResolveDateAsync(userId, input.Date, cancellationToken);
 
-            // Mesma validação por tipo do Create. PopulateLog zera os campos da outra modalidade
-            // antes de aplicar, então trocar Academia↔Corrida na edição não deixa resíduo.
+            // permite trocar a modalidade sem manter dados antigos
             PopulateLog(log, input, date);
 
             await _repository.UpdateAsync(log, cancellationToken);
@@ -61,9 +60,7 @@ namespace Pyrra.Application.Treinos {
             await _repository.DeleteAsync(log, cancellationToken);
         }
 
-        // Aplica o input ao log, único ponto de validação por tipo. Zera TODOS os campos de
-        // modalidade antes de aplicar: numa edição que muda o tipo, os campos da modalidade
-        // antiga precisam sumir, e num log novo isso é só um no-op sobre nulos.
+        // aplica o input e limpa os dados da modalidade anterior
         private static void PopulateLog(WorkoutLog log, CreateWorkoutInput input, DateOnly date) {
             log.Type  = input.Type;
             log.Date  = date;
@@ -89,8 +86,7 @@ namespace Pyrra.Application.Treinos {
             }
         }
 
-        // Mesmo NotFoundException genérico dos outros módulos: inexistente ou de outro usuário
-        // são indistinguíveis para quem chama.
+        // não diferencia treino inexistente de treino de outro usuário
         private async Task<WorkoutLog> GetOwnedLogAsync(Guid userId, Guid workoutId, CancellationToken cancellationToken) {
             var log = await _repository.GetByIdAsync(workoutId, cancellationToken);
             if (log is null || log.UserId != userId) {
@@ -103,7 +99,7 @@ namespace Pyrra.Application.Treinos {
             _repository.GetAllByUserIdAsync(userId, type, cancellationToken);
 
         public async Task<IReadOnlyList<WorkoutLog>> GetForRangeAsync(Guid userId, DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken = default) {
-            // Intervalo invertido devolve vazio, mesmo critério de tarefas e finanças.
+            // intervalo inválido retorna vazio
             if (startDate > endDate) {
                 return Array.Empty<WorkoutLog>();
             }
@@ -117,8 +113,7 @@ namespace Pyrra.Application.Treinos {
         }
 
         public async Task<IReadOnlyList<WorkoutPlanDay>> SavePlanAsync(Guid userId, IReadOnlyList<WorkoutPlanDay> days, CancellationToken cancellationToken = default) {
-            // Normaliza aqui, na entrada: label só de espaços é "sem plano", e gravar "  "
-            // faria o dia parecer preenchido para quem lê depois.
+            // trata label com só espaços como sem plano
             var normalized = days
                 .Select(day => new WorkoutPlanDay {
                     DayOfWeek = day.DayOfWeek,
@@ -133,8 +128,7 @@ namespace Pyrra.Application.Treinos {
         public async Task<IReadOnlyList<WorkoutPlanDayWithExercises>> GetPlanWithExercisesAsync(Guid userId, CancellationToken cancellationToken = default) {
             var days = await GetPlanAsync(userId, cancellationToken);
 
-            // Uma consulta para a semana inteira, agrupada em memória: sete consultas
-            // dia a dia buscariam os mesmos dados em sete idas ao banco.
+            // busca a semana inteira em uma única consulta
             var exercises = await _planExerciseRepository.GetByUserAsync(userId, cancellationToken);
             var byDay = exercises.GroupBy(e => e.DayOfWeek).ToDictionary(g => g.Key, g => g.ToList());
 
@@ -172,8 +166,7 @@ namespace Pyrra.Application.Treinos {
 
             var existing = await _planExerciseRepository.GetByUserAndDayAsync(userId, dayOfWeek, cancellationToken);
 
-            // Próximo da lista = maior Order + 1, e não Count: remover um item do meio
-            // deixaria Count menor que o último Order, e o novo colidiria com um existente.
+            // usa o maior order para evitar posições repetidas
             var nextOrder = existing.Count == 0 ? 0 : existing.Max(e => e.Order) + 1;
 
             var isGym = type == WorkoutType.Academia;
@@ -184,10 +177,8 @@ namespace Pyrra.Application.Treinos {
                 DayOfWeek    = dayOfWeek,
                 Type         = type,
                 ExerciseName = normalizedName,
-                // Descartados em Corrida em vez de recusados: o cliente pode ter deixado
-                // valores no formulário ao trocar de modalidade, e barrar por isso seria
-                // fricção sem ganho — o dado simplesmente não se aplica.
-                Sets         = isGym ? sets : null,
+                // ignora sets e reps em corrida
+                Sets = isGym ? sets : null,
                 Reps         = isGym ? reps : null,
                 Order        = nextOrder
             };
@@ -199,20 +190,16 @@ namespace Pyrra.Application.Treinos {
         public async Task RemovePlanExerciseAsync(Guid userId, Guid exerciseId, CancellationToken cancellationToken = default) {
             var exercise = await _planExerciseRepository.GetByIdAsync(exerciseId, cancellationToken);
 
-            // Mesmo NotFoundException genérico dos outros módulos: inexistente ou de outro
-            // usuário são indistinguíveis para quem chama.
+            // não diferencia exercício inexistente de exercício de outro usuário
             if (exercise is null || exercise.UserId != userId) {
                 throw new NotFoundException($"Exercício de plano '{exerciseId}' não encontrado.");
             }
 
-            // Sem renumerar os Order dos seguintes: buracos na sequência não afetam a
-            // ordenação, e reescrever a lista inteira a cada remoção seria custo sem ganho.
+            // mantém a ordem sem renumerar os demais
             await _planExerciseRepository.DeleteAsync(exercise, cancellationToken);
         }
 
-        // Completa a semana com os dias que nunca foram salvos. Devolver os 7 sempre poupa o
-        // cliente de saber quais existem no banco — para ele, todo dia tem um plano, que pode
-        // estar vazio.
+        // completa a semana retornando sempre os 7 dias
         private static IReadOnlyList<WorkoutPlanDay> BuildFullWeek(Guid userId, IReadOnlyList<WorkoutPlanDay> saved) {
             var byDay = saved.ToDictionary(d => d.DayOfWeek);
 
@@ -224,8 +211,7 @@ namespace Pyrra.Application.Treinos {
                 .ToList();
         }
 
-        // Nome em branco listaria todos os treinos de Academia como se fossem um exercício só,
-        // o que não é histórico de nada.
+        // exige um nome de exercício válido
         public Task<IReadOnlyList<WorkoutLog>> GetHistoryByExerciseAsync(Guid userId, string exerciseName, CancellationToken cancellationToken = default) {
             if (string.IsNullOrWhiteSpace(exerciseName)) {
                 throw new InvalidWorkoutException("Informe o nome do exercício para consultar o histórico.");
@@ -234,11 +220,8 @@ namespace Pyrra.Application.Treinos {
             return _repository.GetByExerciseNameAsync(userId, exerciseName.Trim(), cancellationToken);
         }
 
-        // Academia: nome do exercício e carga são obrigatórios; séries e repetições ficam opcionais
-        // (nem todo registro guarda esse detalhe). Carga 0 é válida — exercício com peso do corpo.
-        //
-        // Campos de Corrida que venham preenchidos são ignorados: não são lidos daqui e, como o
-        // log só recebe o que é atribuído abaixo, chegam nulos ao banco.
+        // em academia, nome e carga são obrigatórios
+        // ignora os campos de corrida
         private static void ApplyAcademia(WorkoutLog log, CreateWorkoutInput input) {
             var exerciseName = Normalize(input.ExerciseName);
             if (exerciseName is null) {
@@ -266,11 +249,6 @@ namespace Pyrra.Application.Treinos {
             log.Sets         = input.Sets;
             log.Reps         = input.Reps;
         }
-
-        // Corrida: distância e duração são obrigatórias. O pace é derivado delas quando não vem
-        // informado, para o histórico nunca ter registro sem pace.
-        //
-        // Campos de Academia que venham preenchidos são ignorados, mesmo critério do ApplyAcademia.
         private static void ApplyCorrida(WorkoutLog log, CreateWorkoutInput input) {
             if (input.DistanceKm is null) {
                 throw new InvalidWorkoutException("Treino de Corrida exige a distância em km.");
@@ -294,15 +272,12 @@ namespace Pyrra.Application.Treinos {
 
             log.DistanceKm      = input.DistanceKm;
             log.DurationMinutes = input.DurationMinutes;
-            // Arredonda em 3 casas para casar com a precisão da coluna (decimal(5,3)).
+            // arredonda para a precisão da coluna
             log.PaceMinPerKm    = input.PaceMinPerKm
                 ?? Math.Round(input.DurationMinutes.Value / input.DistanceKm.Value, 3, MidpointRounding.AwayFromZero);
         }
 
-        // Treino é registrado depois de feito — muitas vezes à noite, ou dias depois — então
-        // qualquer data passada vale, ao contrário do check-in de foco. O que não faz sentido é
-        // registrar um treino que ainda não aconteceu, e "futuro" é no fuso do usuário: 22h em
-        // São Paulo já é o dia seguinte em UTC.
+        // aceita datas passadas, mas não futuras
         private async Task<DateOnly> ResolveDateAsync(Guid userId, DateOnly? date, CancellationToken cancellationToken) {
             var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
             if (user is null) {

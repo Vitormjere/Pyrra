@@ -12,8 +12,7 @@ namespace Pyrra.Infrastructure.Common {
             return DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(utc, timezone));
         }
 
-        // Timezone inválido cai para UTC em vez de derrubar a requisição: o campo é texto livre
-        // no User e um valor ruim não deve impedir o usuário de fazer check-in.
+        // timezone inválido cai pra UTC em vez de derrubar a requisição 
         private static TimeZoneInfo ResolveTimezone(string timezoneId) {
             if (string.IsNullOrWhiteSpace(timezoneId)) {
                 return TimeZoneInfo.Utc;

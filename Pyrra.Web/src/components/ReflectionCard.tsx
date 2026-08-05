@@ -5,16 +5,13 @@ import { getApiErrorMessage } from '../services/apiError'
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error'
 
-// Card de texto livre do dia. Carrega os próprios dados em vez de depender do
-// carregamento da tela Hoje: é conteúdo acessório, e assim uma falha aqui não
-// atrapalha o resto do dashboard.
+// carrega os próprios dados em vez de depender da tela Hoje, assim uma falha aqui não atrapalha o resto
 export function ReflectionCard() {
   const [content, setContent] = useState('')
   const [loading, setLoading] = useState(true)
   const [state, setState] = useState<SaveState>('idle')
   const [error, setError] = useState<string | null>(null)
-  // Última versão confirmada pelo servidor. Comparar contra ela evita PUT quando
-  // o usuário só entra e sai do campo sem digitar nada.
+  // última versão confirmada pelo servidor, comparar evita PUT quando o usuário só entra e sai do campo
   const savedContent = useRef('')
 
   useEffect(() => {
@@ -27,8 +24,7 @@ export function ReflectionCard() {
         setContent(note.content)
         savedContent.current = note.content
       } catch {
-        // Silencioso: o card some da tela em vez de exibir erro. A reflexão é
-        // opcional e não justifica ocupar o dashboard com um aviso.
+        // silencioso: o card some em vez de exibir erro, é conteúdo opcional
         if (active) setError('unavailable')
       } finally {
         if (active) setLoading(false)
@@ -41,9 +37,7 @@ export function ReflectionCard() {
     }
   }, [])
 
-  // Salva ao sair do campo, não a cada tecla: texto livre com autosave por
-  // digitação geraria uma requisição por palavra. O blur é o momento natural
-  // de "terminei de escrever" e dispensa o usuário de lembrar de um botão.
+  // salva no blur, não a cada tecla — autosave por digitação geraria uma requisição por palavra
   async function handleBlur() {
     if (content === savedContent.current) return
 
@@ -86,8 +80,7 @@ export function ReflectionCard() {
         value={content}
         onChange={(event) => {
           setContent(event.target.value)
-          // Limpa o "Salvo" da edição anterior: mantê-lo enquanto o texto muda
-          // afirmaria algo que deixou de ser verdade.
+          // limpa o "Salvo" anterior, mantê-lo enquanto o texto muda afirmaria algo que não é mais verdade
           if (state !== 'idle') setState('idle')
         }}
         onBlur={handleBlur}

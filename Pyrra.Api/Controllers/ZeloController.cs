@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Mvc;
 using Pyrra.Api.Dtos.Zelo;
 using Pyrra.Application.Common.Exceptions;
@@ -13,8 +14,7 @@ namespace Pyrra.Api.Controllers {
     [Authorize]
     [Route("api/zelo")]
     public class ZeloController : ControllerBase {
-        // Teto de caracteres da pergunta: o Zelo responde sobre os próprios dados do usuário, não
-        // precisa de texto longo, e o limite corta abuso de prompt antes de chegar à API.
+        // limita o tamanho da pergunta para evitar entradas excessivamente longas
         private const int MaxQuestionLength = 300;
 
         private readonly IZeloService _zeloService;
@@ -47,7 +47,6 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
-        // O userId vem SEMPRE do token (claim NameIdentifier), nunca do corpo da requisição.
         private bool TryGetUserId(out Guid userId) {
             var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
             return Guid.TryParse(claim, out userId);

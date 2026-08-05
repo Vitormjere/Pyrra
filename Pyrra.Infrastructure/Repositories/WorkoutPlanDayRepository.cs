@@ -22,9 +22,6 @@ namespace Pyrra.Infrastructure.Repositories {
                 .OrderBy(d => d.DayOfWeek)
                 .ToListAsync(cancellationToken);
 
-        // Carrega os existentes uma vez e decide por dia: uma consulta em vez de sete.
-        // O SaveChanges é único, então o plano inteiro grava numa transação só — meio
-        // salvo seria pior que não salvo.
         public async Task UpsertManyAsync(Guid userId, IReadOnlyList<WorkoutPlanDay> days, CancellationToken cancellationToken = default) {
             var existing = await _context.WorkoutPlanDays
                 .Where(d => d.UserId == userId)

@@ -7,8 +7,7 @@ using Pyrra.Domain.Zelo;
 
 namespace Pyrra.Application.Zelo {
     public class ZeloService : IZeloService {
-        // Teto de perguntas por usuário por dia. Segura o custo da API sem depender de job agendado:
-        // o contador vive numa linha por usuário/dia e vira sozinho na data local do usuário.
+        // limita perguntas diárias por usuário
         private const int DailyLimit = 12;
 
         private readonly IZeloQueryLogRepository _logRepository;
@@ -36,8 +35,7 @@ namespace Pyrra.Application.Zelo {
 
             var today = _clock.TodayIn(user.Timezone);
 
-            // Checa o limite ANTES de gastar contexto ou chamada à API: bateu o teto, nem monta o
-            // prompt.
+            // valida o limite antes de montar o contexto
             var log = await _logRepository.GetByUserAndDateAsync(userId, today, cancellationToken);
             if (log is not null && log.Count >= DailyLimit) {
                 throw new ZeloRateLimitExceededException();
@@ -46,8 +44,7 @@ namespace Pyrra.Application.Zelo {
             var context = await _contextBuilder.BuildAsync(userId, cancellationToken);
             var result  = await _assistant.AskAsync(question, context, cancellationToken);
 
-            // Só consome a cota quando a chamada de fato deu certo: uma indisponibilidade da API não
-            // deve custar uma das perguntas do dia do usuário.
+            // consome a cota apenas em respostas bem-sucedidas
             if (result.Success) {
                 await IncrementCountAsync(log, userId, today, cancellationToken);
             }

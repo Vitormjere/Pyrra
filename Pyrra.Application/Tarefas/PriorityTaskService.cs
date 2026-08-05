@@ -23,7 +23,7 @@ namespace Pyrra.Application.Tarefas {
         }
 
         public async Task<PriorityTask> CreateAsync(Guid userId, string title, TaskPriority priority, DateOnly? date = null, CancellationToken cancellationToken = default) {
-            // [Required] no DTO barra null e "", mas deixa passar "   ".
+            // evita null e "", mas aceita só espaços
             var normalizedTitle = title?.Trim();
             if (string.IsNullOrEmpty(normalizedTitle)) {
                 throw new InvalidTaskException("O título da tarefa é obrigatório.");
@@ -33,8 +33,7 @@ namespace Pyrra.Application.Tarefas {
                 throw new InvalidTaskException($"Prioridade '{priority}' não é válida.");
             }
 
-            // Sem trava de data futura: criar hoje a tarefa de amanhã é uso normal, igual ao
-            // módulo de planejamento. Data passada também vale, para registrar algo esquecido.
+            // aceita datas passadas e futuras
             var targetDate = date ?? await TodayAsync(userId, cancellationToken);
 
             var task = new PriorityTask {
@@ -51,16 +50,13 @@ namespace Pyrra.Application.Tarefas {
             return task;
         }
 
-        // A tela do dia mostra concluídas e não concluídas: o "some da tela" da regra de negócio
-        // vale para a virada do dia, não para o ato de concluir.
+        // retorna tarefas concluídas e pendentes do dia
         public async Task<IReadOnlyList<PriorityTask>> GetForDayAsync(Guid userId, DateOnly? date = null, CancellationToken cancellationToken = default) {
             var targetDate = date ?? await TodayAsync(userId, cancellationToken);
             return await _repository.GetByUserAndDateAsync(userId, targetDate, cancellationToken);
         }
 
-        // Aba "da semana" = o que ficou para trás: pendentes de dias JÁ PASSADOS da semana
-        // informada. As de hoje continuam só na tela do dia, e as de dias futuros ainda não
-        // atrasaram. Numa semana passada isso abrange os 7 dias; na semana atual, até ontem.
+        // retorna as pendentes dos dias já passados da semana
         public async Task<WeeklyTasksResult> GetPendingForWeekAsync(Guid userId, DateOnly? weekStart = null, CancellationToken cancellationToken = default) {
             var today = await TodayAsync(userId, cancellationToken);
             var start = WeekRange.StartOfWeek(weekStart ?? today);
@@ -70,8 +66,7 @@ namespace Pyrra.Application.Tarefas {
         }
 
         public async Task<IReadOnlyList<PriorityTask>> GetForRangeAsync(Guid userId, DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken = default) {
-            // Intervalo invertido devolve vazio em vez de erro: a consulta é de
-            // leitura e um mês sem tarefa já é um resultado legítimo.
+            // intervalo inválido retorna vazio em vez de erro
             if (startDate > endDate) {
                 return Array.Empty<PriorityTask>();
             }
@@ -111,8 +106,7 @@ namespace Pyrra.Application.Tarefas {
             await _repository.DeleteAsync(task, cancellationToken);
         }
 
-        // Mesmo NotFoundException genérico dos outros módulos: tarefa inexistente ou de outro
-        // usuário são indistinguíveis para quem chama.
+        // não diferencia tarefa inexistente de tarefa de outro usuário
         private async Task<PriorityTask> GetOwnedTaskAsync(Guid userId, Guid taskId, CancellationToken cancellationToken) {
             var task = await _repository.GetByIdAsync(taskId, cancellationToken);
             if (task is null || task.UserId != userId) {

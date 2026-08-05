@@ -19,8 +19,6 @@ namespace Pyrra.Infrastructure.Repositories {
         public Task<PriorityTask?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
             _context.PriorityTasks.FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
 
-        // Urgente primeiro (o enum vai de Baixa=0 a Urgente=3, daí o Descending); CreatedAt
-        // desempata na ordem em que o usuário escreveu.
         public async Task<IReadOnlyList<PriorityTask>> GetByUserAndDateAsync(Guid userId, DateOnly date, CancellationToken cancellationToken = default) =>
             await _context.PriorityTasks
                 .Where(t => t.UserId == userId && t.Date == date)
@@ -28,11 +26,6 @@ namespace Pyrra.Infrastructure.Repositories {
                 .ThenBy(t => t.CreatedAt)
                 .ToListAsync(cancellationToken);
 
-        // A semana de weekStart, cortada em beforeDate (exclusivo): só os dias já passados entram,
-        // que é o que caracteriza tarefa atrasada. Semana futura ou beforeDate antes do início da
-        // semana devolvem lista vazia naturalmente, sem caso especial.
-        // Ordena por data antes de prioridade: a aba da semana é lida como uma linha do tempo,
-        // não como uma fila.
         public async Task<IReadOnlyList<PriorityTask>> GetPendingByUserAndWeekAsync(Guid userId, DateOnly weekStart, DateOnly beforeDate, CancellationToken cancellationToken = default) {
             var weekEnd = weekStart.AddDays(6);
 
@@ -48,8 +41,6 @@ namespace Pyrra.Infrastructure.Repositories {
                 .ToListAsync(cancellationToken);
         }
 
-        // Ordena por data antes de prioridade: quem lê um intervalo lê como linha do
-        // tempo, igual à visão semanal.
         public async Task<IReadOnlyList<PriorityTask>> GetByUserAndDateRangeAsync(Guid userId, DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken = default) =>
             await _context.PriorityTasks
                 .Where(t => t.UserId == userId && t.Date >= startDate && t.Date <= endDate)

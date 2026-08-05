@@ -1,10 +1,6 @@
 import ZeloCard from '../../components/ZeloCard'
 
-// Tela dedicada do Zelo. Reaproveita o ZeloCard inteiro (campo, botão, loading,
-// resposta e tratamento de erro) — a lógica já vivia nele quando era um card da
-// tela Hoje, então mover para uma rota própria é só passá-lo a ser o conteúdo
-// principal da página. O próprio card já traz o nome "Zelo" e o ícone, servindo
-// de cabeçalho da tela.
+// reaproveita o ZeloCard inteiro — a lógica já vivia nele quando era um card da tela Hoje, o card já traz nome e ícone servindo de cabeçalho
 export function Zelo() {
   return (
     <div className="flex flex-col gap-5">

@@ -4,7 +4,6 @@ using System.Linq;
 using Pyrra.Application.Nutricao;
 
 namespace Pyrra.Api.Dtos.Nutricao {
-    // Meal como nome ("Almoco"), mesmo critério dos outros módulos.
     public record MealGroupResponse(
         string Meal,
         IEnumerable<NutritionItemResponse> Items) {

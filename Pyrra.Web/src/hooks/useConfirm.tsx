@@ -9,13 +9,7 @@ interface ConfirmOptions {
   destructive?: boolean
 }
 
-// Ponte entre o fluxo síncrono do antigo window.confirm e um modal controlado por
-// estado: confirm(opts) abre o diálogo e devolve uma Promise<boolean> que resolve
-// quando o usuário decide. Assim os handlers mantêm a forma
-// `if (!(await confirm(...))) return`, quase idêntica ao `if (!window.confirm())`.
-//
-// Uso: `const { confirm, dialog } = useConfirm()`, renderize `{dialog}` na tela e
-// chame `await confirm({ title, message, ... })` onde antes havia window.confirm.
+// substitui o window.confirm por um modal: confirm(opts) abre o diálogo e devolve uma Promise<boolean> que resolve quando o usuário decide
 export function useConfirm() {
   const [options, setOptions] = useState<ConfirmOptions | null>(null)
   const resolverRef = useRef<((value: boolean) => void) | null>(null)

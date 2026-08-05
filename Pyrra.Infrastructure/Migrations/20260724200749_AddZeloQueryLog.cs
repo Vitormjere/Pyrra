@@ -15,10 +15,10 @@ namespace Pyrra.Infrastructure.Migrations
                 name: "ZeloQueryLogs",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id     = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Date = table.Column<DateOnly>(type: "date", nullable: false),
-                    Count = table.Column<int>(type: "int", nullable: false)
+                    Date   = table.Column<DateOnly>(type: "date", nullable: false),
+                    Count  = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -26,10 +26,10 @@ namespace Pyrra.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_ZeloQueryLogs_UserId_Date",
-                table: "ZeloQueryLogs",
+                name:    "IX_ZeloQueryLogs_UserId_Date",
+                table:   "ZeloQueryLogs",
                 columns: new[] { "UserId", "Date" },
-                unique: true);
+                unique:  true);
         }
 
         /// <inheritdoc />

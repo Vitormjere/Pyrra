@@ -8,8 +8,7 @@ using Pyrra.Domain.Focos;
 
 namespace Pyrra.Application.Focos {
     public class DailyScoreCalculator : IDailyScoreCalculator {
-        // Fração mínima do peso do dia para considerar a meta batida. Fixo por enquanto;
-        // vira configuração por usuário quando o app tiver metas personalizadas.
+        // define o mínimo necessário para considerar a meta concluída
         private const decimal GoalThreshold = 0.70m;
 
         private readonly IDailyFocusRepository _focusRepository;
@@ -20,13 +19,13 @@ namespace Pyrra.Application.Focos {
             _logRepository   = logRepository;
         }
 
-        // Estado atual: focos ativos de agora cruzados com os logs do dia. Não persiste nada.
+        // monta o estado atual cruzando focos ativos e logs do dia
         public async Task<DailyScoreResult> CalculateLiveAsync(Guid userId, DateOnly date, CancellationToken cancellationToken = default) {
-            var focuses = await _focusRepository.GetAllByUserIdAsync(userId, cancellationToken);
+            var focuses       = await _focusRepository.GetAllByUserIdAsync(userId, cancellationToken);
             var activeFocuses = focuses.Where(f => f.Active).ToList();
 
-            var focusIds = activeFocuses.Select(f => f.Id).ToList();
-            var logs = await _logRepository.GetByFocusIdsAndDateAsync(focusIds, date, cancellationToken);
+            var focusIds    = activeFocuses.Select(f => f.Id).ToList();
+            var logs        = await _logRepository.GetByFocusIdsAndDateAsync(focusIds, date, cancellationToken);
             var logsByFocus = logs.ToDictionary(l => l.DailyFocusId);
 
             return new DailyScoreResult(
@@ -34,14 +33,11 @@ namespace Pyrra.Application.Focos {
                 BuildStatuses(activeFocuses, logsByFocus));
         }
 
-        // Peso do foco NAQUELE dia: se houve check-in, vale o peso congelado no log; senão, o peso
-        // atual do foco. As duas somas do score usam esta mesma régua — usar o peso do log só em
-        // PointsEarned e o atual em PointsPossible permitiria earned > possible (percentual > 100%).
+        // usa o peso congelado do log quando houver check-in, mantendo o cálculo consistente
         private static int EffectiveWeight(DailyFocus focus, FocusLog? log) =>
             log?.WeightAtTimeOfLog ?? focus.Weight;
 
-        // Única fonte da regra de pontuação: consulta e check-in passam por aqui, então não há
-        // como os dois caminhos divergirem. Puro — não toca em repositório.
+        // centraliza a regra de pontuação sem acessar repositórios
         private static DailyScore CalculateScore(Guid userId, DateOnly date, IReadOnlyList<DailyFocus> activeFocuses, IReadOnlyDictionary<Guid, FocusLog> logsByFocus) {
             var pointsPossible = 0;
             var pointsEarned   = 0;
@@ -56,7 +52,7 @@ namespace Pyrra.Application.Focos {
                 }
             }
 
-            // Sem focos ativos não há divisão possível: o dia vale 0% em vez de estourar.
+            // evita divisão sem focos ativos
             var percentage = pointsPossible == 0
                 ? 0m
                 : (decimal)pointsEarned / pointsPossible;
@@ -71,7 +67,7 @@ namespace Pyrra.Application.Focos {
             };
         }
 
-        // Um foco ativo sem log naquela data não tem entrada no mapa -> Completed = false e peso atual.
+        // sem log no dia, considera não concluído e usa o peso atual
         private static IReadOnlyList<FocusStatus> BuildStatuses(IReadOnlyList<DailyFocus> activeFocuses, IReadOnlyDictionary<Guid, FocusLog> logsByFocus) =>
             activeFocuses
                 .Select(f => {

@@ -7,6 +7,6 @@ namespace Pyrra.Api.Dtos.Financas {
         [Required] Guid? CategoryId,
         [Required] decimal? Amount,
         [Required] FinanceEntryType? Type,
-        DateOnly? Date = null,
+        DateOnly?  Date = null,
         [MaxLength(500)] string? Description = null);
 }
