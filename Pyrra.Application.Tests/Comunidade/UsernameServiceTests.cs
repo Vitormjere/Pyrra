@@ -50,6 +50,16 @@ namespace Pyrra.Application.Tests.Comunidade {
         }
 
         [Fact]
+        public async Task SetUsername_UsernameDeContaExcluida_Lanca() {
+            var deleted = Bare(Bob, "Bob");
+            deleted.Username = "vitorj";
+            deleted.DeletedAt = DateTime.UtcNow;
+            var (service, _) = Build(Bare(Alice, "Alice"), deleted);
+
+            await Assert.ThrowsAsync<UsernameAlreadyTakenException>(() => service.SetUsernameAsync(Alice, "vitorj"));
+        }
+
+        [Fact]
         public async Task SetUsername_ManterOProprio_EhPermitido() {
             var alice = Bare(Alice, "Alice");
             alice.Username = "alice";
@@ -81,6 +91,20 @@ namespace Pyrra.Application.Tests.Comunidade {
             var owner = Bare(Bob, "Bob");
             owner.Username = "vitorj";
             var (service, _) = Build(Bare(Alice, "Alice"), owner);
+
+            var result = await service.CheckAvailabilityAsync(Alice, "vitorj");
+            Assert.False(result.Available);
+        }
+
+        // reproduz o bug: username de conta excluída ficava invisível pro check (só olhava contas
+        // ativas) mas o índice único do banco continuava bloqueando, então o check dizia "livre" e o
+        // SetUsername falhava logo em seguida — CheckAvailability precisa concordar com SetUsername
+        [Fact]
+        public async Task CheckAvailability_UsernameDeContaExcluida_NaoDisponivel() {
+            var deleted = Bare(Bob, "Bob");
+            deleted.Username = "vitorj";
+            deleted.DeletedAt = DateTime.UtcNow;
+            var (service, _) = Build(Bare(Alice, "Alice"), deleted);
 
             var result = await service.CheckAvailabilityAsync(Alice, "vitorj");
             Assert.False(result.Available);

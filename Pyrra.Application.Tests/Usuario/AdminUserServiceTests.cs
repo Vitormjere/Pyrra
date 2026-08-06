@@ -106,6 +106,18 @@ namespace Pyrra.Application.Tests.Usuario {
                 service.CreateAdminAccountAsync(AdminId, "novo@x.com", "Novo", "jaexiste", "SenhaForte123"));
         }
 
+        // mesma causa raiz do bug de UsernameService: username de conta excluída fica reservado no
+        // banco, então a pré-checagem tem que enxergar contas excluídas também
+        [Fact]
+        public async Task CreateAdminAccountAsync_UsernameDeContaExcluida_Lanca() {
+            var (service, _, _) = Build(
+                MakeAdmin(AdminId),
+                MakePlayer(PlayerId, email: "removido@x.com", username: "jaexiste", deletedAt: DateTime.UtcNow));
+
+            await Assert.ThrowsAsync<UsernameAlreadyTakenException>(() =>
+                service.CreateAdminAccountAsync(AdminId, "novo@x.com", "Novo", "jaexiste", "SenhaForte123"));
+        }
+
         // ---- listar usuários ----
 
         [Fact]

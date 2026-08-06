@@ -50,6 +50,10 @@ namespace Pyrra.Application.Tests.Comunidade {
         public Task<User?> GetByUsernameAsync(string username, CancellationToken cancellationToken = default) =>
             Task.FromResult(Active.FirstOrDefault(u => u.Username == username));
 
+        // sem o filtro de Active de propósito — mesmo critério do UserRepository real
+        public Task<User?> GetByUsernameIncludingDeletedAsync(string username, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Users.FirstOrDefault(u => u.Username == username));
+
         public Task<User?> GetByInviteTokenAsync(string inviteToken, CancellationToken cancellationToken = default) =>
             Task.FromResult(Active.FirstOrDefault(u => u.InviteToken == inviteToken));
 
@@ -72,10 +76,11 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         public Task AddAsync(User user, CancellationToken cancellationToken = default) {
             // mesma proteção de corrida do UpdateAsync abaixo — simula os índices únicos do UserRepository real, agora também no insert
-            if (user.Username is not null && Active.Any(u => u.Id != user.Id && u.Username == user.Username)) {
+            // contra Users, não Active: os índices reais não liberam username/email de conta excluída
+            if (user.Username is not null && Users.Any(u => u.Id != user.Id && u.Username == user.Username)) {
                 throw new UsernameAlreadyTakenException(user.Username);
             }
-            if (Active.Any(u => u.Id != user.Id && u.Email == user.Email)) {
+            if (Users.Any(u => u.Id != user.Id && u.Email == user.Email)) {
                 throw new EmailAlreadyRegisteredException(user.Email);
             }
             Users.Add(user);
@@ -83,11 +88,11 @@ namespace Pyrra.Application.Tests.Comunidade {
         }
 
         public Task UpdateAsync(User user, CancellationToken cancellationToken = default) {
-            // simula os índices únicos de username e e-mail
-            if (user.Username is not null && Active.Any(u => u.Id != user.Id && u.Username == user.Username)) {
+            // simula os índices únicos de username e e-mail — contra Users, não Active, mesmo critério do AddAsync acima
+            if (user.Username is not null && Users.Any(u => u.Id != user.Id && u.Username == user.Username)) {
                 throw new UsernameAlreadyTakenException(user.Username);
             }
-            if (Active.Any(u => u.Id != user.Id && u.Email == user.Email)) {
+            if (Users.Any(u => u.Id != user.Id && u.Email == user.Email)) {
                 throw new EmailAlreadyRegisteredException(user.Email);
             }
             return Task.CompletedTask;

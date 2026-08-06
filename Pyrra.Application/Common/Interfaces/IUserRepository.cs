@@ -11,6 +11,9 @@ namespace Pyrra.Application.Common.Interfaces {
 
         Task<User?> GetByUsernameAsync(string username, CancellationToken cancellationToken = default);
 
+        // inclui contas excluídas — username e email de conta excluída ficam reservados de propósito (ver DeletedAt em User), então checagem de disponibilidade precisa enxergar essas linhas mesmo que o resto da aplicação as ignore
+        Task<User?> GetByUsernameIncludingDeletedAsync(string username, CancellationToken cancellationToken = default);
+
         Task<User?> GetByInviteTokenAsync(string inviteToken, CancellationToken cancellationToken = default);
 
         Task<IReadOnlyList<User>> SearchAsync(string term, Guid excludeUserId, CancellationToken cancellationToken = default);

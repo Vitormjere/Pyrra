@@ -53,7 +53,7 @@ namespace Pyrra.Application.Usuario {
                 throw new InvalidUsernameException(
                     "O username deve ter de 3 a 20 caracteres, só letras, números ou underscore.");
             }
-            if (await _userRepository.GetByUsernameAsync(normalizedUsername, cancellationToken) is not null) {
+            if (await _userRepository.GetByUsernameIncludingDeletedAsync(normalizedUsername, cancellationToken) is not null) {
                 throw new UsernameAlreadyTakenException(normalizedUsername);
             }
 

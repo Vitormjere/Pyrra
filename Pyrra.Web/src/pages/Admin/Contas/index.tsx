@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Search, ShieldPlus, Trash2, UserCog } from 'lucide-react'
 import EmptyState from '../../../components/EmptyState'
+import Segmented from '../../../components/Segmented'
 import Skeleton from '../../../components/Skeleton'
 import { useConfirm } from '../../../hooks/useConfirm'
 import { createAdminAccount, deleteUser, getAllUsers } from '../../../services/adminUserService'
@@ -14,6 +15,9 @@ const inputClasses =
   'w-full rounded-md bg-surface-hi px-3 py-2 text-sm text-ink ring-1 ring-line transition outline-none placeholder:text-slate-500 focus:ring-2 focus:ring-brand-green'
 
 const labelClasses = 'text-xs font-medium text-slate-400'
+
+const ACCOUNT_TABS = ['ativos', 'excluidos'] as const
+type AccountTab = (typeof ACCOUNT_TABS)[number]
 
 /** "22/07/2026" — createdAt/deletedAt vêm como DateTime ISO completo, não DateOnly. */
 function formatDateTime(iso: string): string {
@@ -88,6 +92,7 @@ export function AdminContas() {
   const [error, setError] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [tab, setTab] = useState<AccountTab>('ativos')
 
   const [newEmail, setNewEmail] = useState('')
   const [newName, setNewName] = useState('')
@@ -185,7 +190,8 @@ export function AdminContas() {
     }
   }
 
-  const filteredUsers = useMemo(() => {
+  // busca continua igual, some as duas abas — só a exibição é que separa por deletedAt
+  const searchedUsers = useMemo(() => {
     if (!users) return null
     const term = search.trim().toLowerCase()
     if (!term) return users
@@ -196,6 +202,16 @@ export function AdminContas() {
         (u.username?.toLowerCase().includes(term) ?? false),
     )
   }, [users, search])
+
+  const activeUsers = useMemo(() => searchedUsers?.filter((u) => u.deletedAt === null) ?? null, [searchedUsers])
+  const deletedUsers = useMemo(() => searchedUsers?.filter((u) => u.deletedAt !== null) ?? null, [searchedUsers])
+  const filteredUsers = tab === 'ativos' ? activeUsers : deletedUsers
+
+  // contagem no rótulo da aba reflete a busca atual, não o total geral
+  const tabLabels = {
+    ativos: `Ativos${activeUsers ? ` (${activeUsers.length})` : ''}`,
+    excluidos: `Excluídos${deletedUsers ? ` (${deletedUsers.length})` : ''}`,
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -325,12 +341,14 @@ export function AdminContas() {
           />
         </div>
 
+        <Segmented label="Usuários ativos ou excluídos" options={ACCOUNT_TABS} labels={tabLabels} value={tab} onChange={setTab} />
+
         {filteredUsers === null ? (
           <Skeleton className="h-16" />
         ) : filteredUsers.length === 0 ? (
           <EmptyState
             icon={UserCog}
-            title="Nenhum usuário encontrado."
+            title={tab === 'ativos' ? 'Nenhum usuário ativo encontrado.' : 'Nenhuma conta excluída encontrada.'}
             description={search.trim() ? 'Tente buscar por outro termo.' : undefined}
           />
         ) : (

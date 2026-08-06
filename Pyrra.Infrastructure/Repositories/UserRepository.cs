@@ -31,6 +31,10 @@ namespace Pyrra.Infrastructure.Repositories {
         public Task<User?> GetByUsernameAsync(string username, CancellationToken cancellationToken = default) =>
             ActiveUsers.FirstOrDefaultAsync(u => u.Username == username, cancellationToken);
 
+        // sem o filtro de ActiveUsers de propósito — o índice único do banco também não libera username de conta excluída
+        public Task<User?> GetByUsernameIncludingDeletedAsync(string username, CancellationToken cancellationToken = default) =>
+            _context.Users.FirstOrDefaultAsync(u => u.Username == username, cancellationToken);
+
         public Task<User?> GetByInviteTokenAsync(string inviteToken, CancellationToken cancellationToken = default) =>
             ActiveUsers.FirstOrDefaultAsync(u => u.InviteToken == inviteToken, cancellationToken);
 

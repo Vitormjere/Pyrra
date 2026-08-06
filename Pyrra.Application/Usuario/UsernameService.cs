@@ -36,7 +36,7 @@ namespace Pyrra.Application.Usuario {
                 return user;
             }
 
-            var owner = await _userRepository.GetByUsernameAsync(normalized, cancellationToken);
+            var owner = await _userRepository.GetByUsernameIncludingDeletedAsync(normalized, cancellationToken);
             if (owner is not null && owner.Id != userId) {
                 throw new UsernameAlreadyTakenException(normalized);
             }
@@ -55,7 +55,7 @@ namespace Pyrra.Application.Usuario {
                 return new UsernameAvailability(false, "Use de 3 a 20 caracteres: letras, números ou underscore.");
             }
 
-            var owner = await _userRepository.GetByUsernameAsync(normalized, cancellationToken);
+            var owner = await _userRepository.GetByUsernameIncludingDeletedAsync(normalized, cancellationToken);
 
             // permite manter o próprio username
             if (owner is null || owner.Id == userId) {
