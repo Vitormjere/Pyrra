@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Pyrra.Application.Achievements;
 using Pyrra.Application.Common.Exceptions;
 using Pyrra.Application.Common.Interfaces;
 using Pyrra.Application.Focos;
@@ -24,6 +25,7 @@ namespace Pyrra.Application.Streaks {
         private readonly IPendingFreezeUseRepository  _pendingFreezeUseRepository;
         private readonly IDailyScoreCalculator        _calculator;
         private readonly IClockService                _clock;
+        private readonly IAchievementCheckerService   _achievementChecker;
 
         public StreakService(
             IStreakRepository            streakRepository,
@@ -33,7 +35,8 @@ namespace Pyrra.Application.Streaks {
             IPendingMilestoneRepository  pendingMilestoneRepository,
             IPendingFreezeUseRepository  pendingFreezeUseRepository,
             IDailyScoreCalculator        calculator,
-            IClockService                clock) {
+            IClockService                clock,
+            IAchievementCheckerService   achievementChecker) {
             _streakRepository            = streakRepository;
             _freezeBankRepository        = freezeBankRepository;
             _scoreRepository             = scoreRepository;
@@ -42,6 +45,7 @@ namespace Pyrra.Application.Streaks {
             _pendingFreezeUseRepository  = pendingFreezeUseRepository;
             _calculator                  = calculator;
             _clock                       = clock;
+            _achievementChecker          = achievementChecker;
         }
 
         public async Task<StreakSettlementResult> SettleStreakAsync(Guid userId, CancellationToken cancellationToken = default) {
@@ -63,6 +67,11 @@ namespace Pyrra.Application.Streaks {
             // salva antes de retornar para não perder o marco ou freeze detectado
             await PersistPendingMilestonesAsync(userId, milestones, cancellationToken);
             await PersistPendingFreezeUsesAsync(userId, freezeUses, cancellationToken);
+
+            if (milestones.Count > 0) {
+                await _achievementChecker.CheckStreakMilestonesAsync(
+                    userId, milestones.Select(m => m.Milestone).ToList(), cancellationToken);
+            }
 
             return new StreakSettlementResult(streak.CurrentCount, streak.BestCount, bank.FreezesAvailable, milestones);
         }

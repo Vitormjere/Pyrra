@@ -50,6 +50,9 @@ namespace Pyrra.Infrastructure.Repositories {
                 .Where(s => s.TournamentId == tournamentId && s.Status == ChallengeSubmissionStatus.Aprovado)
                 .ToListAsync(cancellationToken);
 
+        public Task<int> CountApprovedByUserAsync(Guid userId, CancellationToken cancellationToken = default) =>
+            _context.ChallengeSubmissions.CountAsync(s => s.UserId == userId && s.Status == ChallengeSubmissionStatus.Aprovado, cancellationToken);
+
         public async Task AddAsync(ChallengeSubmission submission, CancellationToken cancellationToken = default) {
             await _context.ChallengeSubmissions.AddAsync(submission, cancellationToken);
             await _context.SaveChangesAsync(cancellationToken);

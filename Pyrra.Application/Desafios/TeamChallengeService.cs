@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Pyrra.Application.Achievements;
 using Pyrra.Application.Common.Exceptions;
 using Pyrra.Application.Common.Interfaces;
 using Pyrra.Application.Comunidade;
@@ -33,6 +34,7 @@ namespace Pyrra.Application.Desafios {
         private readonly ITeamMemberScoreRepository         _memberScoreRepository;
         private readonly IUserRepository                    _userRepository;
         private readonly IClockService                      _clock;
+        private readonly IAchievementCheckerService         _achievementChecker;
 
         public TeamChallengeService(
             ITeamRepository                    teamRepository,
@@ -48,7 +50,8 @@ namespace Pyrra.Application.Desafios {
             ITournamentOwnChallengeRepository  tournamentOwnChallengeRepository,
             ITeamMemberScoreRepository         memberScoreRepository,
             IUserRepository                    userRepository,
-            IClockService                      clock) {
+            IClockService                      clock,
+            IAchievementCheckerService         achievementChecker) {
             _teamRepository            = teamRepository;
             _teamMemberRepository      = teamMemberRepository;
             _categoryRepository        = categoryRepository;
@@ -63,6 +66,7 @@ namespace Pyrra.Application.Desafios {
             _memberScoreRepository     = memberScoreRepository;
             _userRepository            = userRepository;
             _clock                     = clock;
+            _achievementChecker        = achievementChecker;
         }
 
         public async Task<IReadOnlyList<TeamCategoryStatus>> GetCategoriesForTeamAsync(Guid ownerId, Guid teamId, CancellationToken cancellationToken = default) {
@@ -269,6 +273,8 @@ namespace Pyrra.Application.Desafios {
                 memberScore.UpdatedAt = _clock.UtcNow;
                 await _memberScoreRepository.UpdateAsync(memberScore, cancellationToken);
             }
+
+            await _achievementChecker.CheckChallengeCompletedAsync(submission.UserId, cancellationToken);
         }
 
         public async Task RejectSubmissionAsync(Guid callerId, Guid teamId, Guid submissionId, CancellationToken cancellationToken = default) {
@@ -478,6 +484,8 @@ namespace Pyrra.Application.Desafios {
                 entry.Score += points.Value;
                 await _tournamentTeamRepository.UpdateAsync(entry, cancellationToken);
             }
+
+            await _achievementChecker.CheckChallengeCompletedAsync(submission.UserId, cancellationToken);
         }
 
         public async Task RejectTournamentSubmissionAsync(Guid callerId, Guid teamId, Guid tournamentId, Guid submissionId, CancellationToken cancellationToken = default) {

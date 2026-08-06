@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Pyrra.Application.Achievements;
 using Pyrra.Application.Auth;
 using Pyrra.Application.Chat;
 using Pyrra.Application.Common;
@@ -121,6 +122,11 @@ builder.Services.AddScoped<IFreezeBankRepository, FreezeBankRepository>();
 builder.Services.AddScoped<IPendingMilestoneRepository, PendingMilestoneRepository>();
 builder.Services.AddScoped<IPendingFreezeUseRepository, PendingFreezeUseRepository>();
 builder.Services.AddScoped<IStreakService, StreakService>();
+
+// Conquistas: catálogo fixo (seed) + desbloqueio via streak e desafios aprovados
+builder.Services.AddScoped<IAchievementRepository, AchievementRepository>();
+builder.Services.AddScoped<IUserAchievementRepository, UserAchievementRepository>();
+builder.Services.AddScoped<IAchievementCheckerService, AchievementCheckerService>();
 
 builder.Services.AddScoped<IWorkoutLogRepository, WorkoutLogRepository>();
 builder.Services.AddScoped<IWorkoutPlanDayRepository, WorkoutPlanDayRepository>();

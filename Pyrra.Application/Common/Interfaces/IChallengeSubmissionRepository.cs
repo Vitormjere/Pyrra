@@ -24,6 +24,9 @@ namespace Pyrra.Application.Common.Interfaces {
         // aprovadas de um torneio em qualquer time participante, base do progresso agregado que o dono vê por desafio com meta
         Task<IReadOnlyList<ChallengeSubmission>> GetApprovedForTournamentAsync(Guid tournamentId, CancellationToken cancellationToken = default);
 
+        // total aprovado do usuário em qualquer time/torneio, base da conquista DesafioCompleto
+        Task<int> CountApprovedByUserAsync(Guid userId, CancellationToken cancellationToken = default);
+
         Task AddAsync(ChallengeSubmission submission, CancellationToken cancellationToken = default);
         Task UpdateAsync(ChallengeSubmission submission, CancellationToken cancellationToken = default);
     }
