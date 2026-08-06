@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
+using Pyrra.Domain.Achievements;
 using Pyrra.Domain.Chat;
 using Pyrra.Domain.Comunidade;
 using Pyrra.Domain.Desafios;
@@ -54,6 +55,8 @@ namespace Pyrra.Infrastructure.Data {
         public DbSet<TournamentChallenge> TournamentChallenges => Set<TournamentChallenge>();
         public DbSet<TournamentOwnChallenge> TournamentOwnChallenges => Set<TournamentOwnChallenge>();
         public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+        public DbSet<Achievement> Achievements => Set<Achievement>();
+        public DbSet<UserAchievement> UserAchievements => Set<UserAchievement>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder) {
             modelBuilder.Entity<User>()
@@ -470,6 +473,31 @@ namespace Pyrra.Infrastructure.Data {
             // este é só pra contagem de não lidas (RecipientId + ReadAt) 
             modelBuilder.Entity<ChatMessage>()
                 .HasIndex(m => new { m.RecipientId, m.ReadAt });
+
+            // catálogo fixo de conquistas (seed)
+            modelBuilder.Entity<Achievement>()
+                .Property(a => a.Name)
+                .HasMaxLength(100);
+
+            modelBuilder.Entity<Achievement>()
+                .Property(a => a.Description)
+                .HasMaxLength(500);
+
+            modelBuilder.Entity<Achievement>()
+                .Property(a => a.IconKey)
+                .HasMaxLength(50);
+
+            // um marco não se repete dentro do mesmo tipo de conquista
+            modelBuilder.Entity<Achievement>()
+                .HasIndex(a => new { a.Type, a.Milestone })
+                .IsUnique();
+
+            modelBuilder.Entity<Achievement>().HasData(AchievementSeed.Achievements);
+
+            // um usuário não desbloqueia a mesma conquista duas vezes; cobre também a listagem por usuário
+            modelBuilder.Entity<UserAchievement>()
+                .HasIndex(u => new { u.UserId, u.AchievementId })
+                .IsUnique();
         }
     }
 }

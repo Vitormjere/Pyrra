@@ -17,6 +17,9 @@ namespace Pyrra.Domain.Users {
         public TimeOnly EveningNotificationTime { get; set; }
         public UserPlan Plan { get; set; } = UserPlan.Free;
 
+        // total acumulado, recompensa por conquistas desbloqueadas
+        public int Xp { get; set; }
+
         // público por padrão 
         public ProfileVisibility ProfileVisibility { get; set; } = ProfileVisibility.Publico;
 
