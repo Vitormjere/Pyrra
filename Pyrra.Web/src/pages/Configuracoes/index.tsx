@@ -35,10 +35,11 @@ const VISIBILITY_HINTS: Record<ProfileVisibility, string> = {
   SomenteAmigos: 'Só quem é seu amigo confirmado pode ver.',
 }
 
+// espelha os textos do Onboarding, pro significado de cada tom ser o mesmo nos dois lugares
 const TONE_HINTS: Record<CommunicationTone, string> = {
-  Direto: 'Objetivo, sem rodeios.',
-  Acolhedor: 'Gentil e compreensivo.',
-  Desafiador: 'Provocador, te cutuca a ir além.',
+  Direto: 'Direto ao ponto, sem rodeios.',
+  Acolhedor: 'Gentil, no seu ritmo.',
+  Desafiador: 'Provoca pra te tirar da inércia.',
 }
 
 // mesma regra do backend (UsernameService): 3-20, minúsculas, números e underscore
