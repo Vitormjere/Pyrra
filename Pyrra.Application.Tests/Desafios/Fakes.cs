@@ -4,11 +4,25 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Pyrra.Application.Achievements;
 using Pyrra.Application.Common.Exceptions;
 using Pyrra.Application.Common.Interfaces;
 using Pyrra.Domain.Desafios;
 
 namespace Pyrra.Application.Tests.Desafios {
+    // não desbloqueia nada de verdade, só registra quem foi checado — a lógica de desbloqueio tem cobertura própria em AchievementCheckerServiceTests
+    internal sealed class FakeAchievementCheckerService : IAchievementCheckerService {
+        public readonly List<Guid> ChallengeCompletedChecks = new();
+
+        public Task CheckStreakMilestonesAsync(Guid userId, IReadOnlyList<int> milestonesReached, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public Task CheckChallengeCompletedAsync(Guid userId, CancellationToken cancellationToken = default) {
+            ChallengeCompletedChecks.Add(userId);
+            return Task.CompletedTask;
+        }
+    }
+
     internal sealed class FakeChallengeCategoryRepository : IChallengeCategoryRepository {
         public readonly List<ChallengeCategory> Categories = new();
 
@@ -109,6 +123,9 @@ namespace Pyrra.Application.Tests.Desafios {
         public Task<IReadOnlyList<ChallengeSubmission>> GetApprovedForTournamentAsync(Guid tournamentId, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<ChallengeSubmission>>(
                 Submissions.Where(s => s.TournamentId == tournamentId && s.Status == ChallengeSubmissionStatus.Aprovado).ToList());
+
+        public Task<int> CountApprovedByUserAsync(Guid userId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Submissions.Count(s => s.UserId == userId && s.Status == ChallengeSubmissionStatus.Aprovado));
 
         public Task AddAsync(ChallengeSubmission submission, CancellationToken cancellationToken = default) {
             Submissions.Add(submission);

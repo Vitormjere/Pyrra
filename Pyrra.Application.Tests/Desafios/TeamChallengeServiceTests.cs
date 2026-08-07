@@ -52,7 +52,7 @@ namespace Pyrra.Application.Tests.Desafios {
             var service = new TeamChallengeService(
                 teams, members, categories, challenges, activations, submissions, storage,
                 tournamentEntries, tournaments, tournamentChallengeLinks, tournamentOwnChallenges,
-                memberScores ?? new FakeTeamMemberScoreRepository(), users, clock);
+                memberScores ?? new FakeTeamMemberScoreRepository(), users, clock, new FakeAchievementCheckerService());
             return (service, categories, challenges, activations, submissions, storage, teams, clock, tournamentEntries,
                 tournaments, tournamentChallengeLinks, tournamentOwnChallenges);
         }
