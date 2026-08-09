@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Pyrra.Application.Common.Exceptions;
 using Pyrra.Application.Tests.Comunidade;
+using Pyrra.Application.Tests.Treinos;
 using Pyrra.Application.Zelo;
 using Pyrra.Domain.Users;
 using Pyrra.Domain.Zelo;
@@ -15,18 +16,25 @@ namespace Pyrra.Application.Tests.Zelo {
 
         private static (ZeloPlanService service, FakeZeloPlanSessionRepository sessions,
             FakeZeloPlanAnswerRepository answers, FakeZeloPlanQueryLogRepository logs,
-            FakeZeloPlanAssistant assistant, FakeClock clock)
+            FakeZeloPlanAssistant assistant, FakeClock clock,
+            FakeWorkoutPlanDayRepository workoutDays, FakeWorkoutPlanExerciseRepository workoutExercises,
+            FakeNutritionPlanItemRepository nutritionItems)
             Build() {
             var sessions  = new FakeZeloPlanSessionRepository();
             var answers   = new FakeZeloPlanAnswerRepository();
             var logs      = new FakeZeloPlanQueryLogRepository();
             var context   = new FakeZeloContextBuilder();
             var assistant = new FakeZeloPlanAssistant();
+            var workoutDays      = new FakeWorkoutPlanDayRepository();
+            var workoutExercises = new FakeWorkoutPlanExerciseRepository();
+            var nutritionItems   = new FakeNutritionPlanItemRepository();
             var users     = new FakeUserRepository(new User { Id = UserId, Name = "User", Email = "user@x.com", Timezone = "America/Sao_Paulo" });
             var clock     = new FakeClock();
 
-            var service = new ZeloPlanService(sessions, answers, logs, context, assistant, users, clock);
-            return (service, sessions, answers, logs, assistant, clock);
+            var service = new ZeloPlanService(
+                sessions, answers, logs, context, assistant,
+                workoutDays, workoutExercises, nutritionItems, users, clock);
+            return (service, sessions, answers, logs, assistant, clock, workoutDays, workoutExercises, nutritionItems);
         }
 
         // responde as N primeiras perguntas com respostas válidas (primeira opção de cada uma), devolve o estado final
@@ -41,7 +49,7 @@ namespace Pyrra.Application.Tests.Zelo {
 
         [Fact]
         public async Task StartOrResumeAsync_SemSessaoAtiva_CriaNovaComPrimeiraPergunta() {
-            var (service, _, _, _, _, _) = Build();
+            var (service, _, _, _, _, _, _, _, _) = Build();
 
             var state = await service.StartOrResumeAsync(UserId);
 
@@ -53,7 +61,7 @@ namespace Pyrra.Application.Tests.Zelo {
 
         [Fact]
         public async Task StartOrResumeAsync_ComSessaoColetandoAtiva_Retoma() {
-            var (service, _, _, _, _, _) = Build();
+            var (service, _, _, _, _, _, _, _, _) = Build();
             var first = await service.StartOrResumeAsync(UserId);
 
             var resumed = await service.StartOrResumeAsync(UserId);
@@ -63,7 +71,7 @@ namespace Pyrra.Application.Tests.Zelo {
 
         [Fact]
         public async Task StartOrResumeAsync_SessaoExpirada_CriaNova() {
-            var (service, sessions, _, _, _, clock) = Build();
+            var (service, sessions, _, _, _, clock, _, _, _) = Build();
             var first = await service.StartOrResumeAsync(UserId);
 
             clock.UtcNow = clock.UtcNow.AddHours(25);
@@ -75,7 +83,7 @@ namespace Pyrra.Application.Tests.Zelo {
 
         [Fact]
         public async Task AnswerAsync_OpcaoInvalida_Lanca() {
-            var (service, _, _, _, _, _) = Build();
+            var (service, _, _, _, _, _, _, _, _) = Build();
             var start = await service.StartOrResumeAsync(UserId);
 
             await Assert.ThrowsAsync<InvalidZeloPlanException>(
@@ -84,7 +92,7 @@ namespace Pyrra.Application.Tests.Zelo {
 
         [Fact]
         public async Task AnswerAsync_RespostaVazia_Lanca() {
-            var (service, _, _, _, _, _) = Build();
+            var (service, _, _, _, _, _, _, _, _) = Build();
             var start = await service.StartOrResumeAsync(UserId);
 
             await Assert.ThrowsAsync<InvalidZeloPlanException>(
@@ -93,7 +101,7 @@ namespace Pyrra.Application.Tests.Zelo {
 
         [Fact]
         public async Task AnswerAsync_UsuarioNaoDono_LancaNotFound() {
-            var (service, _, _, _, _, _) = Build();
+            var (service, _, _, _, _, _, _, _, _) = Build();
             var start = await service.StartOrResumeAsync(UserId);
 
             await Assert.ThrowsAsync<NotFoundException>(
@@ -102,7 +110,7 @@ namespace Pyrra.Application.Tests.Zelo {
 
         [Fact]
         public async Task AnswerAsync_ObjetivoEmagrecimento_DisparaPerguntasDinamicasEsperadas() {
-            var (service, _, _, _, _, _) = Build();
+            var (service, _, _, _, _, _, _, _, _) = Build();
             var start = await service.StartOrResumeAsync(UserId);
 
             // objetivo -> restricoes -> equipamento(Nenhum) -> dias
@@ -128,7 +136,7 @@ namespace Pyrra.Application.Tests.Zelo {
 
         [Fact]
         public async Task AnswerAsync_ObjetivoCondicionamento_NaoDisparaPerguntasDinamicas() {
-            var (service, _, _, _, assistant, _) = Build();
+            var (service, _, _, _, assistant, _, _, _, _) = Build();
             var start = await service.StartOrResumeAsync(UserId);
 
             var final = await AnswerAllAsync(service, start.SessionId,
@@ -141,7 +149,7 @@ namespace Pyrra.Application.Tests.Zelo {
 
         [Fact]
         public async Task AnswerAsync_FormularioCompleto_GeraPlanoEConsomeCota() {
-            var (service, sessions, _, logs, assistant, clock) = Build();
+            var (service, sessions, _, logs, assistant, clock, _, _, _) = Build();
             var start = await service.StartOrResumeAsync(UserId);
 
             var final = await AnswerAllAsync(service, start.SessionId,
@@ -161,7 +169,7 @@ namespace Pyrra.Application.Tests.Zelo {
 
         [Fact]
         public async Task AnswerAsync_GeracaoFalha_MantemColetandoSemConsumirCota() {
-            var (service, sessions, _, logs, assistant, _) = Build();
+            var (service, sessions, _, logs, assistant, _, _, _, _) = Build();
             assistant.NextResult = new ZeloPlanGenerationResult(false, null, "O Zelo não conseguiu montar seu plano agora.");
             var start = await service.StartOrResumeAsync(UserId);
 
@@ -179,7 +187,7 @@ namespace Pyrra.Application.Tests.Zelo {
 
         [Fact]
         public async Task RetryGenerationAsync_ApósFalha_ConcluiComSucesso() {
-            var (service, _, _, logs, assistant, _) = Build();
+            var (service, _, _, logs, assistant, _, _, _, _) = Build();
             assistant.NextResult = new ZeloPlanGenerationResult(false, null, "falhou");
             var start = await service.StartOrResumeAsync(UserId);
             await AnswerAllAsync(service, start.SessionId, "Condicionamento físico", "Nenhuma", "Academia completa", "4-5 dias");
@@ -194,7 +202,7 @@ namespace Pyrra.Application.Tests.Zelo {
 
         [Fact]
         public async Task AnswerAsync_CotaDiariaEstourada_Lanca() {
-            var (service, _, _, logs, _, clock) = Build();
+            var (service, _, _, logs, _, clock, _, _, _) = Build();
             var today = clock.TodayIn("America/Sao_Paulo");
             logs.Logs.Add(new ZeloPlanQueryLog { Id = Guid.NewGuid(), UserId = UserId, Date = today, Count = 20 });
 
@@ -206,7 +214,7 @@ namespace Pyrra.Application.Tests.Zelo {
 
         [Fact]
         public async Task GetPreviewAsync_PlanoGerado_DevolvePlanoDeserializado() {
-            var (service, _, _, _, _, _) = Build();
+            var (service, _, _, _, _, _, _, _, _) = Build();
             var start = await service.StartOrResumeAsync(UserId);
             await AnswerAllAsync(service, start.SessionId, "Condicionamento físico", "Nenhuma", "Academia completa", "4-5 dias");
 
@@ -218,10 +226,62 @@ namespace Pyrra.Application.Tests.Zelo {
 
         [Fact]
         public async Task GetPreviewAsync_AindaColetando_Lanca() {
-            var (service, _, _, _, _, _) = Build();
+            var (service, _, _, _, _, _, _, _, _) = Build();
             var start = await service.StartOrResumeAsync(UserId);
 
             await Assert.ThrowsAsync<InvalidZeloPlanException>(() => service.GetPreviewAsync(UserId, start.SessionId));
+        }
+
+        [Fact]
+        public async Task ApplyAsync_SobrescreveTreinoENutricaoEMarcaAplicada() {
+            var (service, sessions, _, _, _, _, workoutDays, workoutExercises, nutritionItems) = Build();
+            var start = await service.StartOrResumeAsync(UserId);
+            await AnswerAllAsync(service, start.SessionId, "Condicionamento físico", "Nenhuma", "Academia completa", "4-5 dias");
+
+            // plano anterior do usuário, deve sumir depois de aplicar
+            workoutExercises.Exercises.Add(new Pyrra.Domain.Treinos.WorkoutPlanExercise {
+                Id = Guid.NewGuid(), UserId = UserId, DayOfWeek = Pyrra.Domain.Common.WeekDay.Domingo,
+                Type = Pyrra.Domain.Treinos.WorkoutType.Academia, ExerciseName = "Exercício antigo", Order = 0
+            });
+            nutritionItems.Items.Add(new Pyrra.Domain.Nutricao.NutritionPlanItem {
+                Id = Guid.NewGuid(), UserId = UserId, DayOfWeek = Pyrra.Domain.Common.WeekDay.Domingo,
+                MealType = Pyrra.Domain.Nutricao.MealType.Jantar, ItemName = "Item antigo", Quantity = "1"
+            });
+
+            await service.ApplyAsync(UserId, start.SessionId);
+
+            Assert.DoesNotContain(workoutExercises.Exercises, e => e.ExerciseName == "Exercício antigo");
+            Assert.DoesNotContain(nutritionItems.Items, i => i.ItemName == "Item antigo");
+            Assert.Equal(7, workoutDays.Days.Count(d => d.UserId == UserId));
+            Assert.Contains(workoutExercises.Exercises, e => e.UserId == UserId && e.ExerciseName == "Supino reto");
+            Assert.Contains(nutritionItems.Items, i => i.UserId == UserId && i.ItemName == "Ovos");
+
+            var session = sessions.Sessions.Single(s => s.Id == start.SessionId);
+            Assert.Equal(ZeloPlanSessionStatus.Aplicada, session.Status);
+            Assert.NotNull(session.AppliedAt);
+        }
+
+        [Fact]
+        public async Task ApplyAsync_SemPlanoGerado_Lanca() {
+            var (service, _, _, _, _, _, _, _, _) = Build();
+            var start = await service.StartOrResumeAsync(UserId);
+
+            await Assert.ThrowsAsync<InvalidZeloPlanException>(() => service.ApplyAsync(UserId, start.SessionId));
+        }
+
+        [Fact]
+        public async Task DiscardAsync_MarcaDescartadaSemTocarTreinoOuNutricao() {
+            var (service, sessions, _, _, _, _, workoutDays, workoutExercises, nutritionItems) = Build();
+            var start = await service.StartOrResumeAsync(UserId);
+            await AnswerAllAsync(service, start.SessionId, "Condicionamento físico", "Nenhuma", "Academia completa", "4-5 dias");
+
+            await service.DiscardAsync(UserId, start.SessionId);
+
+            var session = sessions.Sessions.Single(s => s.Id == start.SessionId);
+            Assert.Equal(ZeloPlanSessionStatus.Descartada, session.Status);
+            Assert.Empty(workoutDays.Days);
+            Assert.Empty(workoutExercises.Exercises);
+            Assert.Empty(nutritionItems.Items);
         }
     }
 }

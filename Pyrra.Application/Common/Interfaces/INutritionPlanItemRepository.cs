@@ -14,5 +14,11 @@ namespace Pyrra.Application.Common.Interfaces {
         Task<NutritionPlanItem?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
         Task AddAsync(NutritionPlanItem item, CancellationToken cancellationToken = default);
         Task DeleteAsync(NutritionPlanItem item, CancellationToken cancellationToken = default);
+
+        // Troca o plano inteiro do usuário numa transação só: apaga todos os existentes e grava a
+        // nova lista, mesmo padrão do IWorkoutPlanExerciseRepository.ReplaceAllForUserAsync — é o
+        // que "aplicar plano do Zelo" usa pra sobrescrever sem deixar item órfão de um dia que o
+        // novo plano deixa vazio.
+        Task ReplaceAllForUserAsync(Guid userId, IReadOnlyList<NutritionPlanItem> items, CancellationToken cancellationToken = default);
     }
 }

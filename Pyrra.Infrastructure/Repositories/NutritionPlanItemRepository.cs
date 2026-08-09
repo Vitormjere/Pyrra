@@ -42,5 +42,17 @@ namespace Pyrra.Infrastructure.Repositories {
             _context.NutritionPlanItems.Remove(item);
             await _context.SaveChangesAsync(cancellationToken);
         }
+
+        // mesmo padrão do WorkoutPlanExerciseRepository.ReplaceAllForUserAsync: apaga tudo do
+        // usuário e grava a lista nova num SaveChanges só, pra a troca ser atômica
+        public async Task ReplaceAllForUserAsync(Guid userId, IReadOnlyList<NutritionPlanItem> items, CancellationToken cancellationToken = default) {
+            var existing = await _context.NutritionPlanItems
+                .Where(i => i.UserId == userId)
+                .ToListAsync(cancellationToken);
+
+            _context.NutritionPlanItems.RemoveRange(existing);
+            await _context.NutritionPlanItems.AddRangeAsync(items, cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
     }
 }

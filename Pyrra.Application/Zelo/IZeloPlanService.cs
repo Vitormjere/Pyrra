@@ -14,5 +14,11 @@ namespace Pyrra.Application.Zelo {
         Task<ZeloPlanSessionState> RetryGenerationAsync(Guid userId, Guid sessionId, CancellationToken cancellationToken = default);
 
         Task<ZeloPlanPreview> GetPreviewAsync(Guid userId, Guid sessionId, CancellationToken cancellationToken = default);
+
+        // sobrescreve o Plano da Semana (Treino) e o plano de Nutrição do usuário com o plano gerado
+        Task ApplyAsync(Guid userId, Guid sessionId, CancellationToken cancellationToken = default);
+
+        // descarta o plano gerado, mantém o que o usuário já tinha
+        Task DiscardAsync(Guid userId, Guid sessionId, CancellationToken cancellationToken = default);
     }
 }

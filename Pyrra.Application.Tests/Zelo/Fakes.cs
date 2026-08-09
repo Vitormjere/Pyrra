@@ -5,9 +5,41 @@ using System.Threading;
 using System.Threading.Tasks;
 using Pyrra.Application.Common.Interfaces;
 using Pyrra.Application.Zelo;
+using Pyrra.Domain.Common;
+using Pyrra.Domain.Nutricao;
 using Pyrra.Domain.Zelo;
 
 namespace Pyrra.Application.Tests.Zelo {
+    // mesmo padrão do FakeWorkoutPlanExerciseRepository (Treinos/Fakes.cs): ReplaceAllForUserAsync apaga tudo do usuário antes de gravar a lista nova
+    internal sealed class FakeNutritionPlanItemRepository : INutritionPlanItemRepository {
+        public readonly List<NutritionPlanItem> Items = new();
+
+        public Task<IReadOnlyList<NutritionPlanItem>> GetByUserAsync(Guid userId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<NutritionPlanItem>>(Items.Where(i => i.UserId == userId).ToList());
+
+        public Task<IReadOnlyList<NutritionPlanItem>> GetByUserAndDayAsync(Guid userId, WeekDay dayOfWeek, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<NutritionPlanItem>>(
+                Items.Where(i => i.UserId == userId && i.DayOfWeek == dayOfWeek).ToList());
+
+        public Task<NutritionPlanItem?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Items.FirstOrDefault(i => i.Id == id));
+
+        public Task AddAsync(NutritionPlanItem item, CancellationToken cancellationToken = default) {
+            Items.Add(item);
+            return Task.CompletedTask;
+        }
+
+        public Task DeleteAsync(NutritionPlanItem item, CancellationToken cancellationToken = default) {
+            Items.RemoveAll(i => i.Id == item.Id);
+            return Task.CompletedTask;
+        }
+
+        public Task ReplaceAllForUserAsync(Guid userId, IReadOnlyList<NutritionPlanItem> items, CancellationToken cancellationToken = default) {
+            Items.RemoveAll(i => i.UserId == userId);
+            Items.AddRange(items);
+            return Task.CompletedTask;
+        }
+    }
     internal sealed class FakeZeloPlanSessionRepository : IZeloPlanSessionRepository {
         public readonly List<ZeloPlanSession> Sessions = new();
 

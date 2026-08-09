@@ -83,6 +83,40 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
+        // sobrescreve o Plano da Semana (Treino) e o plano de Nutrição do usuário com o plano gerado
+        [HttpPost("{sessionId:guid}/aplicar")]
+        public async Task<IActionResult> Apply(Guid sessionId, CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            try {
+                await _service.ApplyAsync(userId, sessionId, cancellationToken);
+                return NoContent();
+            } catch (InvalidZeloPlanException ex) {
+                return BadRequest(new { message = ex.Message });
+            } catch (NotFoundException ex) {
+                return NotFound(new { message = ex.Message });
+            }
+        }
+
+        // descarta o plano gerado, mantém o que o usuário já tinha em Treino e Nutrição
+        [HttpPost("{sessionId:guid}/descartar")]
+        public async Task<IActionResult> Discard(Guid sessionId, CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            try {
+                await _service.DiscardAsync(userId, sessionId, cancellationToken);
+                return NoContent();
+            } catch (InvalidZeloPlanException ex) {
+                return BadRequest(new { message = ex.Message });
+            } catch (NotFoundException ex) {
+                return NotFound(new { message = ex.Message });
+            }
+        }
+
         private bool TryGetUserId(out Guid userId) {
             var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
             return Guid.TryParse(claim, out userId);

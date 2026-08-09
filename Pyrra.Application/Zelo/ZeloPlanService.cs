@@ -6,6 +6,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Pyrra.Application.Common.Exceptions;
 using Pyrra.Application.Common.Interfaces;
+using Pyrra.Domain.Nutricao;
+using Pyrra.Domain.Treinos;
 using Pyrra.Domain.Users;
 using Pyrra.Domain.Zelo;
 
@@ -20,29 +22,38 @@ namespace Pyrra.Application.Zelo {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         };
 
-        private readonly IZeloPlanSessionRepository _sessionRepository;
-        private readonly IZeloPlanAnswerRepository  _answerRepository;
-        private readonly IZeloPlanQueryLogRepository _queryLogRepository;
-        private readonly IZeloContextBuilder        _contextBuilder;
-        private readonly IZeloPlanAssistant         _assistant;
-        private readonly IUserRepository            _userRepository;
-        private readonly IClockService              _clock;
+        private readonly IZeloPlanSessionRepository     _sessionRepository;
+        private readonly IZeloPlanAnswerRepository      _answerRepository;
+        private readonly IZeloPlanQueryLogRepository    _queryLogRepository;
+        private readonly IZeloContextBuilder            _contextBuilder;
+        private readonly IZeloPlanAssistant             _assistant;
+        private readonly IWorkoutPlanDayRepository      _workoutPlanDayRepository;
+        private readonly IWorkoutPlanExerciseRepository _workoutPlanExerciseRepository;
+        private readonly INutritionPlanItemRepository   _nutritionPlanItemRepository;
+        private readonly IUserRepository                _userRepository;
+        private readonly IClockService                  _clock;
 
         public ZeloPlanService(
-            IZeloPlanSessionRepository  sessionRepository,
-            IZeloPlanAnswerRepository   answerRepository,
-            IZeloPlanQueryLogRepository queryLogRepository,
-            IZeloContextBuilder         contextBuilder,
-            IZeloPlanAssistant          assistant,
-            IUserRepository             userRepository,
-            IClockService               clock) {
-            _sessionRepository  = sessionRepository;
-            _answerRepository   = answerRepository;
-            _queryLogRepository = queryLogRepository;
-            _contextBuilder     = contextBuilder;
-            _assistant          = assistant;
-            _userRepository     = userRepository;
-            _clock              = clock;
+            IZeloPlanSessionRepository     sessionRepository,
+            IZeloPlanAnswerRepository      answerRepository,
+            IZeloPlanQueryLogRepository    queryLogRepository,
+            IZeloContextBuilder            contextBuilder,
+            IZeloPlanAssistant             assistant,
+            IWorkoutPlanDayRepository      workoutPlanDayRepository,
+            IWorkoutPlanExerciseRepository workoutPlanExerciseRepository,
+            INutritionPlanItemRepository   nutritionPlanItemRepository,
+            IUserRepository                userRepository,
+            IClockService                  clock) {
+            _sessionRepository             = sessionRepository;
+            _answerRepository              = answerRepository;
+            _queryLogRepository            = queryLogRepository;
+            _contextBuilder                = contextBuilder;
+            _assistant                     = assistant;
+            _workoutPlanDayRepository      = workoutPlanDayRepository;
+            _workoutPlanExerciseRepository = workoutPlanExerciseRepository;
+            _nutritionPlanItemRepository   = nutritionPlanItemRepository;
+            _userRepository                = userRepository;
+            _clock                         = clock;
         }
 
         public async Task<ZeloPlanSessionState> StartOrResumeAsync(Guid userId, CancellationToken cancellationToken = default) {
@@ -126,6 +137,63 @@ namespace Pyrra.Application.Zelo {
             var plan = JsonSerializer.Deserialize<GeneratedPlan>(session.GeneratedPlanJson, JsonOptions)
                        ?? throw new InvalidZeloPlanException("O plano ainda não foi gerado.");
             return new ZeloPlanPreview(session.Id, plan, session.Status);
+        }
+
+        public async Task ApplyAsync(Guid userId, Guid sessionId, CancellationToken cancellationToken = default) {
+            var session = await GetOwnedActiveSessionAsync(userId, sessionId, cancellationToken);
+            if (session.Status != ZeloPlanSessionStatus.PlanoGerado || session.GeneratedPlanJson is null) {
+                throw new InvalidZeloPlanException("Não há plano gerado pra aplicar.");
+            }
+
+            var plan = JsonSerializer.Deserialize<GeneratedPlan>(session.GeneratedPlanJson, JsonOptions)
+                       ?? throw new InvalidZeloPlanException("Não há plano gerado pra aplicar.");
+
+            // Treino: mesma cópia que WorkoutTemplateService.ApplyAsync faz ao aplicar um template
+            var days = plan.WorkoutDays
+                .Select(d => new WorkoutPlanDay { DayOfWeek = d.DayOfWeek, Label = d.Label })
+                .ToList();
+            await _workoutPlanDayRepository.UpsertManyAsync(userId, days, cancellationToken);
+
+            var exercises = plan.WorkoutDays
+                .SelectMany(day => day.Exercises.Select(e => new WorkoutPlanExercise {
+                    Id           = Guid.NewGuid(),
+                    UserId       = userId,
+                    DayOfWeek    = day.DayOfWeek,
+                    Type         = e.Type,
+                    ExerciseName = e.ExerciseName,
+                    Sets         = e.Sets,
+                    Reps         = e.Reps,
+                    Order        = e.Order
+                }))
+                .ToList();
+            await _workoutPlanExerciseRepository.ReplaceAllForUserAsync(userId, exercises, cancellationToken);
+
+            // Nutrição: mesmo padrão, agora com ReplaceAllForUserAsync (novo, criado pra este fluxo)
+            var items = plan.NutritionDays
+                .SelectMany(day => day.Items.Select(i => new NutritionPlanItem {
+                    Id        = Guid.NewGuid(),
+                    UserId    = userId,
+                    DayOfWeek = day.DayOfWeek,
+                    MealType  = i.MealType,
+                    ItemName  = i.ItemName,
+                    Quantity  = i.Quantity
+                }))
+                .ToList();
+            await _nutritionPlanItemRepository.ReplaceAllForUserAsync(userId, items, cancellationToken);
+
+            session.Status    = ZeloPlanSessionStatus.Aplicada;
+            session.AppliedAt = _clock.UtcNow;
+            await _sessionRepository.UpdateAsync(session, cancellationToken);
+        }
+
+        public async Task DiscardAsync(Guid userId, Guid sessionId, CancellationToken cancellationToken = default) {
+            var session = await GetOwnedActiveSessionAsync(userId, sessionId, cancellationToken);
+            if (session.Status != ZeloPlanSessionStatus.PlanoGerado) {
+                throw new InvalidZeloPlanException("Não há plano gerado pra descartar.");
+            }
+
+            session.Status = ZeloPlanSessionStatus.Descartada;
+            await _sessionRepository.UpdateAsync(session, cancellationToken);
         }
 
         private async Task<ZeloPlanSessionState> GenerateAsync(ZeloPlanSession session, IReadOnlyList<ZeloPlanAnswer> answers, CancellationToken cancellationToken) {
