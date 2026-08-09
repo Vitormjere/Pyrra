@@ -62,9 +62,11 @@ export async function setTeamBannerTheme(teamId: string, bannerTheme: TeamBanner
 export async function uploadTeamBannerImage(teamId: string, file: File): Promise<Team> {
   const formData = new FormData()
   formData.append('file', file)
-  const { data } = await api.post<Team>(`/api/times/${teamId}/banner`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })
+  // NÃO fixar Content-Type aqui: o navegador precisa gerar o header sozinho pra incluir o
+  // "boundary" do multipart. Fixando manualmente (mesmo como só "multipart/form-data"), o
+  // boundary some do header mas continua no corpo, e o ASP.NET Core rejeita com 400
+  // "Missing content-type boundary" antes de a requisição chegar no controller.
+  const { data } = await api.post<Team>(`/api/times/${teamId}/banner`, formData)
   return data
 }
 
