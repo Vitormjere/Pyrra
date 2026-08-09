@@ -40,6 +40,10 @@ namespace Pyrra.Infrastructure.Data {
         public DbSet<NutritionPlanItem> NutritionPlanItems => Set<NutritionPlanItem>();
         public DbSet<NutritionPlanSeedLog> NutritionPlanSeedLogs => Set<NutritionPlanSeedLog>();
         public DbSet<ZeloQueryLog> ZeloQueryLogs => Set<ZeloQueryLog>();
+        public DbSet<ZeloPlanSession> ZeloPlanSessions => Set<ZeloPlanSession>();
+        public DbSet<ZeloPlanAnswer> ZeloPlanAnswers => Set<ZeloPlanAnswer>();
+        public DbSet<ZeloPlanMessage> ZeloPlanMessages => Set<ZeloPlanMessage>();
+        public DbSet<ZeloPlanQueryLog> ZeloPlanQueryLogs => Set<ZeloPlanQueryLog>();
         public DbSet<Friendship> Friendships => Set<Friendship>();
         public DbSet<Team> Teams => Set<Team>();
         public DbSet<TeamMember> TeamMembers => Set<TeamMember>();
@@ -502,6 +506,37 @@ namespace Pyrra.Infrastructure.Data {
             // não é único por usuário, mesmo padrão do PendingMilestone
             modelBuilder.Entity<UserAchievement>()
                 .HasIndex(u => new { u.UserId, u.AcknowledgedAt });
+
+            // Zelo conversacional: sessão do formulário guiado + chat livre, separado do Zelo geral
+            modelBuilder.Entity<ZeloPlanSession>()
+                .HasIndex(s => new { s.UserId, s.Status });
+
+            // cobre a limpeza/checagem de sessões expiradas
+            modelBuilder.Entity<ZeloPlanSession>()
+                .HasIndex(s => s.ExpiresAt);
+
+            modelBuilder.Entity<ZeloPlanAnswer>()
+                .Property(a => a.Question)
+                .HasMaxLength(300);
+
+            modelBuilder.Entity<ZeloPlanAnswer>()
+                .Property(a => a.Answer)
+                .HasMaxLength(300);
+
+            modelBuilder.Entity<ZeloPlanAnswer>()
+                .HasIndex(a => a.SessionId);
+
+            modelBuilder.Entity<ZeloPlanMessage>()
+                .Property(m => m.Content)
+                .HasMaxLength(2000);
+
+            modelBuilder.Entity<ZeloPlanMessage>()
+                .HasIndex(m => new { m.SessionId, m.CreatedAt });
+
+            // um contador por usuário/dia, mesmo padrão do ZeloQueryLog geral
+            modelBuilder.Entity<ZeloPlanQueryLog>()
+                .HasIndex(l => new { l.UserId, l.Date })
+                .IsUnique();
         }
     }
 }
