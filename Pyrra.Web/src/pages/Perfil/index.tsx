@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Award, Flame, Settings, Trophy, Users } from 'lucide-react'
 import SectionHeader from '../../components/SectionHeader'
 import AchievementCard from '../../components/AchievementCard'
+import ShareAchievementModal from '../../components/ShareAchievementModal'
 import EmptyState from '../../components/EmptyState'
 import Skeleton from '../../components/Skeleton'
 import { useAuth } from '../../hooks/useAuth'
@@ -31,6 +32,8 @@ export function Perfil() {
   // null = ainda carregando, [] = carregou e não tem nada — diferente de friendCount/streak, a aba Conquistas precisa distinguir os dois pra não piscar "sem conquistas" antes da resposta chegar
   const [achievements, setAchievements] = useState<AchievementResponse[] | null>(null)
   const [achievementsError, setAchievementsError] = useState(false)
+  // conquista aberta no modal de compartilhamento — null = fechado
+  const [sharingAchievement, setSharingAchievement] = useState<AchievementResponse | null>(null)
 
   useEffect(() => {
     let active = true
@@ -197,6 +200,14 @@ export function Perfil() {
           achievements={achievements}
           error={achievementsError}
           grouped={grouped}
+          onSelect={setSharingAchievement}
+        />
+      )}
+
+      {sharingAchievement && (
+        <ShareAchievementModal
+          achievement={sharingAchievement}
+          onClose={() => setSharingAchievement(null)}
         />
       )}
     </div>
@@ -208,10 +219,12 @@ function ConquistasTab({
   achievements,
   error,
   grouped,
+  onSelect,
 }: {
   achievements: AchievementResponse[] | null
   error: boolean
   grouped: [AchievementType, AchievementResponse[]][]
+  onSelect: (achievement: AchievementResponse) => void
 }) {
   if (achievements === null && !error) {
     return <Skeleton className="h-40" />
@@ -244,7 +257,11 @@ function ConquistasTab({
           <SectionHeader>{ACHIEVEMENT_TYPE_LABELS[type]}</SectionHeader>
           <div className="grid grid-cols-3 gap-2">
             {items.map((achievement) => (
-              <AchievementCard key={achievement.id} achievement={achievement} />
+              <AchievementCard
+                key={achievement.id}
+                achievement={achievement}
+                onClick={achievement.unlocked ? () => onSelect(achievement) : undefined}
+              />
             ))}
           </div>
         </section>

@@ -20,6 +20,7 @@ import ErrorRetry from '../../components/ErrorRetry'
 import { useConfirm } from '../../hooks/useConfirm'
 import MilestoneCelebration from '../../components/MilestoneCelebration'
 import FreezeUseNotice from '../../components/FreezeUseNotice'
+import AchievementUnlockNotice from '../../components/AchievementUnlockNotice'
 import PreviewCard from '../../components/PreviewCard'
 import ProgressRing from '../../components/ProgressRing'
 import ReflectionCard from '../../components/ReflectionCard'
@@ -41,6 +42,7 @@ import {
   getPendingMilestones,
   getStreakStatus,
 } from '../../services/streakService'
+import { acknowledgeAchievements, getPendingAchievements } from '../../services/achievementService'
 import {
   getBalance,
   getWeeklySummary,
@@ -64,6 +66,7 @@ import type {
   PendingMilestoneResponse,
   StreakStatusResponse,
 } from '../../types/streak'
+import type { PendingAchievementResponse } from '../../types/achievement'
 import type {
   BalanceResponse,
   WeeklyFinanceSummaryResponse,
@@ -165,6 +168,9 @@ export function Hoje() {
   // Fila de avisos de freeze usado — mesma mecânica da fila de marcos.
   const [freezeUses, setFreezeUses] = useState<PendingFreezeUseResponse[]>([])
   const [acknowledgingFreeze, setAcknowledgingFreeze] = useState(false)
+  // Fila de conquistas desbloqueadas — mesma mecânica da fila de marcos.
+  const [achievementUnlocks, setAchievementUnlocks] = useState<PendingAchievementResponse[]>([])
+  const [acknowledgingAchievement, setAcknowledgingAchievement] = useState(false)
   // Qual tarefa está em voo — só a linha tocada trava.
   const [pendingTaskId, setPendingTaskId] = useState<string | null>(null)
 
@@ -225,15 +231,19 @@ export function Hoje() {
       ])
 
     // Depois, nunca junto: é o acerto rodado dentro do GET /api/streak que grava
-    // os marcos e os freezes usados. Em paralelo, um aviso criado agora poderia
-    // não estar na lista. Marcos e freezes já podem vir juntos entre si — o
-    // acerto já rodou no getStreakStatus() acima.
-    const [pending, pendingFreezes] = await Promise.all([
+    // os marcos e os freezes usados (e dispara o checker de conquistas). Em
+    // paralelo, um aviso criado agora poderia não estar na lista. Os três podem
+    // vir juntos entre si — o acerto já rodou no getStreakStatus() acima.
+    const [pending, pendingFreezes, pendingAchievements] = await Promise.all([
       getPendingMilestones(),
       getPendingFreezeUses(),
+      getPendingAchievements(),
     ])
 
-    return { scoreData, streakData, balanceData, tasksData, planData, summaryData, pending, pendingFreezes }
+    return {
+      scoreData, streakData, balanceData, tasksData, planData, summaryData,
+      pending, pendingFreezes, pendingAchievements,
+    }
   }, [])
 
   useEffect(() => {
@@ -253,6 +263,7 @@ export function Hoje() {
         setSummary(result.summaryData)
         setMilestones(result.pending)
         setFreezeUses(result.pendingFreezes)
+        setAchievementUnlocks(result.pendingAchievements)
       } catch (err) {
         if (!active) return
         setError(
@@ -284,6 +295,7 @@ export function Hoje() {
         setSummary(result.summaryData)
       setMilestones(result.pending)
       setFreezeUses(result.pendingFreezes)
+      setAchievementUnlocks(result.pendingAchievements)
     } catch (err) {
       setError(getApiErrorMessage(err, {}, 'Não foi possível carregar seu dia.'))
     } finally {
@@ -305,14 +317,16 @@ export function Hoje() {
       // currentCount e freezes na virada do dia, que o score sozinho não revela.
       setStreak(await getStreakStatus())
 
-      // E só então os marcos e os freezes usados, pela mesma razão da carga
-      // inicial: quem os cria é o acerto que acabou de rodar.
-      const [pending, pendingFreezes] = await Promise.all([
+      // E só então os marcos, os freezes usados e as conquistas, pela mesma
+      // razão da carga inicial: quem os cria é o acerto que acabou de rodar.
+      const [pending, pendingFreezes, pendingAchievements] = await Promise.all([
         getPendingMilestones(),
         getPendingFreezeUses(),
+        getPendingAchievements(),
       ])
       setMilestones(pending)
       setFreezeUses(pendingFreezes)
+      setAchievementUnlocks(pendingAchievements)
     } catch (err) {
       setError(
         getApiErrorMessage(err, {}, 'Não foi possível registrar o check-in.'),
@@ -570,6 +584,24 @@ export function Hoje() {
     } finally {
       setFreezeUses((queue) => queue.slice(1))
       setAcknowledgingFreeze(false)
+    }
+  }
+
+  async function handleAcknowledgeAchievement() {
+    const current = achievementUnlocks[0]
+    if (!current) return
+
+    setAcknowledgingAchievement(true)
+
+    try {
+      // Confirma SÓ a conquista exibida, mesma lógica de marcos e freezes.
+      await acknowledgeAchievements([current.id])
+    } catch {
+      // Falhou a confirmação: reaparece na próxima carga. Avançar a fila mesmo
+      // assim é melhor que prender o usuário num modal que não fecha.
+    } finally {
+      setAchievementUnlocks((queue) => queue.slice(1))
+      setAcknowledgingAchievement(false)
     }
   }
 
@@ -1176,9 +1208,21 @@ export function Hoje() {
         />
       )}
 
-      {/* Avisos de freeze só depois de esvaziar a fila de marcos: um modal por
-          vez. Conquista (verde) primeiro, alívio (freeze) em seguida. */}
-      {milestones.length === 0 && freezeUses.length > 0 && (
+      {/* Conquistas desbloqueadas depois dos marcos de streak: o marco é a
+          celebração imediata do número, a conquista é a recompensa derivada
+          dele (XP), então faz sentido vir logo em seguida. */}
+      {milestones.length === 0 && achievementUnlocks.length > 0 && (
+        <AchievementUnlockNotice
+          achievement={achievementUnlocks[0]}
+          remaining={achievementUnlocks.length - 1}
+          submitting={acknowledgingAchievement}
+          onConfirm={handleAcknowledgeAchievement}
+        />
+      )}
+
+      {/* Avisos de freeze por último, só depois de esvaziar marcos e
+          conquistas: um modal por vez. Alívio (freeze) fica pro final. */}
+      {milestones.length === 0 && achievementUnlocks.length === 0 && freezeUses.length > 0 && (
         <FreezeUseNotice
           freezeUse={freezeUses[0]}
           remaining={freezeUses.length - 1}
