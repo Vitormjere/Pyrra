@@ -20,5 +20,11 @@ namespace Pyrra.Application.Zelo {
 
         // descarta o plano gerado, mantém o que o usuário já tinha
         Task DiscardAsync(Guid userId, Guid sessionId, CancellationToken cancellationToken = default);
+
+        // histórico do chat livre, disponível depois que o plano foi gerado (PlanoGerado ou Aplicada)
+        Task<IReadOnlyList<ZeloPlanChatMessage>> GetMessagesAsync(Guid userId, Guid sessionId, CancellationToken cancellationToken = default);
+
+        // mesma cota diária da geração do plano (DailyLimit); a mensagem do usuário é salva mesmo se o Zelo não conseguir responder
+        Task<ZeloPlanChatResult> SendMessageAsync(Guid userId, Guid sessionId, string message, CancellationToken cancellationToken = default);
     }
 }

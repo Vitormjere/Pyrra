@@ -24,6 +24,7 @@ namespace Pyrra.Application.Zelo {
 
         private readonly IZeloPlanSessionRepository     _sessionRepository;
         private readonly IZeloPlanAnswerRepository      _answerRepository;
+        private readonly IZeloPlanMessageRepository     _messageRepository;
         private readonly IZeloPlanQueryLogRepository    _queryLogRepository;
         private readonly IZeloContextBuilder            _contextBuilder;
         private readonly IZeloPlanAssistant             _assistant;
@@ -36,6 +37,7 @@ namespace Pyrra.Application.Zelo {
         public ZeloPlanService(
             IZeloPlanSessionRepository     sessionRepository,
             IZeloPlanAnswerRepository      answerRepository,
+            IZeloPlanMessageRepository     messageRepository,
             IZeloPlanQueryLogRepository    queryLogRepository,
             IZeloContextBuilder            contextBuilder,
             IZeloPlanAssistant             assistant,
@@ -46,6 +48,7 @@ namespace Pyrra.Application.Zelo {
             IClockService                  clock) {
             _sessionRepository             = sessionRepository;
             _answerRepository              = answerRepository;
+            _messageRepository             = messageRepository;
             _queryLogRepository            = queryLogRepository;
             _contextBuilder                = contextBuilder;
             _assistant                     = assistant;
@@ -222,6 +225,64 @@ namespace Pyrra.Application.Zelo {
             await IncrementQuotaAsync(user.Id, today, log, cancellationToken);
 
             return new ZeloPlanSessionState(session.Id, session.Status, null, answers.Count);
+        }
+
+        public async Task<IReadOnlyList<ZeloPlanChatMessage>> GetMessagesAsync(Guid userId, Guid sessionId, CancellationToken cancellationToken = default) {
+            await GetOwnedActiveSessionAsync(userId, sessionId, cancellationToken);
+            var messages = await _messageRepository.GetBySessionIdAsync(sessionId, cancellationToken);
+            return messages.Select(m => new ZeloPlanChatMessage(m.Id, m.Role, m.Content, m.CreatedAt)).ToList();
+        }
+
+        public async Task<ZeloPlanChatResult> SendMessageAsync(Guid userId, Guid sessionId, string message, CancellationToken cancellationToken = default) {
+            var session = await GetOwnedActiveSessionAsync(userId, sessionId, cancellationToken);
+            var planReady = session.Status is ZeloPlanSessionStatus.PlanoGerado or ZeloPlanSessionStatus.Aplicada;
+            if (!planReady || session.GeneratedPlanJson is null) {
+                throw new InvalidZeloPlanException("O chat livre só fica disponível depois que o plano é gerado.");
+            }
+
+            var normalizedMessage = message?.Trim();
+            if (string.IsNullOrEmpty(normalizedMessage)) {
+                throw new InvalidZeloPlanException("Informe uma mensagem.");
+            }
+            if (normalizedMessage.Length > 300) {
+                throw new InvalidZeloPlanException("A mensagem deve ter no máximo 300 caracteres.");
+            }
+
+            var user  = await _userRepository.GetByIdAsync(userId, cancellationToken)
+                        ?? throw new NotFoundException("Usuário não encontrado.");
+            var today = _clock.TodayIn(user.Timezone);
+
+            var log = await _queryLogRepository.GetByUserAndDateAsync(userId, today, cancellationToken);
+            if (log is not null && log.Count >= DailyLimit) {
+                throw new ZeloPlanRateLimitExceededException();
+            }
+
+            var plan = JsonSerializer.Deserialize<GeneratedPlan>(session.GeneratedPlanJson, JsonOptions)
+                       ?? throw new InvalidZeloPlanException("O chat livre só fica disponível depois que o plano é gerado.");
+            var history = await _messageRepository.GetBySessionIdAsync(sessionId, cancellationToken);
+
+            // salva a pergunta do usuário mesmo que o Zelo não consiga responder — é entrada real dele, não deveria se perder
+            await _messageRepository.AddAsync(new ZeloPlanMessage {
+                Id = Guid.NewGuid(), SessionId = sessionId, Role = ZeloPlanMessageRole.Usuario,
+                Content = normalizedMessage, CreatedAt = _clock.UtcNow
+            }, cancellationToken);
+
+            var context = await _contextBuilder.BuildAsync(userId, cancellationToken);
+            var result  = await _assistant.ContinueChatAsync(context, plan, history, normalizedMessage, cancellationToken);
+
+            if (!result.Success) {
+                // não consome cota em falha, mesma regra da geração de plano
+                return new ZeloPlanChatResult(null, result.Message);
+            }
+
+            var reply = new ZeloPlanMessage {
+                Id = Guid.NewGuid(), SessionId = sessionId, Role = ZeloPlanMessageRole.Zelo,
+                Content = result.Message, CreatedAt = _clock.UtcNow
+            };
+            await _messageRepository.AddAsync(reply, cancellationToken);
+            await IncrementQuotaAsync(userId, today, log, cancellationToken);
+
+            return new ZeloPlanChatResult(new ZeloPlanChatMessage(reply.Id, reply.Role, reply.Content, reply.CreatedAt), null);
         }
 
         private async Task IncrementQuotaAsync(Guid userId, DateOnly today, ZeloPlanQueryLog? existing, CancellationToken cancellationToken) {

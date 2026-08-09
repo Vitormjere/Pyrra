@@ -8,5 +8,10 @@ namespace Pyrra.Application.Zelo {
     public interface IZeloPlanAssistant {
         Task<ZeloPlanGenerationResult> GeneratePlanAsync(
             string userContext, IReadOnlyList<ZeloPlanAnswer> answers, CancellationToken cancellationToken = default);
+
+        // continua a conversa livre pós-formulário, com o plano gerado e o histórico como contexto
+        Task<ZeloAssistantResult> ContinueChatAsync(
+            string userContext, GeneratedPlan plan, IReadOnlyList<ZeloPlanMessage> history, string newMessage,
+            CancellationToken cancellationToken = default);
     }
 }

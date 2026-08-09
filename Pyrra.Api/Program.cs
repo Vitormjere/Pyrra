@@ -226,6 +226,7 @@ builder.Services.AddHttpClient("AnthropicPlanClient", client => {
 
 builder.Services.AddScoped<IZeloPlanSessionRepository, ZeloPlanSessionRepository>();
 builder.Services.AddScoped<IZeloPlanAnswerRepository, ZeloPlanAnswerRepository>();
+builder.Services.AddScoped<IZeloPlanMessageRepository, ZeloPlanMessageRepository>();
 builder.Services.AddScoped<IZeloPlanQueryLogRepository, ZeloPlanQueryLogRepository>();
 builder.Services.AddScoped<IZeloPlanAssistant, AnthropicZeloPlanAssistant>();
 builder.Services.AddScoped<IZeloPlanService, ZeloPlanService>();

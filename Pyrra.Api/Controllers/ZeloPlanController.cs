@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
@@ -110,6 +111,40 @@ namespace Pyrra.Api.Controllers {
             try {
                 await _service.DiscardAsync(userId, sessionId, cancellationToken);
                 return NoContent();
+            } catch (InvalidZeloPlanException ex) {
+                return BadRequest(new { message = ex.Message });
+            } catch (NotFoundException ex) {
+                return NotFound(new { message = ex.Message });
+            }
+        }
+
+        // histórico do chat livre — disponível a partir de PlanoGerado
+        [HttpGet("{sessionId:guid}/mensagens")]
+        public async Task<ActionResult<ZeloPlanChatMessageResponse[]>> GetMessages(Guid sessionId, CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            try {
+                var messages = await _service.GetMessagesAsync(userId, sessionId, cancellationToken);
+                return Ok(messages.Select(ZeloPlanChatMessageResponse.FromResult).ToArray());
+            } catch (NotFoundException ex) {
+                return NotFound(new { message = ex.Message });
+            }
+        }
+
+        [HttpPost("{sessionId:guid}/mensagens")]
+        public async Task<ActionResult<ZeloPlanChatResponse>> SendMessage(
+            Guid sessionId, [FromBody] ZeloPlanChatRequest request, CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            try {
+                var result = await _service.SendMessageAsync(userId, sessionId, request.Mensagem ?? string.Empty, cancellationToken);
+                return Ok(ZeloPlanChatResponse.FromResult(result));
+            } catch (ZeloPlanRateLimitExceededException ex) {
+                return StatusCode(StatusCodes.Status429TooManyRequests, new { message = ex.Message });
             } catch (InvalidZeloPlanException ex) {
                 return BadRequest(new { message = ex.Message });
             } catch (NotFoundException ex) {

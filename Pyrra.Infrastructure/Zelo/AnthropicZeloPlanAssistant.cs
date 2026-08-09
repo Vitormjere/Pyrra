@@ -22,8 +22,15 @@ namespace Pyrra.Infrastructure.Zelo {
         private const string Model = "claude-sonnet-4-5";
         private const int MaxTokens = 4000;
 
+        // chat livre é pergunta curta sobre um plano já pronto — mesmo modelo/orçamento do Zelo geral, não precisa do Sonnet
+        private const string ChatModel = "claude-haiku-4-5";
+        private const int ChatMaxTokens = 300;
+
         private const string FriendlyErrorMessage =
             "O Zelo não conseguiu montar seu plano agora. Tente novamente em alguns instantes.";
+
+        private const string ChatFriendlyErrorMessage =
+            "O Zelo está indisponível no momento. Tente novamente em alguns instantes.";
 
         private static readonly JsonSerializerOptions ResponseJsonOptions = new() {
             PropertyNameCaseInsensitive = true
@@ -89,6 +96,85 @@ namespace Pyrra.Infrastructure.Zelo {
 
             return new ZeloPlanGenerationResult(true, plan, string.Empty);
         }
+
+        public async Task<ZeloAssistantResult> ContinueChatAsync(
+            string userContext, GeneratedPlan plan, IReadOnlyList<ZeloPlanMessage> history, string newMessage,
+            CancellationToken cancellationToken = default) {
+            var systemPrompt = ChatSystemPrompt + "\n\n" + SummarizePlan(plan) + "\n\n" + userContext;
+
+            var messages = history
+                .Select(m => new { role = m.Role == ZeloPlanMessageRole.Usuario ? "user" : "assistant", content = m.Content })
+                .Append(new { role = "user", content = newMessage })
+                .ToArray();
+
+            var payload = new {
+                model      = ChatModel,
+                max_tokens = ChatMaxTokens,
+                system     = systemPrompt,
+                messages
+            };
+
+            using var body = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+            var client = _httpClientFactory.CreateClient("AnthropicClient");
+
+            HttpResponseMessage response;
+            try {
+                response = await client.PostAsync("v1/messages", body, cancellationToken);
+            } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
+                throw;
+            } catch (Exception ex) {
+                _logger.LogError(ex, "Falha ao chamar a API da Anthropic para o chat do Zelo.");
+                return new ZeloAssistantResult(false, ChatFriendlyErrorMessage);
+            }
+
+            if (!response.IsSuccessStatusCode) {
+                _logger.LogError("API da Anthropic respondeu {StatusCode} para o chat do Zelo.", (int)response.StatusCode);
+                return new ZeloAssistantResult(false, ChatFriendlyErrorMessage);
+            }
+
+            var json = await response.Content.ReadAsStringAsync(cancellationToken);
+            try {
+                using var doc = JsonDocument.Parse(json);
+                var text = doc.RootElement.GetProperty("content")[0].GetProperty("text").GetString();
+                if (string.IsNullOrWhiteSpace(text)) {
+                    _logger.LogError("Resposta da Anthropic para o chat do Zelo veio sem texto.");
+                    return new ZeloAssistantResult(false, ChatFriendlyErrorMessage);
+                }
+                return new ZeloAssistantResult(true, text.Trim());
+            } catch (Exception ex) {
+                _logger.LogError(ex, "Não foi possível ler a resposta da Anthropic para o chat do Zelo.");
+                return new ZeloAssistantResult(false, ChatFriendlyErrorMessage);
+            }
+        }
+
+        // resumo compacto do plano pro prompt do chat — não manda o JSON inteiro pra não estourar o orçamento de tokens à toa
+        private static string SummarizePlan(GeneratedPlan plan) {
+            var sb = new StringBuilder();
+            sb.Append("PLANO ATUAL DO USUÁRIO\n").Append(plan.Summary).AppendLine();
+
+            sb.AppendLine("Treino:");
+            foreach (var day in plan.WorkoutDays) {
+                var exercises = day.Exercises.Count == 0
+                    ? "descanso"
+                    : string.Join(", ", day.Exercises.Select(e => e.ExerciseName));
+                sb.Append("- ").Append(day.DayOfWeek).Append(": ").AppendLine(exercises);
+            }
+
+            sb.AppendLine("Nutrição:");
+            foreach (var day in plan.NutritionDays) {
+                var items = string.Join(", ", day.Items.Select(i => i.ItemName));
+                sb.Append("- ").Append(day.DayOfWeek).Append(": ").AppendLine(items);
+            }
+
+            return sb.ToString();
+        }
+
+        private const string ChatSystemPrompt =
+            "Você é o Zelo, assistente pessoal dentro do app Pyrra. O usuário acabou de receber um " +
+            "plano de Treino e Nutrição que você mesmo montou (resumido abaixo). Responda dúvidas e " +
+            "pedidos de ajuste sobre esse plano de forma direta, breve (2-4 frases) e encorajadora. " +
+            "Você não pode alterar o plano diretamente nesta conversa — se o usuário pedir uma mudança, " +
+            "explique a sugestão e diga que ele pode gerar um novo plano se quiser aplicá-la.";
 
         private static string BuildUserContent(string userContext, IReadOnlyList<ZeloPlanAnswer> answers) {
             var sb = new StringBuilder();

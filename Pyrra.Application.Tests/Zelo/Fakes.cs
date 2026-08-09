@@ -101,16 +101,40 @@ namespace Pyrra.Application.Tests.Zelo {
             Task.FromResult(Context);
     }
 
+    internal sealed class FakeZeloPlanMessageRepository : IZeloPlanMessageRepository {
+        public readonly List<ZeloPlanMessage> Messages = new();
+
+        public Task<IReadOnlyList<ZeloPlanMessage>> GetBySessionIdAsync(Guid sessionId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ZeloPlanMessage>>(
+                Messages.Where(m => m.SessionId == sessionId).OrderBy(m => m.CreatedAt).ToList());
+
+        public Task AddAsync(ZeloPlanMessage message, CancellationToken cancellationToken = default) {
+            Messages.Add(message);
+            return Task.CompletedTask;
+        }
+    }
+
     internal sealed class FakeZeloPlanAssistant : IZeloPlanAssistant {
         public int CallCount { get; private set; }
+        public int ChatCallCount { get; private set; }
 
         // configurável por teste: null usa um plano válido padrão
         public ZeloPlanGenerationResult? NextResult { get; set; }
+
+        // configurável por teste: null usa uma resposta de sucesso padrão
+        public ZeloAssistantResult? NextChatResult { get; set; }
 
         public Task<ZeloPlanGenerationResult> GeneratePlanAsync(
             string userContext, IReadOnlyList<ZeloPlanAnswer> answers, CancellationToken cancellationToken = default) {
             CallCount++;
             return Task.FromResult(NextResult ?? new ZeloPlanGenerationResult(true, MakeValidPlan(), string.Empty));
+        }
+
+        public Task<ZeloAssistantResult> ContinueChatAsync(
+            string userContext, GeneratedPlan plan, IReadOnlyList<ZeloPlanMessage> history, string newMessage,
+            CancellationToken cancellationToken = default) {
+            ChatCallCount++;
+            return Task.FromResult(NextChatResult ?? new ZeloAssistantResult(true, "Resposta de teste do Zelo."));
         }
 
         public static GeneratedPlan MakeValidPlan() {
