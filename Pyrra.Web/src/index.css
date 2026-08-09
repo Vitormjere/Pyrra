@@ -81,6 +81,17 @@
 
   --font-display: 'Panchang', ui-sans-serif, system-ui, sans-serif;
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+
+  /*
+    Raridade das conquistas de streak — paleta própria, deliberadamente distinta
+    do brand-green. Esmeralda em especial fica mais "joia" (menos neon) que o
+    verde da marca para as duas não se confundirem lado a lado no grid.
+  */
+  --color-rarity-bronze: #C9834A;
+  --color-rarity-prata: #C7D2D9;
+  --color-rarity-ouro: #E9C15C;
+  --color-rarity-esmeralda: #22C99A;
+  --color-rarity-ametista: #B48CF2;
 }
 
 /*
