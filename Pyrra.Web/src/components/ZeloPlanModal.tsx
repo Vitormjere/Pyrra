@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 import ZeloPlanQuestionStep from './ZeloPlanQuestionStep'
 import ZeloPlanPreviewStep from './ZeloPlanPreviewStep'
+import ZeloPlanChatStep from './ZeloPlanChatStep'
 import { useConfirm } from '../hooks/useConfirm'
 import { getApiErrorMessage } from '../services/apiError'
 import {
@@ -20,7 +21,7 @@ interface ZeloPlanModalProps {
   onApplied: () => void
 }
 
-type Phase = 'loading' | 'question' | 'generating' | 'error' | 'preview' | 'applying'
+type Phase = 'loading' | 'question' | 'generating' | 'error' | 'preview' | 'applying' | 'chat'
 
 // Modal único que cobre o fluxo inteiro: formulário guiado -> geração -> preview -> aplicar/descartar
 // -> chat livre. Mesmo padrão de overlay do WorkoutTemplatePicker (fundo escuro, Esc fecha).
@@ -136,7 +137,7 @@ export function ZeloPlanModal({ onClose, onApplied }: ZeloPlanModalProps) {
     try {
       await applyZeloPlan(session.sessionId)
       onApplied()
-      onClose()
+      setPhase('chat')
     } catch (err) {
       setError(getApiErrorMessage(err, {}, 'Não foi possível aplicar o plano.'))
       setPhase('preview')
@@ -228,6 +229,8 @@ export function ZeloPlanModal({ onClose, onApplied }: ZeloPlanModalProps) {
           {phase === 'applying' && (
             <p className="py-8 text-center text-sm text-slate-500">Aplicando o plano...</p>
           )}
+
+          {phase === 'chat' && session && <ZeloPlanChatStep sessionId={session.sessionId} onClose={onClose} />}
         </div>
       </div>
 
