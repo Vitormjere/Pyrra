@@ -20,7 +20,10 @@ namespace Pyrra.Infrastructure.Zelo {
     // não uma resposta curta de 2-4 frases.
     public class AnthropicZeloPlanAssistant : IZeloPlanAssistant {
         private const string Model = "claude-sonnet-4-5";
-        private const int MaxTokens = 4000;
+
+        // 7 dias de treino + 7 dias de nutrição em JSON detalhado passa fácil de 4000 tokens — visto
+        // na prática cortando a resposta no meio do JSON (achado testando ao vivo)
+        private const int MaxTokens = 8000;
 
         // chat livre é pergunta curta sobre um plano já pronto — mesmo modelo/orçamento do Zelo geral, não precisa do Sonnet
         private const string ChatModel = "claude-haiku-4-5";
@@ -73,7 +76,12 @@ namespace Pyrra.Infrastructure.Zelo {
                 return new ZeloPlanGenerationResult(false, null, FriendlyErrorMessage);
             }
 
-            var json = await response.Content.ReadAsStringAsync(cancellationToken);
+            // ReadAsStringAsync() decide o charset pelo Content-Type da resposta e, sem um charset
+            // explícito, acabou lendo como Latin-1 na prática — acentos em português saíam
+            // duplamente corrompidos (achado testando ao vivo). A API da Anthropic sempre responde
+            // em UTF-8, então força a decodificação em vez de confiar na detecção automática.
+            var jsonBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+            var json      = Encoding.UTF8.GetString(jsonBytes);
             string? text;
             try {
                 using var doc = JsonDocument.Parse(json);
@@ -88,9 +96,10 @@ namespace Pyrra.Infrastructure.Zelo {
                 return new ZeloPlanGenerationResult(false, null, FriendlyErrorMessage);
             }
 
-            var plan = ParsePlan(StripJsonFence(text));
+            var stripped = StripJsonFence(text);
+            var plan = ParsePlan(stripped);
             if (plan is null) {
-                _logger.LogError("Resposta da Anthropic para o plano do Zelo não é um JSON válido/completo: {Text}", text);
+                _logger.LogError("Resposta da Anthropic para o plano do Zelo não é um JSON válido/completo: {Text}", stripped);
                 return new ZeloPlanGenerationResult(false, null, FriendlyErrorMessage);
             }
 
@@ -132,7 +141,12 @@ namespace Pyrra.Infrastructure.Zelo {
                 return new ZeloAssistantResult(false, ChatFriendlyErrorMessage);
             }
 
-            var json = await response.Content.ReadAsStringAsync(cancellationToken);
+            // ReadAsStringAsync() decide o charset pelo Content-Type da resposta e, sem um charset
+            // explícito, acabou lendo como Latin-1 na prática — acentos em português saíam
+            // duplamente corrompidos (achado testando ao vivo). A API da Anthropic sempre responde
+            // em UTF-8, então força a decodificação em vez de confiar na detecção automática.
+            var jsonBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+            var json      = Encoding.UTF8.GetString(jsonBytes);
             try {
                 using var doc = JsonDocument.Parse(json);
                 var text = doc.RootElement.GetProperty("content")[0].GetProperty("text").GetString();

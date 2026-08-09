@@ -62,7 +62,13 @@ namespace Pyrra.Infrastructure.Zelo {
                 return new ZeloAssistantResult(false, FriendlyErrorMessage);
             }
 
-            var json = await response.Content.ReadAsStringAsync(cancellationToken);
+            // ReadAsStringAsync() decide o charset pelo Content-Type da resposta e, sem um charset
+            // explícito, acabou lendo como Latin-1 na prática — acentos em português saíam
+            // duplamente corrompidos (achado testando ao vivo o Zelo conversacional, mesmo padrão
+            // de leitura aqui). A API da Anthropic sempre responde em UTF-8, então força a
+            // decodificação em vez de confiar na detecção automática.
+            var jsonBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+            var json      = Encoding.UTF8.GetString(jsonBytes);
             try {
                 using var doc = JsonDocument.Parse(json);
                 var text = doc.RootElement.GetProperty("content")[0].GetProperty("text").GetString();
