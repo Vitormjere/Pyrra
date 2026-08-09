@@ -215,6 +215,21 @@ builder.Services.AddScoped<IZeloContextBuilder, ZeloContextBuilder>();
 builder.Services.AddScoped<IZeloAssistant, AnthropicZeloAssistant>();
 builder.Services.AddScoped<IZeloService, ZeloService>();
 
+// Zelo conversacional (Treino + Nutrição): cliente HTTP próprio, mesma API mas com timeout maior —
+// gera um plano de 7 dias em JSON (até 4000 tokens), a pergunta rápida do Zelo geral não precisa disso
+builder.Services.AddHttpClient("AnthropicPlanClient", client => {
+    client.BaseAddress = new Uri("https://api.anthropic.com/");
+    client.Timeout = TimeSpan.FromSeconds(60);
+    client.DefaultRequestHeaders.TryAddWithoutValidation("x-api-key", builder.Configuration["Anthropic:ApiKey"] ?? string.Empty);
+    client.DefaultRequestHeaders.TryAddWithoutValidation("anthropic-version", "2023-06-01");
+});
+
+builder.Services.AddScoped<IZeloPlanSessionRepository, ZeloPlanSessionRepository>();
+builder.Services.AddScoped<IZeloPlanAnswerRepository, ZeloPlanAnswerRepository>();
+builder.Services.AddScoped<IZeloPlanQueryLogRepository, ZeloPlanQueryLogRepository>();
+builder.Services.AddScoped<IZeloPlanAssistant, AnthropicZeloPlanAssistant>();
+builder.Services.AddScoped<IZeloPlanService, ZeloPlanService>();
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment()) {

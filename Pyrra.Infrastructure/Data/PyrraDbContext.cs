@@ -516,6 +516,10 @@ namespace Pyrra.Infrastructure.Data {
                 .HasIndex(s => s.ExpiresAt);
 
             modelBuilder.Entity<ZeloPlanAnswer>()
+                .Property(a => a.Key)
+                .HasMaxLength(50);
+
+            modelBuilder.Entity<ZeloPlanAnswer>()
                 .Property(a => a.Question)
                 .HasMaxLength(300);
 
