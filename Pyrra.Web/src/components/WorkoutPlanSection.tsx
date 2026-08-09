@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { LayoutTemplate, Plus, X } from 'lucide-react'
+import { LayoutTemplate, Plus, Sparkles, X } from 'lucide-react'
 import SectionHeader from './SectionHeader'
 import Segmented from './Segmented'
 import WorkoutTemplatePicker from './WorkoutTemplatePicker'
+import ZeloPlanModal from './ZeloPlanModal'
 import {
   addPlanExercise,
   getWorkoutPlan,
@@ -51,6 +52,9 @@ export function WorkoutPlanSection() {
   // Modal de escolha de template.
   const [pickerOpen, setPickerOpen] = useState(false)
 
+  // Modal do Zelo conversacional — mesma sessão do botão em Nutrição.
+  const [zeloOpen, setZeloOpen] = useState(false)
+
   const today = todayWeekDay()
 
   // A semana "tem conteúdo" se algum dia tem label ou exercício — decide se aplicar um template
@@ -68,6 +72,16 @@ export function WorkoutPlanSection() {
     )
     setState('idle')
     setError(null)
+  }
+
+  // Aplicar o plano do Zelo não devolve o plano pronto como o template — rebusca do zero.
+  async function handleZeloApplied() {
+    try {
+      const plan = await getWorkoutPlan()
+      handleTemplateApplied(plan)
+    } catch {
+      // o modal do Zelo já confirmou a aplicação; se o refetch falhar, a próxima carga da tela mostra certo
+    }
   }
 
   async function handleAddExercise(
@@ -201,6 +215,14 @@ export function WorkoutPlanSection() {
               {state === 'saved' && 'Salvo'}
               {state === 'error' && (error ?? 'Erro ao salvar')}
             </span>
+            <button
+              type="button"
+              onClick={() => setZeloOpen(true)}
+              className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium text-brand-green ring-1 ring-brand-green/30 transition hover:bg-brand-green/10"
+            >
+              <Sparkles size={13} aria-hidden="true" />
+              Zelo
+            </button>
             <button
               type="button"
               onClick={() => setPickerOpen(true)}
@@ -367,6 +389,10 @@ export function WorkoutPlanSection() {
           onApplied={handleTemplateApplied}
           onClose={() => setPickerOpen(false)}
         />
+      )}
+
+      {zeloOpen && (
+        <ZeloPlanModal onApplied={handleZeloApplied} onClose={() => setZeloOpen(false)} />
       )}
     </section>
   )

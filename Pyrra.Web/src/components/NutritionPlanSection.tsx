@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Plus, X } from 'lucide-react'
+import { Plus, Sparkles, X } from 'lucide-react'
 import Skeleton from './Skeleton'
+import ZeloPlanModal from './ZeloPlanModal'
 import {
   addPlanItem,
   getPlan,
@@ -37,6 +38,9 @@ export function NutritionPlanSection() {
   const [saving, setSaving] = useState(false)
   const [removingId, setRemovingId] = useState<string | null>(null)
   const itemInputRef = useRef<HTMLInputElement>(null)
+
+  // Modal do Zelo conversacional — mesma sessão do botão em Treino.
+  const [zeloOpen, setZeloOpen] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -103,6 +107,16 @@ export function NutritionPlanSection() {
     }
   }
 
+  // Aplicar o plano do Zelo não devolve o plano pronto — rebusca do zero.
+  async function handleZeloApplied() {
+    try {
+      const data = await getPlan()
+      setPlan(data)
+    } catch {
+      // o modal do Zelo já confirmou a aplicação; se o refetch falhar, a próxima carga da tela mostra certo
+    }
+  }
+
   async function handleRemove(day: WeekDay, meal: MealType, itemId: string) {
     setRemovingId(itemId)
     setError(null)
@@ -146,10 +160,20 @@ export function NutritionPlanSection() {
 
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-sm text-slate-500">
-        O que estiver planejado para um dia é copiado automaticamente para os
-        registros quando aquele dia chega.
-      </p>
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm text-slate-500">
+          O que estiver planejado para um dia é copiado automaticamente para os
+          registros quando aquele dia chega.
+        </p>
+        <button
+          type="button"
+          onClick={() => setZeloOpen(true)}
+          className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium text-brand-green ring-1 ring-brand-green/30 transition hover:bg-brand-green/10"
+        >
+          <Sparkles size={13} aria-hidden="true" />
+          Zelo
+        </button>
+      </div>
 
       {/* Acordeão por dia: sete grades abertas ao mesmo tempo seria uma tela
           longa demais para o celular. */}
@@ -311,6 +335,10 @@ export function NutritionPlanSection() {
         >
           {error}
         </p>
+      )}
+
+      {zeloOpen && (
+        <ZeloPlanModal onApplied={handleZeloApplied} onClose={() => setZeloOpen(false)} />
       )}
     </div>
   )
