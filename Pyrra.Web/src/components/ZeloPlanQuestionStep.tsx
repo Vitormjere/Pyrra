@@ -19,6 +19,16 @@ export function ZeloPlanQuestionStep({ question, submitting, onSubmit }: ZeloPla
     onSubmit(trimmed)
   }
 
+  // Enviando a resposta: some com a pergunta em vez de só desabilitar os botões, senão a tela
+  // parece travada por não mudar nada visível enquanto espera o backend.
+  if (submitting) {
+    return (
+      <div className="flex flex-col items-center gap-2 py-8 text-center">
+        <p className="text-sm text-slate-500">Enviando resposta...</p>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <p className="text-base font-medium text-ink">{question.text}</p>

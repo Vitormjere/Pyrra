@@ -98,15 +98,24 @@ export function ZeloPlanModal({ onClose, onApplied }: ZeloPlanModalProps) {
     setSubmitting(true)
     setError(null)
 
+    // As 4 perguntas fixas sempre vêm antes das dinâmicas, então a partir da 4ª resposta (índice
+    // 3) esta pode ser a última — e o /responder já dispara a geração do plano (chamada de IA de
+    // vários segundos) na mesma requisição. Avisa antes de esperar, em vez de travar em silêncio.
+    // Se ainda vier outra pergunta dinâmica, a troca de fase é rápida e quase imperceptível.
+    const mayGenerate = session.answeredCount >= 3
+    if (mayGenerate) setPhase('generating')
+
     try {
       const state = await answerZeloPlanQuestion(session.sessionId, answer)
       if (state.nextQuestion) {
         setSession(state)
+        setPhase('question')
       } else {
         setPhase('generating')
         await enterState(state)
       }
     } catch (err) {
+      setPhase('question')
       setError(getApiErrorMessage(err, {}, 'Não foi possível enviar sua resposta.'))
     } finally {
       setSubmitting(false)
@@ -201,7 +210,14 @@ export function ZeloPlanModal({ onClose, onApplied }: ZeloPlanModalProps) {
           {phase === 'loading' && <p className="py-8 text-center text-sm text-slate-500">Carregando...</p>}
 
           {phase === 'question' && session?.nextQuestion && (
-            <ZeloPlanQuestionStep question={session.nextQuestion} submitting={submitting} onSubmit={handleAnswer} />
+            <div className="flex flex-col gap-3">
+              <ZeloPlanQuestionStep question={session.nextQuestion} submitting={submitting} onSubmit={handleAnswer} />
+              {error && (
+                <p role="alert" className="text-center text-sm text-red-300">
+                  {error}
+                </p>
+              )}
+            </div>
           )}
 
           {phase === 'generating' && (

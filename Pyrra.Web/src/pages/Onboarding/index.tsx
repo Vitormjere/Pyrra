@@ -16,7 +16,7 @@ const MODULES: readonly { name: string; description: string; icon: LucideIcon }[
   { name: 'Treino', description: 'Registre academia e corrida', icon: Dumbbell },
   { name: 'Nutrição', description: 'Refeições do dia e plano da semana', icon: Apple },
   { name: 'Finanças', description: 'Anote entradas e saídas na mão', icon: Wallet },
-  { name: 'Zelo', description: 'Assistente de IA que responde sobre seus dados', icon: Sparkles },
+  { name: 'Zelo', description: 'Tira dúvidas sobre seus dados e monta seu Treino e Nutrição automaticamente', icon: Sparkles },
 ]
 
 // mesmo formato do MODULES acima, reaproveitado no passo de Comunidade — ícones batendo com os do menu (AppLayout)
