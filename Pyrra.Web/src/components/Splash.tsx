@@ -24,7 +24,7 @@ export function Splash({ fadingOut = false }: SplashProps) {
         <div className="animate-pyrra-pulse-core absolute size-56 rounded-full bg-brand-green/25 blur-2xl" />
       </div>
 
-      <PyrraLogo size={168} className="relative" />
+      <PyrraLogo size={168} className="relative" showText={false} />
     </div>
   )
 }

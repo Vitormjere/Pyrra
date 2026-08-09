@@ -1,6 +1,8 @@
 interface PyrraLogoProps {
   size?: number
   className?: string
+  /** false esconde o lettering "PYRRA" e centraliza só a fênix no card — usado na splash. */
+  showText?: boolean
 }
 
 // Path original da marca (traço vetorial de Inkscape, coordenadas na viewBox 0 0 1280 698
@@ -15,7 +17,7 @@ const TEXT_PATH =
 // traçados a partir da arte vetorial original (pyrra1.svg), reposicionados e escalados
 // pra caber num card quadrado 100x100. SVG puro — escala em qualquer tamanho sem perder
 // nitidez, ao contrário de um raster.
-export function PyrraLogo({ size = 160, className }: PyrraLogoProps) {
+export function PyrraLogo({ size = 160, className, showText = true }: PyrraLogoProps) {
   return (
     <svg
       width={size}
@@ -41,15 +43,22 @@ export function PyrraLogo({ size = 160, className }: PyrraLogoProps) {
 
       <rect x="1" y="1" width="98" height="98" rx="14" fill="url(#pyrra-card-bg)" />
 
-      {/* fênix: bbox original (423,119)-(855,422) reposicionada pro topo do card */}
-      <g transform="translate(-53.53,-9.28) scale(0.162)" filter="url(#pyrra-mark-glow)">
+      {/* fênix: bbox original (423,119)-(855,422). Com texto: encostada no topo, deixando
+          espaço pro lettering embaixo. Sem texto: recentralizada e um pouco maior pra
+          preencher melhor o card sozinha. */}
+      <g
+        transform={showText ? 'translate(-53.53,-9.28) scale(0.162)' : 'translate(-62.4,2.4) scale(0.176)'}
+        filter="url(#pyrra-mark-glow)"
+      >
         <path d={BIRD_PATH} fill="#05090A" />
       </g>
 
       {/* "PYRRA": bbox original (336,455)-(944,542) reposicionado abaixo da fênix */}
-      <g transform="translate(-27.9,10.62) scale(0.1217)" filter="url(#pyrra-mark-glow)">
-        <path d={TEXT_PATH} fill="#05090A" />
-      </g>
+      {showText && (
+        <g transform="translate(-27.9,10.62) scale(0.1217)" filter="url(#pyrra-mark-glow)">
+          <path d={TEXT_PATH} fill="#05090A" />
+        </g>
+      )}
     </svg>
   )
 }
