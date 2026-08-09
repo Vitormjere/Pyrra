@@ -121,6 +121,46 @@
   text-shadow: 0 0 14px rgb(244 255 251 / 0.38);
 }
 
+/*
+  Brilho da splash: só um glow largo e um núcleo menor pulsando atrás do card,
+  nada de textura/rotação — ficou mais limpo depois de tentativas de efeitos
+  mais elaborados (fumaça, aurora) que não convenceram visualmente.
+  Só transform e opacity — as duas propriedades que o navegador anima direto
+  na GPU sem recalcular layout. As duas camadas têm duração e delay diferentes
+  pra não pulsarem em sincronia perfeita, o que pareceria um "piscar" artificial.
+*/
+@keyframes pyrra-splash-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 0.85;
+  }
+}
+
+@keyframes pyrra-splash-pulse-core {
+  0%,
+  100% {
+    transform: scale(0.94);
+    opacity: 0.45;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.8;
+  }
+}
+
+@utility animate-pyrra-pulse {
+  animation: pyrra-splash-pulse 3.4s ease-in-out infinite;
+}
+
+@utility animate-pyrra-pulse-core {
+  animation: pyrra-splash-pulse-core 2.6s ease-in-out 0.4s infinite;
+}
+
 @layer base {
   html,
   body,
