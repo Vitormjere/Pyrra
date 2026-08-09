@@ -7,5 +7,8 @@ namespace Pyrra.Domain.Achievements {
         public Guid UserId { get; set; }
         public Guid AchievementId { get; set; }
         public DateTime UnlockedAt { get; set; }
+
+        // nulo até o frontend confirmar que mostrou a celebração, mesmo padrão do PendingMilestone
+        public DateTime? AcknowledgedAt { get; set; }
     }
 }

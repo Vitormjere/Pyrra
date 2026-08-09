@@ -498,6 +498,10 @@ namespace Pyrra.Infrastructure.Data {
             modelBuilder.Entity<UserAchievement>()
                 .HasIndex(u => new { u.UserId, u.AchievementId })
                 .IsUnique();
+
+            // não é único por usuário, mesmo padrão do PendingMilestone
+            modelBuilder.Entity<UserAchievement>()
+                .HasIndex(u => new { u.UserId, u.AcknowledgedAt });
         }
     }
 }

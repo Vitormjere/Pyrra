@@ -127,6 +127,7 @@ builder.Services.AddScoped<IStreakService, StreakService>();
 builder.Services.AddScoped<IAchievementRepository, AchievementRepository>();
 builder.Services.AddScoped<IUserAchievementRepository, UserAchievementRepository>();
 builder.Services.AddScoped<IAchievementCheckerService, AchievementCheckerService>();
+builder.Services.AddScoped<IAchievementService, AchievementService>();
 
 builder.Services.AddScoped<IWorkoutLogRepository, WorkoutLogRepository>();
 builder.Services.AddScoped<IWorkoutPlanDayRepository, WorkoutPlanDayRepository>();

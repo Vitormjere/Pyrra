@@ -28,5 +28,32 @@ namespace Pyrra.Infrastructure.Repositories {
             await _context.UserAchievements.AddAsync(userAchievement, cancellationToken);
             await _context.SaveChangesAsync(cancellationToken);
         }
+
+        public async Task<IReadOnlyList<UserAchievement>> GetPendingByUserIdAsync(Guid userId, CancellationToken cancellationToken = default) =>
+            await _context.UserAchievements
+                .Where(u => u.UserId == userId && u.AcknowledgedAt == null)
+                .OrderBy(u => u.UnlockedAt)
+                .ToListAsync(cancellationToken);
+
+        public async Task<int> AcknowledgeAsync(Guid userId, IReadOnlyCollection<Guid>? ids, DateTime acknowledgedAt, CancellationToken cancellationToken = default) {
+            var query = _context.UserAchievements
+                .Where(u => u.UserId == userId && u.AcknowledgedAt == null);
+
+            if (ids is { Count: > 0 }) {
+                query = query.Where(u => ids.Contains(u.Id));
+            }
+
+            var pending = await query.ToListAsync(cancellationToken);
+            if (pending.Count == 0) {
+                return 0;
+            }
+
+            foreach (var userAchievement in pending) {
+                userAchievement.AcknowledgedAt = acknowledgedAt;
+            }
+
+            await _context.SaveChangesAsync(cancellationToken);
+            return pending.Count;
+        }
     }
 }
