@@ -45,7 +45,7 @@ const TONE_HINTS: Record<CommunicationTone, string> = {
 // exemplo do resumo noturno em cada tom — mostra a diferença na prática em vez de só descrever
 const TONE_PREVIEWS: Record<CommunicationTone, string> = {
   Direto: 'Você fechou 4 de 5 hábitos hoje. Falta o treino.',
-  Acolhedor: 'Foi um baita dia — você deu conta de quase tudo. Só falta o treino, sem pressa.',
+  Acolhedor: 'Foi um baita dia! você deu conta de quase tudo. Só falta o treino, sem pressa.',
   Desafiador: '4 de 5. Vai deixar o treino furar sua sequência? Ainda dá tempo.',
 }
 
@@ -227,7 +227,7 @@ export function Onboarding() {
                 Quando você quer seu resumo do dia?
               </h1>
               <p className="mt-2 text-sm text-slate-400">
-                Todo fim de dia o Pyrra manda um resumo do que você fez — hábitos, treino, o que
+                Todo fim de dia o Pyrra manda um resumo do que você fez! hábitos, treino, o que
                 ficou pra trás. Escolha o horário que funciona pra você.
               </p>
               <div className="mt-6 flex flex-col gap-1.5">
@@ -257,7 +257,7 @@ export function Onboarding() {
                 Você não precisa fazer isso sozinho
               </h1>
               <p className="mt-2 text-sm text-slate-400">
-                Adicione amigos, monte um time, dispute torneios com desafios — isso também é
+                Adicione amigos, monte um time, dispute torneios com desafios! isso também é
                 Pyrra.
               </p>
 

@@ -229,7 +229,7 @@ export function WorkoutPlanSection() {
               className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium text-brand-green ring-1 ring-brand-green/30 transition hover:bg-brand-green/10"
             >
               <LayoutTemplate size={13} aria-hidden="true" />
-              Aplicar template
+              Treinos prontos
             </button>
           </div>
         }
