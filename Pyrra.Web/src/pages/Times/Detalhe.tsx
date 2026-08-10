@@ -1316,8 +1316,8 @@ export function TimeDetalhe() {
         ) : challenges.length === 0 ? (
           <p className="rounded-md bg-surface px-4 py-3 text-sm text-slate-500 ring-1 ring-line">
             {team.isOwner
-              ? 'Nenhuma categoria ativa — ative uma categoria acima para liberar desafios pro time.'
-              : 'Nenhum desafio disponível — o dono do time ainda não ativou nenhuma categoria.'}
+              ? 'Nenhuma categoria ativa, ative uma categoria acima para liberar desafios pro time.'
+              : 'Nenhum desafio disponível, o dono do time ainda não ativou nenhuma categoria.'}
           </p>
         ) : (
           <ul className={listClasses}>
