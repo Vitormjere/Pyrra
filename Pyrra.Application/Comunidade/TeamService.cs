@@ -473,7 +473,8 @@ namespace Pyrra.Application.Comunidade {
             return summary;
         }
 
-        // carrega o time garantindo que o usuário tem acesso
+        // carrega o time garantindo que o usuário tem acesso: dono, membro, ou admin (o painel
+        // admin lista todos os times e precisa poder abrir o detalhe de qualquer um deles)
         private async Task<Team> GetOwnedOrMemberTeamAsync(Guid userId, Guid teamId, CancellationToken cancellationToken) {
             var team = await _teamRepository.GetByIdAsync(teamId, cancellationToken);
             if (team is null) {
@@ -482,7 +483,10 @@ namespace Pyrra.Application.Comunidade {
 
             var isMember = team.OwnerId == userId || await _teamMemberRepository.ExistsAsync(teamId, userId, cancellationToken);
             if (!isMember) {
-                throw new NotFoundException("Time não encontrado.");
+                var caller = await _userRepository.GetByIdAsync(userId, cancellationToken);
+                if (caller is null || !caller.IsAdmin) {
+                    throw new NotFoundException("Time não encontrado.");
+                }
             }
 
             return team;

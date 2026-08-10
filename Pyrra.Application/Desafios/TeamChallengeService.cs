@@ -117,7 +117,7 @@ namespace Pyrra.Application.Desafios {
         }
 
         public async Task<IReadOnlyList<AvailableChallenge>> GetAvailableChallengesAsync(Guid userId, Guid teamId, CancellationToken cancellationToken = default) {
-            await GetOwnedOrMemberTeamAsync(userId, teamId, cancellationToken);
+            await GetOwnedOrMemberOrAdminTeamAsync(userId, teamId, cancellationToken);
 
             var activeCategoryIds = (await _activeCategoryRepository.GetByTeamAsync(teamId, cancellationToken))
                 .Select(a => a.CategoryId)
@@ -299,7 +299,7 @@ namespace Pyrra.Application.Desafios {
         }
 
         public async Task<IReadOnlyList<TeamMemberRanking>> GetTeamRankingAsync(Guid callerId, Guid teamId, CancellationToken cancellationToken = default) {
-            var team = await GetOwnedOrMemberTeamAsync(callerId, teamId, cancellationToken);
+            var team = await GetOwnedOrMemberOrAdminTeamAsync(callerId, teamId, cancellationToken);
 
             var members        = await _teamMemberRepository.GetByTeamAsync(teamId, cancellationToken);
             var owner          = await _userRepository.GetByIdAsync(team.OwnerId, cancellationToken);
@@ -621,7 +621,9 @@ namespace Pyrra.Application.Desafios {
             return ownChallenge?.Points;
         }
 
-        // valida acesso do usuário ao time
+        // valida acesso do usuário ao time — usado nas ações de escrita (ativar/desativar
+        // categoria, submeter prova): admin não entra aqui de propósito, só dono ou membro
+        // mexem no time de verdade
         private async Task<Team> GetOwnedOrMemberTeamAsync(Guid userId, Guid teamId, CancellationToken cancellationToken) {
             var team = await _teamRepository.GetByIdAsync(teamId, cancellationToken);
             if (team is null) {
@@ -631,6 +633,26 @@ namespace Pyrra.Application.Desafios {
             var isMember = team.OwnerId == userId || await _teamMemberRepository.ExistsAsync(teamId, userId, cancellationToken);
             if (!isMember) {
                 throw new NotFoundException("Time não encontrado.");
+            }
+
+            return team;
+        }
+
+        // mesma checagem, mas só pra leitura (desafios disponíveis e ranking): libera também
+        // pra admin, que precisa ver essas seções na tela de detalhe de qualquer time pelo
+        // painel admin, mesmo não sendo dono nem membro
+        private async Task<Team> GetOwnedOrMemberOrAdminTeamAsync(Guid userId, Guid teamId, CancellationToken cancellationToken) {
+            var team = await _teamRepository.GetByIdAsync(teamId, cancellationToken);
+            if (team is null) {
+                throw new NotFoundException("Time não encontrado.");
+            }
+
+            var isMember = team.OwnerId == userId || await _teamMemberRepository.ExistsAsync(teamId, userId, cancellationToken);
+            if (!isMember) {
+                var caller = await _userRepository.GetByIdAsync(userId, cancellationToken);
+                if (caller is null || !caller.IsAdmin) {
+                    throw new NotFoundException("Time não encontrado.");
+                }
             }
 
             return team;

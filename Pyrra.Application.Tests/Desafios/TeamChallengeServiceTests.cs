@@ -57,6 +57,32 @@ namespace Pyrra.Application.Tests.Desafios {
                 tournaments, tournamentChallengeLinks, tournamentOwnChallenges);
         }
 
+        // variante que também devolve o FakeUserRepository, usada pelos testes que precisam
+        // marcar IsAdmin — mesmo padrão de TeamServiceTests.BuildWithUsers
+        private static (TeamChallengeService service, FakeUserRepository users) BuildWithUsers() {
+            var members = new FakeTeamMemberRepository();
+            var teams   = new FakeTeamRepository(members);
+            teams.Teams.Add(new Team {
+                Id = TeamId, Name = "Time", OwnerId = OwnerId, MemberLimit = 10,
+                InviteToken = "token", TotalPoints = 0
+            });
+            members.Members.Add(new TeamMember { Id = Guid.NewGuid(), TeamId = TeamId, UserId = MemberId, JoinedAt = DateTime.UtcNow });
+
+            var users = new FakeUserRepository(
+                new User { Id = OwnerId, Name = "Owner", Email = "owner@x.com" },
+                new User { Id = MemberId, Name = "Member", Email = "member@x.com" },
+                new User { Id = OutsiderId, Name = "Outsider", Email = "outsider@x.com" });
+
+            var service = new TeamChallengeService(
+                teams, members, new FakeChallengeCategoryRepository(), new FakeChallengeRepository(),
+                new FakeTeamActiveCategoryRepository(), new FakeChallengeSubmissionRepository(),
+                new FakeChallengeSubmissionStorageService(), new FakeTournamentTeamRepository(),
+                new FakeTournamentRepository(), new FakeTournamentChallengeRepository(),
+                new FakeTournamentOwnChallengeRepository(), new FakeTeamMemberScoreRepository(),
+                users, new FakeClock(), new FakeAchievementCheckerService());
+            return (service, users);
+        }
+
         private static ChallengeCategory MakeCategory(string name = "Corrida") => new() {
             Id = Guid.NewGuid(), Name = name, Icon = "footprints", Color = ChallengeCategoryColor.Azul,
             CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
@@ -270,6 +296,28 @@ namespace Pyrra.Application.Tests.Desafios {
             var (service, _, _, _, _, _, _, _, _, _, _, _) = Build();
 
             await Assert.ThrowsAsync<NotFoundException>(() => service.GetAvailableChallengesAsync(OutsiderId, TeamId));
+        }
+
+        // painel admin: a tela de detalhe do time (aberta a partir da listagem "/admin/times")
+        // mostra desafios disponíveis mesmo de times que o admin não é dono nem membro
+        [Fact]
+        public async Task GetAvailableChallenges_AdminNaoRelacionado_Ve() {
+            var (service, users) = BuildWithUsers();
+            users.Users.Single(u => u.Id == OutsiderId).IsAdmin = true;
+
+            var available = await service.GetAvailableChallengesAsync(OutsiderId, TeamId);
+
+            Assert.Empty(available); // sem categoria ativa, mas não lança NotFound
+        }
+
+        // admin não vira dono/membro de fato: continua sem poder ativar categoria em time alheio
+        [Fact]
+        public async Task ActivateCategory_AdminNaoRelacionado_ContinuaBloqueado() {
+            var (service, users) = BuildWithUsers();
+            users.Users.Single(u => u.Id == OutsiderId).IsAdmin = true;
+            var category = MakeCategory();
+
+            await Assert.ThrowsAsync<NotFoundException>(() => service.ActivateCategoryAsync(OutsiderId, TeamId, category.Id));
         }
 
         [Fact]
@@ -1501,6 +1549,17 @@ namespace Pyrra.Application.Tests.Desafios {
             var (service, _, _, _, _, _, _, _, _, _, _, _) = Build();
 
             await Assert.ThrowsAsync<NotFoundException>(() => service.GetTeamRankingAsync(OutsiderId, TeamId));
+        }
+
+        // painel admin: mesma liberação de leitura do GetAvailableChallenges, pro ranking
+        [Fact]
+        public async Task GetTeamRanking_AdminNaoRelacionado_Ve() {
+            var (service, users) = BuildWithUsers();
+            users.Users.Single(u => u.Id == OutsiderId).IsAdmin = true;
+
+            var ranking = await service.GetTeamRankingAsync(OutsiderId, TeamId);
+
+            Assert.NotNull(ranking);
         }
 
         [Fact]

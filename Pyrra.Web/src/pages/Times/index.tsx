@@ -62,27 +62,29 @@ function TeamRow({ team }: { team: Team }) {
   )
 }
 
-// Linha da listagem administrativa (Fase Admin-2.1) — nome, dono, contagem de membros, sem link
-// nem ação: GetDetailsAsync exige dono-ou-membro, e o admin normalmente não é nenhum dos dois
-// pra times alheios, então um link pra /times/:id quebraria com 404 na maioria dos casos.
+// Linha da listagem administrativa (Fase Admin-2.1) — nome, dono, contagem de membros. Link pra
+// /times/:id igual TeamRow: GetDetailsAsync (backend) libera acesso pra dono, membro OU admin,
+// então mesmo times alheios abrem normalmente pra quem está vendo essa lista.
 function AdminTeamRow({ team }: { team: Team }) {
   return (
-    <li className="flex items-center gap-3 p-3">
-      <TeamBanner
-        theme={team.bannerTheme}
-        imageUrl={team.bannerImageUrl}
-        className="w-16 shrink-0 rounded-lg"
-      />
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-medium text-ink">{team.name}</p>
-        <p className="truncate text-xs text-slate-500">
-          Dono: {team.owner.name}
-          {team.owner.username && ` (@${team.owner.username})`}
-        </p>
-      </div>
-      <span className="shrink-0 text-xs font-medium text-slate-400 tabular-nums">
-        {team.memberCount}/{team.memberLimit}
-      </span>
+    <li className="overflow-hidden rounded-md bg-surface ring-1 ring-line">
+      <Link to={`/times/${team.id}`} className="flex items-center gap-3 p-3 transition hover:bg-surface-hi">
+        <TeamBanner
+          theme={team.bannerTheme}
+          imageUrl={team.bannerImageUrl}
+          className="w-16 shrink-0 rounded-lg"
+        />
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-medium text-ink">{team.name}</p>
+          <p className="truncate text-xs text-slate-500">
+            Dono: {team.owner.name}
+            {team.owner.username && ` (@${team.owner.username})`}
+          </p>
+        </div>
+        <span className="shrink-0 text-xs font-medium text-slate-400 tabular-nums">
+          {team.memberCount}/{team.memberLimit}
+        </span>
+      </Link>
     </li>
   )
 }

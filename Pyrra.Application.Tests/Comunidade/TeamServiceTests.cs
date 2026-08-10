@@ -600,6 +600,21 @@ namespace Pyrra.Application.Tests.Comunidade {
             await Assert.ThrowsAsync<NotFoundException>(() => service.GetDetailsAsync(Bob, team.Id));
         }
 
+        // painel admin: clicar num time da listagem "/admin/times" precisa abrir o detalhe mesmo
+        // o admin não sendo dono nem membro do time
+        [Fact]
+        public async Task GetDetails_AdminNaoRelacionado_RetornaDetalhes() {
+            var (service, teams, users) = BuildWithUsers();
+            var team = await service.CreateAsync(Alice, "Time", null, 5);
+            users.Users.Single(u => u.Id == Bob).IsAdmin = true;
+
+            var details = await service.GetDetailsAsync(Bob, team.Id);
+
+            Assert.Equal(team.Id, details.Summary.Id);
+            Assert.False(details.Summary.IsOwner);
+            Assert.False(details.Summary.IsMember);
+        }
+
         [Fact]
         public async Task GetDetails_MembroOuDono_RetornaDetalhes() {
             var (service, teams, _, _, _, _, _) = Build();
