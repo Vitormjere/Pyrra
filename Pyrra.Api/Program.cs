@@ -1,7 +1,10 @@
 using System.Text;
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -40,16 +43,29 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 
-// Azure SQL Serverless auto-pausa e a primeira conexão que acorda ele costuma falhar
-builder.Services.AddDbContext<PyrraDbContext>(options =>
-    options.UseSqlServer(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
-        sqlOptions => sqlOptions.EnableRetryOnFailure(
-            maxRetryCount: 5,
-            maxRetryDelay: TimeSpan.FromSeconds(30),
-            errorNumbersToAdd: null)));
+// Azure SQL Serverless auto-pausa e a primeira conexão que acorda ele costuma falhar.
+// Pyrra.Api.Tests (WebApplicationFactory) registra o próprio DbContext em memória pro
+// ambiente "Testing" — pular aqui evita registrar o provider SQL Server nesse caso, que
+// senão colide com o provider InMemory do teste (EF Core não aceita dois providers no
+// mesmo container de DI).
+if (!builder.Environment.IsEnvironment("Testing")) {
+    builder.Services.AddDbContext<PyrraDbContext>(options =>
+        options.UseSqlServer(
+            builder.Configuration.GetConnectionString("DefaultConnection"),
+            sqlOptions => sqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(30),
+                errorNumbersToAdd: null)));
+}
 
-// Lê os origins da configuração e falha se não existirem
+// Lê os origins da configuração e falha se não existirem.
+// PRODUÇÃO: os origins vêm de configuração externa (nunca commitada) — no App Service,
+// em Configuration -> Application settings, como Cors__AllowedOrigins__0 /
+// Cors__AllowedOrigins__1 (o "__" é como o ASP.NET Core mapeia variável de ambiente pra
+// chave de config aninhada "Cors:AllowedOrigins:0" etc). CONFERIR que sejam exatamente:
+//   Cors__AllowedOrigins__0 = https://pyrra.com.br
+//   Cors__AllowedOrigins__1 = https://www.pyrra.com.br
+// e nada além disso (sem localhost, sem wildcard, sem domínio de preview do Vercel).
 const string FrontendCorsPolicy = "AllowFrontendDev";
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
@@ -64,6 +80,62 @@ builder.Services.AddCors(options => {
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials());
+});
+
+// Login e registro são os alvos mais comuns de brute force/spam de bots — sem limite, um
+// atacante pode tentar senha ilimitadamente contra qualquer e-mail. Uma política POR
+// endpoint (não uma compartilhada) pra tentativas de login não consumirem a cota de
+// registro e vice-versa. Sliding window (não fixed window) pra não deixar um cliente
+// dobrar o limite efetivo bem na borda entre duas janelas — com fixed window, 10 no
+// segundo 59 + 10 no segundo 61 dão 20 requisições em 2s; sliding window suaviza isso
+// dividindo a janela em segmentos que vão expirando aos poucos.
+var authRateLimitConfig = builder.Configuration.GetSection("RateLimiting:Auth");
+var authPermitLimit     = authRateLimitConfig.GetValue("PermitLimit", 10);
+var authWindowSeconds   = authRateLimitConfig.GetValue("WindowSeconds", 60);
+var authSegments        = authRateLimitConfig.GetValue("SegmentsPerWindow", 4);
+
+// chave de particionamento: IP real do cliente — depende do ForwardedHeaders configurado
+// mais abaixo pra funcionar atrás do proxy reverso do Azure App Service (senão todo mundo
+// cairia na mesma partição, o IP interno do proxy)
+static string AuthRateLimitPartitionKey(HttpContext httpContext) =>
+    httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+builder.Services.AddRateLimiter(options => {
+    options.OnRejected = async (context, cancellationToken) => {
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+
+        // o sliding window limiter nem sempre anexa a métrica de RetryAfter na rejeição
+        // (não acontece quando QueueLimit é 0, por exemplo) — sem ela, cai pro tempo de um
+        // segmento da janela, que é quando a próxima vaga tende a abrir de qualquer forma
+        var retryAfterSeconds = context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter)
+            ? (int)retryAfter.TotalSeconds
+            : Math.Max(1, authWindowSeconds / authSegments);
+        context.HttpContext.Response.Headers.RetryAfter = retryAfterSeconds.ToString();
+
+        await context.HttpContext.Response.WriteAsJsonAsync(
+            new { message = "Muitas tentativas. Aguarde um instante e tente novamente." },
+            cancellationToken);
+    };
+
+    options.AddPolicy("AuthLogin", httpContext =>
+        RateLimitPartition.GetSlidingWindowLimiter(
+            partitionKey: AuthRateLimitPartitionKey(httpContext),
+            factory: _ => new SlidingWindowRateLimiterOptions {
+                PermitLimit       = authPermitLimit,
+                Window            = TimeSpan.FromSeconds(authWindowSeconds),
+                SegmentsPerWindow = authSegments,
+                QueueLimit        = 0
+            }));
+
+    options.AddPolicy("AuthRegister", httpContext =>
+        RateLimitPartition.GetSlidingWindowLimiter(
+            partitionKey: AuthRateLimitPartitionKey(httpContext),
+            factory: _ => new SlidingWindowRateLimiterOptions {
+                PermitLimit       = authPermitLimit,
+                Window            = TimeSpan.FromSeconds(authWindowSeconds),
+                SegmentsPerWindow = authSegments,
+                QueueLimit        = 0
+            }));
 });
 
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
@@ -237,6 +309,18 @@ if (app.Environment.IsDevelopment()) {
     app.MapOpenApi();
 }
 
+// Azure App Service fica atrás de um proxy reverso: sem isso, RemoteIpAddress seria
+// sempre o IP interno do proxy, não o do cliente real — quebraria o particionamento por
+// IP do rate limiter acima (todo mundo cairia na mesma partição). KnownNetworks/
+// KnownProxies limpos porque o IP de borda do Azure não é fixo/previsível — mesma
+// orientação da documentação da Microsoft pra apps hospedados no App Service.
+var forwardedHeadersOptions = new ForwardedHeadersOptions {
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+};
+forwardedHeadersOptions.KnownNetworks.Clear();
+forwardedHeadersOptions.KnownProxies.Clear();
+app.UseForwardedHeaders(forwardedHeadersOptions);
+
 // CORS precisa vir antes do redirecionamento HTTPS
 app.UseCors(FrontendCorsPolicy);
 
@@ -245,7 +329,14 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.UseRateLimiter();
+
 app.MapControllers();
 app.MapHub<ChatHub>("/hubs/chat");
 
 app.Run();
+
+// classe parcial pública só pra WebApplicationFactory<Program> conseguir subir a API nos
+// testes de integração — programas com top-level statements geram uma Program implícita
+// internal, que não dá pra referenciar de fora do assembly
+public partial class Program { }

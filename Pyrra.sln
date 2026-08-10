@@ -13,6 +13,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pyrra.Api", "Pyrra.Api\Pyrr
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pyrra.Application.Tests", "Pyrra.Application.Tests\Pyrra.Application.Tests.csproj", "{36FA7D0C-16F7-4091-9BA3-098CDAE600D3}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pyrra.Api.Tests", "Pyrra.Api.Tests\Pyrra.Api.Tests.csproj", "{B0156DC0-16A4-4A6B-B75F-53B0224A5CF1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -83,6 +85,18 @@ Global
 		{36FA7D0C-16F7-4091-9BA3-098CDAE600D3}.Release|x64.Build.0 = Release|Any CPU
 		{36FA7D0C-16F7-4091-9BA3-098CDAE600D3}.Release|x86.ActiveCfg = Release|Any CPU
 		{36FA7D0C-16F7-4091-9BA3-098CDAE600D3}.Release|x86.Build.0 = Release|Any CPU
+		{B0156DC0-16A4-4A6B-B75F-53B0224A5CF1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B0156DC0-16A4-4A6B-B75F-53B0224A5CF1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B0156DC0-16A4-4A6B-B75F-53B0224A5CF1}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{B0156DC0-16A4-4A6B-B75F-53B0224A5CF1}.Debug|x64.Build.0 = Debug|Any CPU
+		{B0156DC0-16A4-4A6B-B75F-53B0224A5CF1}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{B0156DC0-16A4-4A6B-B75F-53B0224A5CF1}.Debug|x86.Build.0 = Debug|Any CPU
+		{B0156DC0-16A4-4A6B-B75F-53B0224A5CF1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B0156DC0-16A4-4A6B-B75F-53B0224A5CF1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B0156DC0-16A4-4A6B-B75F-53B0224A5CF1}.Release|x64.ActiveCfg = Release|Any CPU
+		{B0156DC0-16A4-4A6B-B75F-53B0224A5CF1}.Release|x64.Build.0 = Release|Any CPU
+		{B0156DC0-16A4-4A6B-B75F-53B0224A5CF1}.Release|x86.ActiveCfg = Release|Any CPU
+		{B0156DC0-16A4-4A6B-B75F-53B0224A5CF1}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

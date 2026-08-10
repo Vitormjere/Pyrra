@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Pyrra.Api.Dtos.Auth;
 using Pyrra.Application.Auth;
 using Pyrra.Application.Common.Exceptions;
@@ -20,6 +21,7 @@ namespace Pyrra.Api.Controllers {
             _userRepository = userRepository;
         }
 
+        [EnableRateLimiting("AuthRegister")]
         [HttpPost("register")]
         public async Task<ActionResult<AuthResponse>> Register(RegisterRequest request, CancellationToken cancellationToken) {
             try {
@@ -32,6 +34,7 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
+        [EnableRateLimiting("AuthLogin")]
         [HttpPost("login")]
         public async Task<ActionResult<AuthResponse>> Login(LoginRequest request, CancellationToken cancellationToken) {
             try {
