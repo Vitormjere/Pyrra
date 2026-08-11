@@ -6,6 +6,8 @@ export interface UserSummary {
   id: string
   name: string
   username: string | null
+  /** null até o usuário enviar uma foto — fallback é o círculo com a inicial (ver components/Avatar.tsx). */
+  profilePictureUrl: string | null
 }
 
 // GET /api/amigos

@@ -22,6 +22,11 @@ namespace Pyrra.Infrastructure.Storage {
 
         public async Task<string> UploadAsync(Guid userId, Stream content, string contentType, CancellationToken cancellationToken = default) {
             var container = GetContainerClient();
+            // ao contrário de team-banners/tournament-banners (provisionados fora do código), este
+            // container é novo — cria sob demanda no primeiro upload, público de leitura pra as
+            // fotos abrirem direto num <img src> sem SAS token, mesmo jeito que as outras já usam
+            await container.CreateIfNotExistsAsync(PublicAccessType.Blob, cancellationToken: cancellationToken);
+
             var blob = container.GetBlobClient(BlobName(userId));
 
             await blob.UploadAsync(

@@ -50,6 +50,20 @@ export async function completeOnboarding(prefs?: {
   return data
 }
 
+// foto de perfil — mesmo padrão do banner de time (validação de tipo/tamanho é do backend)
+export async function uploadProfilePicture(file: File): Promise<UserResponse> {
+  const formData = new FormData()
+  formData.append('file', file)
+  // não fixar Content-Type: o navegador precisa gerar o boundary do multipart sozinho
+  const { data } = await api.post<UserResponse>('/api/usuario/foto', formData)
+  return data
+}
+
+export async function removeProfilePicture(): Promise<UserResponse> {
+  const { data } = await api.delete<UserResponse>('/api/usuario/foto')
+  return data
+}
+
 // daqui pra baixo: ações da tela de Configurações (edição de conta)
 
 export async function updateName(name: string): Promise<UserResponse> {

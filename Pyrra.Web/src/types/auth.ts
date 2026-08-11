@@ -32,6 +32,8 @@ export interface UserResponse {
   /** Identificador público (ex.: "vitorj", exibido como "@vitorj"). null até ser escolhido —
    *  é o que o gate de username usa para forçar a escolha no primeiro acesso. Vem sem "@". */
   username: string | null
+  /** null até o usuário enviar uma foto — fallback é o círculo com a inicial. */
+  profilePictureUrl: string | null
   /** IANA time zone (ex.: "America/Sao_Paulo"). */
   timezone: string
   communicationTone: CommunicationTone

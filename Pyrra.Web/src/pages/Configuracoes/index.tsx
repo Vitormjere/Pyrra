@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
-import type { FormEvent, ReactNode } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type { ChangeEvent, FormEvent, ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { AtSign, Check, ChevronLeft, LogOut, Pencil, X } from 'lucide-react'
+import { AtSign, Check, ChevronLeft, ImagePlus, LogOut, Pencil, X } from 'lucide-react'
+import Avatar from '../../components/Avatar'
 import Segmented from '../../components/Segmented'
 import SectionHeader from '../../components/SectionHeader'
 import DeleteAccountDialog from '../../components/DeleteAccountDialog'
@@ -12,15 +13,22 @@ import {
   changePassword,
   checkUsernameAvailability,
   deleteAccount,
+  removeProfilePicture,
   setUsername as setUsernameApi,
   updateName,
   updatePreferences,
   updateProfileVisibility,
   updateTimezone,
+  uploadProfilePicture,
 } from '../../services/userService'
 import { getApiErrorMessage } from '../../services/apiError'
 import { TIMEZONE_OPTIONS } from '../../utils/timezones'
 import type { CommunicationTone, ProfileVisibility } from '../../types/auth'
+
+// Mesma regra do backend (UserAccountService.SetProfilePictureAsync) — só pra dar feedback
+// antes de enviar; o backend segue sendo a validação de verdade.
+const MAX_PICTURE_BYTES = 3 * 1024 * 1024
+const ACCEPTED_PICTURE_TYPES = 'image/jpeg,image/png,image/webp'
 
 const TONES: readonly CommunicationTone[] = ['Direto', 'Acolhedor', 'Desafiador']
 
@@ -105,6 +113,11 @@ export function Configuracoes() {
         </h1>
       </header>
 
+      <ProfilePictureSection
+        name={user.name}
+        imageUrl={user.profilePictureUrl}
+        onSaved={applyUser}
+      />
       <NameSection name={user.name} onSaved={refreshUser} />
       <EmailSection email={user.email} onSaved={refreshUser} />
       <PasswordSection />
@@ -133,6 +146,99 @@ export function Configuracoes() {
       </button>
 
       <DangerZone onDeleted={() => { logout(); navigate('/login', { replace: true }) }} />
+    </div>
+  )
+}
+
+// --- Foto de perfil ---
+
+// Sem modo leitura/edição (mesmo raciocínio da Privacidade): não há "rascunho" de uma foto pra
+// esconder, os botões de enviar/remover já ficam sempre visíveis, mesmo padrão do Banner de time.
+function ProfilePictureSection({
+  name,
+  imageUrl,
+  onSaved,
+}: {
+  name: string
+  imageUrl: string | null
+  onSaved: (user: Awaited<ReturnType<typeof uploadProfilePicture>>) => void
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    event.target.value = '' // permite escolher o mesmo arquivo de novo depois de um erro
+    if (!file) return
+
+    if (file.size > MAX_PICTURE_BYTES) {
+      setError('A imagem deve ter até 3MB.')
+      return
+    }
+
+    setError(null)
+    setBusy(true)
+    uploadProfilePicture(file)
+      .then(onSaved)
+      .catch((err) => setError(getApiErrorMessage(err, {}, 'Não foi possível enviar a imagem.')))
+      .finally(() => setBusy(false))
+  }
+
+  async function handleRemove() {
+    setError(null)
+    setBusy(true)
+    try {
+      const updated = await removeProfilePicture()
+      onSaved(updated)
+    } catch (err) {
+      setError(getApiErrorMessage(err, {}, 'Não foi possível remover a imagem.'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className={cardClasses}>
+      <SectionHeader>Foto de perfil</SectionHeader>
+      <div className="flex items-center gap-4">
+        <Avatar name={name} imageUrl={imageUrl} size="profile" />
+        <div className="flex flex-1 flex-col gap-2">
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => fileInputRef.current?.click()}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-ink ring-1 ring-line transition hover:bg-surface-hi disabled:opacity-50"
+            >
+              <ImagePlus size={15} aria-hidden="true" />
+              {busy ? 'Enviando…' : imageUrl ? 'Trocar foto' : 'Enviar foto'}
+            </button>
+            {imageUrl && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={handleRemove}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-xl p-2 text-slate-400 transition hover:bg-surface-hi hover:text-red-400 disabled:opacity-50"
+                aria-label="Remover foto de perfil"
+              >
+                <X size={15} />
+              </button>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={ACCEPTED_PICTURE_TYPES}
+              onChange={handleFileChange}
+              className="hidden"
+            />
+          </div>
+          <p className="text-xs text-slate-400">
+            Opcional — JPG, PNG ou WEBP, até 3MB. Sem foto, mostra sua inicial.
+          </p>
+          {error && <p role="alert" className="text-xs text-red-300">{error}</p>}
+        </div>
+      </div>
     </div>
   )
 }

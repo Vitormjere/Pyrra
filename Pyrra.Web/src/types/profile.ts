@@ -6,6 +6,7 @@ export interface PublicProfile {
   id: string
   name: string
   username: string | null
+  profilePictureUrl: string | null
   plan: UserPlan
   friendCount: number
   streakCurrent: number

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Award, Flame, Settings, Trophy, Users } from 'lucide-react'
+import Avatar from '../../components/Avatar'
 import SectionHeader from '../../components/SectionHeader'
 import AchievementCard from '../../components/AchievementCard'
 import ShareAchievementModal from '../../components/ShareAchievementModal'
@@ -115,12 +116,7 @@ export function Perfil() {
       <>
       {/* IDENTIDADE */}
       <section className="flex flex-col items-center gap-3 rounded-md bg-surface px-5 py-6 ring-1 ring-line">
-        <span
-          aria-hidden="true"
-          className="flex size-16 items-center justify-center rounded-full bg-surface-hi text-2xl font-semibold text-ink ring-1 ring-line"
-        >
-          {user.name.charAt(0).toUpperCase()}
-        </span>
+        <Avatar name={user.name} imageUrl={user.profilePictureUrl} size="profile" />
         <div className="text-center">
           <p className="text-lg font-semibold text-ink">{user.name}</p>
           {user.username && (
