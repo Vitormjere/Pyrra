@@ -11,6 +11,15 @@ export const CHALLENGE_CATEGORY_SWATCH: Record<ChallengeCategoryColor, string> =
   Dourado: 'bg-yellow-400',
 }
 
+export const CHALLENGE_CATEGORY_COLORS: readonly ChallengeCategoryColor[] = [
+  'Verde',
+  'Azul',
+  'Roxo',
+  'Laranja',
+  'Vermelho',
+  'Dourado',
+]
+
 export const CHALLENGE_CATEGORY_TEXT: Record<ChallengeCategoryColor, string> = {
   Verde: 'text-brand-green',
   Azul: 'text-sky-400',

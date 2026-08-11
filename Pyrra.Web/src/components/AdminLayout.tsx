@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import {
   ClipboardList,
+  Medal,
   Menu,
   MessageSquare,
   Settings,
@@ -26,6 +27,7 @@ const ADMIN_SECTIONS: NavItem[] = [
   { to: '/times', label: 'Times', icon: Shield },
   { to: '/torneios', label: 'Torneios', icon: Trophy },
   { to: '/admin/contas', label: 'Contas', icon: UserCog },
+  { to: '/admin/desafios', label: 'Desafios', icon: Medal },
   { to: '/admin/solicitacoes', label: 'Solicitações', icon: ClipboardList },
   { to: '/admin/mensagens', label: 'Mensagens', icon: MessageSquare },
   { to: '/perfil', label: 'Perfil', icon: User },

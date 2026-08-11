@@ -12,6 +12,7 @@ import { FriendRequestsProvider } from './contexts/FriendRequestsProvider'
 import { TeamInvitesProvider } from './contexts/TeamInvitesProvider'
 import Agenda from './pages/Agenda'
 import AdminContas from './pages/Admin/Contas'
+import AdminDesafios from './pages/Admin/Desafios'
 import AdminMensagens from './pages/Admin/Mensagens'
 import AdminSolicitacoes from './pages/Admin/Solicitacoes'
 import Amigos from './pages/Amigos'
@@ -135,6 +136,7 @@ function App() {
                         placeholders, funcionalidade real chega nas próximas etapas). */}
                     <Route element={<RequireAdmin />}>
                       <Route path="/admin/contas" element={<AdminContas />} />
+                      <Route path="/admin/desafios" element={<AdminDesafios />} />
                       <Route path="/admin/solicitacoes" element={<AdminSolicitacoes />} />
                       <Route path="/admin/mensagens" element={<AdminMensagens />} />
                     </Route>

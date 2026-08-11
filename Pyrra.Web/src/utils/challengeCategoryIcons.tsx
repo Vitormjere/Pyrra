@@ -2,8 +2,9 @@ import { Apple, BookOpen, Dumbbell, Flame, Footprints, GraduationCap, Home, Shuf
 import type { LucideIcon } from 'lucide-react'
 
 // Mapa nome (salvo em ChallengeCategory.Icon, escolhido pelo admin) -> componente lucide-react.
-// Sem painel de admin visual ainda: uma categoria nova cadastrada com um ícone que não está aqui
-// cai no fallback (Sparkles) até este mapa ser atualizado a mão.
+// O painel Admin > Desafios só deixa escolher entre essas chaves (CATEGORY_ICON_KEYS); uma
+// categoria com ícone fora daqui (cadastro antigo, ou editado direto no banco) cai no fallback
+// (Sparkles) até este mapa ganhar uma entrada nova.
 const ICONS: Record<string, LucideIcon> = {
   footprints: Footprints,
   dumbbell: Dumbbell,
@@ -16,6 +17,8 @@ const ICONS: Record<string, LucideIcon> = {
   'book-open': BookOpen,
   trees: Trees,
 }
+
+export const CATEGORY_ICON_KEYS = Object.keys(ICONS)
 
 export function getCategoryIcon(icon: string): LucideIcon {
   return ICONS[icon] ?? Sparkles
