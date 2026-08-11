@@ -17,6 +17,7 @@ import {
   Users,
   X,
 } from 'lucide-react'
+import Avatar from '../../components/Avatar'
 import EmptyState from '../../components/EmptyState'
 import ProgressBar from '../../components/ProgressBar'
 import Skeleton from '../../components/Skeleton'
@@ -69,17 +70,6 @@ const MAX_BANNER_BYTES = 3 * 1024 * 1024
 const MAX_SUBMISSION_BYTES = 3 * 1024 * 1024
 const ACCEPTED_SUBMISSION_TYPES = 'image/jpeg,image/png,image/webp'
 
-function Avatar({ name }: { name: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-hi text-sm font-semibold text-slate-300 ring-1 ring-line"
-    >
-      {name.charAt(0).toUpperCase()}
-    </span>
-  )
-}
-
 const listClasses =
   'divide-y divide-line overflow-hidden rounded-md bg-surface ring-1 ring-line'
 
@@ -100,7 +90,7 @@ function MemberRow({
 }) {
   return (
     <li className="flex items-center gap-3 px-4 py-3">
-      <Avatar name={member.user.name} />
+      <Avatar name={member.user.name} imageUrl={member.user.profilePictureUrl} />
       <div className="min-w-0 flex-1">
         <p className="flex items-center gap-1.5 truncate font-medium text-ink">
           {member.user.name}
@@ -156,7 +146,7 @@ function TeamRankingRow({ entry, isSelf }: { entry: TeamMemberRanking; isSelf: b
       >
         {isTop ? <Medal size={14} /> : `#${entry.position}`}
       </span>
-      <Avatar name={entry.user.name} />
+      <Avatar name={entry.user.name} imageUrl={entry.user.profilePictureUrl} />
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium text-ink">
           {entry.user.name}
@@ -1185,7 +1175,7 @@ export function TimeDetalhe() {
               <ul className={listClasses}>
                 {availableFriends.map((friend) => (
                   <li key={friend.user.id} className="flex items-center gap-3 px-4 py-3">
-                    <Avatar name={friend.user.name} />
+                    <Avatar name={friend.user.name} imageUrl={friend.user.profilePictureUrl} />
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium text-ink">{friend.user.name}</p>
                     </div>

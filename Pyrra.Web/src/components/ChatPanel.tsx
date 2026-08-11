@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Send } from 'lucide-react'
+import Avatar from './Avatar'
 import { useChatConnection } from '../hooks/useChatConnection'
 import { useChatUnread } from '../hooks/useChatUnread'
 import {
@@ -119,12 +120,7 @@ export function ChatPanel({ counterpart }: { counterpart: UserSummary }) {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-center gap-3 border-b border-line px-4 py-3">
-        <span
-          aria-hidden="true"
-          className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-hi text-sm font-semibold text-slate-300 ring-1 ring-line"
-        >
-          {counterpart.name.charAt(0).toUpperCase()}
-        </span>
+        <Avatar name={counterpart.name} imageUrl={counterpart.profilePictureUrl} />
         <div className="min-w-0">
           <p className="truncate font-medium text-ink">{counterpart.name}</p>
           {counterpart.username && <p className="truncate text-xs text-slate-500">@{counterpart.username}</p>}

@@ -19,6 +19,7 @@ import {
   X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import Avatar from './Avatar'
 import { useAuth } from '../hooks/useAuth'
 import { useChatUnread } from '../hooks/useChatUnread'
 import { useFriendRequests } from '../hooks/useFriendRequests'
@@ -179,15 +180,10 @@ function SectionNav({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 // rodapé com a conta, compartilhado entre o drawer e a sidebar fixa
-function AccountFooter({ name, email }: { name?: string; email?: string }) {
+function AccountFooter({ name, email, imageUrl }: { name?: string; email?: string; imageUrl?: string | null }) {
   return (
     <div className="flex items-center gap-3 border-t border-line px-4 py-3">
-      <span
-        aria-hidden="true"
-        className="flex size-8 shrink-0 items-center justify-center rounded-full bg-surface text-xs font-semibold text-slate-300 ring-1 ring-line"
-      >
-        {name?.charAt(0).toUpperCase() ?? '?'}
-      </span>
+      <Avatar name={name ?? '?'} imageUrl={imageUrl} size="sidebar" />
       <div className="min-w-0">
         <p className="truncate text-sm font-medium">{name ?? 'Conta'}</p>
         <p className="truncate text-xs text-slate-500">{email}</p>
@@ -235,7 +231,7 @@ export function AppLayout() {
           <span className="font-display text-lg font-semibold tracking-tight">Pyrra</span>
         </div>
         <SectionNav />
-        <AccountFooter name={user?.name} email={user?.email} />
+        <AccountFooter name={user?.name} email={user?.email} imageUrl={user?.profilePictureUrl} />
       </aside>
 
       {/* no desktop a coluna fica mais larga mas contida, senão as linhas ficam longas demais */}
@@ -274,7 +270,7 @@ export function AppLayout() {
 
             <SectionNav onNavigate={() => setDrawerOpen(false)} />
 
-            <AccountFooter name={user?.name} email={user?.email} />
+            <AccountFooter name={user?.name} email={user?.email} imageUrl={user?.profilePictureUrl} />
           </nav>
         </>
       )}

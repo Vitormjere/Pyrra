@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { MessageCircle, Send } from 'lucide-react'
+import Avatar from './Avatar'
 import { useAuth } from '../hooks/useAuth'
 import { useChatConnection } from '../hooks/useChatConnection'
 import { getTeamChatMessages, sendTeamChatMessage } from '../services/teamChatService'
@@ -28,14 +29,17 @@ function Bubble({ message, isMine }: { message: TeamChatMessage; isMine: boolean
             : 'rounded-bl-sm bg-surface-hi text-ink ring-1 ring-line',
         ].join(' ')}
       >
-        <p
-          className={[
-            'text-[11px] font-semibold',
-            isMine ? 'text-brand-dark/70' : 'text-brand-green',
-          ].join(' ')}
-        >
-          {isMine ? 'Você' : message.sender.username ? `@${message.sender.username}` : message.sender.name}
-        </p>
+        <div className="flex items-center gap-1.5">
+          <Avatar name={message.sender.name} imageUrl={message.sender.profilePictureUrl} size="xs" />
+          <p
+            className={[
+              'text-[11px] font-semibold',
+              isMine ? 'text-brand-dark/70' : 'text-brand-green',
+            ].join(' ')}
+          >
+            {isMine ? 'Você' : message.sender.username ? `@${message.sender.username}` : message.sender.name}
+          </p>
+        </div>
         <p className="whitespace-pre-wrap break-words">{message.content}</p>
         <p className={['mt-0.5 text-[10px]', isMine ? 'text-brand-dark/70' : 'text-slate-500'].join(' ')}>
           {formatTime(message.createdAt)}

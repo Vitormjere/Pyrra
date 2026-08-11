@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ChevronLeft, LifeBuoy } from 'lucide-react'
+import Avatar from '../../components/Avatar'
 import ChatPanel from '../../components/ChatPanel'
 import EmptyState from '../../components/EmptyState'
 import Skeleton from '../../components/Skeleton'
@@ -92,12 +93,7 @@ export function Suporte() {
                   onClick={() => setSelected(admin)}
                   className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-surface-hi"
                 >
-                  <span
-                    aria-hidden="true"
-                    className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-hi text-sm font-semibold text-slate-300 ring-1 ring-line"
-                  >
-                    {admin.name.charAt(0).toUpperCase()}
-                  </span>
+                  <Avatar name={admin.name} imageUrl={admin.profilePictureUrl} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-ink">{admin.name}</p>
                     <p className="truncate text-xs text-slate-500">

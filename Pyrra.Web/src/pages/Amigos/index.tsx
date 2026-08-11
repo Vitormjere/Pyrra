@@ -13,6 +13,7 @@ import {
   Users,
   X,
 } from 'lucide-react'
+import Avatar from '../../components/Avatar'
 import EmptyState from '../../components/EmptyState'
 import Skeleton from '../../components/Skeleton'
 import { useConfirm } from '../../hooks/useConfirm'
@@ -39,18 +40,6 @@ import type {
 
 type Tab = 'amigos' | 'ranking' | 'pedidos' | 'buscar'
 
-// avatar por inicial — não há foto no modelo, mesmo recurso do rodapé de conta do menu
-function Avatar({ name }: { name: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-hi text-sm font-semibold text-slate-300 ring-1 ring-line"
-    >
-      {name.charAt(0).toUpperCase()}
-    </span>
-  )
-}
-
 // `to` (só na aba Meus Amigos) linka o avatar+nome pro perfil, fora de `trailing` porque link não pode aninhar botão
 function UserRow({
   user,
@@ -63,7 +52,7 @@ function UserRow({
 }) {
   const identity = (
     <>
-      <Avatar name={user.name} />
+      <Avatar name={user.name} imageUrl={user.profilePictureUrl} />
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium text-ink">{user.name}</p>
         {user.username && (
@@ -107,7 +96,7 @@ function RankingRow({ entry }: { entry: RankingEntry }) {
       >
         {isTop ? <Crown size={14} /> : `#${entry.position}`}
       </span>
-      <Avatar name={entry.user.name} />
+      <Avatar name={entry.user.name} imageUrl={entry.user.profilePictureUrl} />
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium text-ink">
           {entry.user.name}

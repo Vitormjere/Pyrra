@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ChevronLeft, MessageSquare, Search } from 'lucide-react'
+import Avatar from '../../../components/Avatar'
 import ChatPanel from '../../../components/ChatPanel'
 import EmptyState from '../../../components/EmptyState'
 import Skeleton from '../../../components/Skeleton'
@@ -17,17 +18,6 @@ interface ContactRow {
   conversation: ChatConversation | null
 }
 
-function Avatar({ name }: { name: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-hi text-sm font-semibold text-slate-300 ring-1 ring-line"
-    >
-      {name.charAt(0).toUpperCase()}
-    </span>
-  )
-}
-
 function ContactListRow({ row, active, onClick }: { row: ContactRow; active: boolean; onClick: () => void }) {
   return (
     <li>
@@ -39,7 +29,7 @@ function ContactListRow({ row, active, onClick }: { row: ContactRow; active: boo
           active ? 'bg-surface-hi' : 'hover:bg-surface-hi',
         ].join(' ')}
       >
-        <Avatar name={row.player.name} />
+        <Avatar name={row.player.name} imageUrl={row.player.profilePictureUrl} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-ink">{row.player.name}</p>
           <p className="truncate text-xs text-slate-500">

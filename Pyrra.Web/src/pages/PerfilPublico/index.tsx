@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { isAxiosError } from 'axios'
 import { ChevronLeft, Flame, Lock, Trophy, UserX, Users } from 'lucide-react'
+import Avatar from '../../components/Avatar'
 import EmptyState from '../../components/EmptyState'
 import Skeleton from '../../components/Skeleton'
 import { getPublicProfile } from '../../services/userService'
@@ -90,12 +91,7 @@ export function PerfilPublico() {
 function PublicProfileCard({ profile }: { profile: PublicProfile }) {
   return (
     <section className="flex flex-col items-center gap-3 rounded-md bg-surface px-5 py-6 ring-1 ring-line">
-      <span
-        aria-hidden="true"
-        className="flex size-16 items-center justify-center rounded-full bg-surface-hi text-2xl font-semibold text-ink ring-1 ring-line"
-      >
-        {profile.name.charAt(0).toUpperCase()}
-      </span>
+      <Avatar name={profile.name} imageUrl={profile.profilePictureUrl} size="profile" />
       <div className="text-center">
         <p className="text-lg font-semibold text-ink">{profile.name}</p>
         {profile.username && (
