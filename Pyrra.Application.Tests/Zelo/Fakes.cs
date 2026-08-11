@@ -55,7 +55,9 @@ namespace Pyrra.Application.Tests.Zelo {
         public Task<ZeloPlanSession?> GetActiveForUserAsync(Guid userId, DateTime now, CancellationToken cancellationToken = default) =>
             Task.FromResult(Sessions
                 .Where(s => s.UserId == userId
-                    && (s.Status == ZeloPlanSessionStatus.Coletando || s.Status == ZeloPlanSessionStatus.PlanoGerado)
+                    && (s.Status == ZeloPlanSessionStatus.Coletando
+                        || s.Status == ZeloPlanSessionStatus.PlanoGerado
+                        || s.Status == ZeloPlanSessionStatus.Aplicada)
                     && s.ExpiresAt > now)
                 .OrderByDescending(s => s.CreatedAt)
                 .FirstOrDefault());

@@ -421,7 +421,10 @@ namespace Pyrra.Application.Zelo {
         private async Task<ZeloPlanSessionState> BuildStateAsync(ZeloPlanSession session, CancellationToken cancellationToken) {
             var answered = await _answerRepository.GetBySessionIdAsync(session.Id, cancellationToken);
 
-            if (session.Status == ZeloPlanSessionStatus.PlanoGerado) {
+            // PlanoGerado (preview aguardando aplicar/descartar) e Aplicada (chat livre já pode ser
+            // retomado) não têm próxima pergunta — o formulário só chega nesses status depois de
+            // respondido por completo
+            if (session.Status is ZeloPlanSessionStatus.PlanoGerado or ZeloPlanSessionStatus.Aplicada) {
                 return new ZeloPlanSessionState(session.Id, session.Status, null, answered.Count);
             }
 

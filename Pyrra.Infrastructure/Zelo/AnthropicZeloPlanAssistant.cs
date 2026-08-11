@@ -227,7 +227,9 @@ namespace Pyrra.Infrastructure.Zelo {
             "  \"dayOfWeek\": um de Segunda, Terca, Quarta, Quinta, Sexta, Sabado, Domingo (sem acento),\n" +
             "  \"label\": rótulo do dia depois da mudança — só quando target=Treino (null se for descanso; null quando target=Nutricao),\n" +
             "  \"exercises\": lista COMPLETA dos exercícios do dia DEPOIS da mudança — só quando target=Treino (null quando target=Nutricao), " +
-            "cada item { \"type\": \"Academia\" ou \"Corrida\", \"exerciseName\", \"sets\", \"reps\", \"order\" },\n" +
+            "cada item { \"type\": \"Academia\" ou \"Corrida\", \"exerciseName\", \"sets\", \"reps\", \"order\" }. " +
+            "Em \"Corrida\", sets e reps são sempre null (nunca string) e exerciseName descreve o treino " +
+            "(ex.: \"5km leve\", \"tiros 6x400m\"). Em \"Academia\", sets e reps são sempre números,\n" +
             "  \"mealType\": \"CafeDaManha\", \"Almoco\", \"Lanche\" ou \"Jantar\" — só quando target=Nutricao (null quando target=Treino),\n" +
             "  \"items\": lista COMPLETA dos itens dessa refeição DEPOIS da mudança — só quando target=Nutricao (null quando target=Treino), " +
             "cada item { \"itemName\", \"quantity\" }\n" +

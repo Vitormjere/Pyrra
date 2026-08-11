@@ -89,7 +89,14 @@ export function ZeloPlanModal({ onClose, onApplied }: ZeloPlanModalProps) {
       return
     }
 
-    // Aplicada/Descartada não deveriam vir de iniciar/responder — por segurança, fecha
+    if (state.status === 'Aplicada') {
+      // sessão já aplicada e ainda dentro da janela de 24h — retoma direto no chat livre em vez
+      // de recomeçar o formulário do zero (ver StartOrResumeAsync/GetActiveForUserAsync)
+      setPhase('chat')
+      return
+    }
+
+    // Descartada não deveria vir de iniciar/responder — por segurança, fecha
     onClose()
   }
 

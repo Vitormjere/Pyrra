@@ -83,6 +83,37 @@ namespace Pyrra.Application.Tests.Zelo {
         }
 
         [Fact]
+        public async Task StartOrResumeAsync_ComSessaoAplicadaDentroDe24h_RetomaNoChat() {
+            var (service, _, _, _, _, _, _, _, _, _) = Build();
+            var start = await service.StartOrResumeAsync(UserId);
+            await AnswerAllAsync(service, start.SessionId,
+                "Condicionamento físico", "Nenhuma", "Dieta mais econômica", "Academia completa", "4-5 dias");
+            await service.ApplyAsync(UserId, start.SessionId);
+
+            var resumed = await service.StartOrResumeAsync(UserId);
+
+            Assert.Equal(start.SessionId, resumed.SessionId);
+            Assert.Equal(ZeloPlanSessionStatus.Aplicada, resumed.Status);
+            Assert.Null(resumed.NextQuestion);
+        }
+
+        [Fact]
+        public async Task StartOrResumeAsync_ComSessaoAplicadaExpirada_CriaNova() {
+            var (service, _, _, _, _, clock, _, _, _, _) = Build();
+            var start = await service.StartOrResumeAsync(UserId);
+            await AnswerAllAsync(service, start.SessionId,
+                "Condicionamento físico", "Nenhuma", "Dieta mais econômica", "Academia completa", "4-5 dias");
+            await service.ApplyAsync(UserId, start.SessionId);
+
+            clock.UtcNow = clock.UtcNow.AddHours(25);
+
+            var resumed = await service.StartOrResumeAsync(UserId);
+
+            Assert.NotEqual(start.SessionId, resumed.SessionId);
+            Assert.Equal(ZeloPlanSessionStatus.Coletando, resumed.Status);
+        }
+
+        [Fact]
         public async Task AnswerAsync_OpcaoInvalida_Lanca() {
             var (service, _, _, _, _, _, _, _, _, _) = Build();
             var start = await service.StartOrResumeAsync(UserId);
