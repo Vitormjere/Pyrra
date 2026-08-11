@@ -1034,8 +1034,187 @@ export function TimeDetalhe() {
         </p>
       )}
 
+      {/* DESAFIOS DE HOJE — 3 sorteados por dia entre as categorias ativas, cada um aparece em
+          um horário aleatório (ver DailyChallengeGeneratorService no backend). Substituiu o
+          catálogo inteiro sempre disponível. */}
+      <section className="flex flex-col gap-2">
+        <h2 className="text-sm font-medium text-slate-300">Desafios de hoje</h2>
+        {challenges === null ? (
+          <Skeleton className="h-16" />
+        ) : challenges.length === 0 ? (
+          <p className="rounded-md bg-surface px-4 py-3 text-sm text-slate-500 ring-1 ring-line">
+            {team.isOwner
+              ? 'Nenhuma categoria ativa, ative uma categoria acima para liberar desafios pro time.'
+              : 'Nenhum desafio disponível ainda hoje, pode ser que o dono do time não tenha ativado nenhuma categoria, ou os desafios do dia ainda estão sendo sorteados.'}
+          </p>
+        ) : (
+          <ul className={listClasses}>
+            {challenges.map((challenge) => (
+              <ChallengeCard
+                key={challenge.id}
+                challenge={challenge}
+                busy={submitBusyId === challenge.id}
+                onSubmitProof={(file) => handleSubmitProof(challenge.id, file)}
+              />
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* DESAFIOS DE CADA TORNEIO — separados dos desafios normais do time acima, um bloco por
+          torneio Aprovado (pode haver vários agora, Fase 5b). Pendente não entra aqui: só depois
+          que a entrada é Aprovada os desafios daquele torneio ficam disponíveis. */}
+      {details.activeTournaments
+        .filter((activeTournament) => activeTournament.status === 'Aprovado')
+        .map((activeTournament) => {
+          const list = tournamentChallenges[activeTournament.tournamentId]
+          return (
+            <section key={activeTournament.tournamentId} className="flex flex-col gap-2">
+              <h2 className="flex flex-wrap items-center gap-1.5 text-sm font-medium text-slate-300">
+                <Trophy size={15} className="shrink-0 text-brand-green" aria-hidden="true" />
+                <span>Desafios do torneio</span>
+                <Link
+                  to={`/torneios/${activeTournament.tournamentId}`}
+                  className="font-semibold text-brand-green hover:underline"
+                >
+                  {activeTournament.tournamentName}
+                </Link>
+              </h2>
+              {list === undefined || list === null ? (
+                <Skeleton className="h-16" />
+              ) : list.length === 0 ? (
+                <p className="rounded-md bg-surface px-4 py-3 text-sm text-slate-500 ring-1 ring-line">
+                  Nenhum desafio disponível nesse torneio ainda.
+                </p>
+              ) : (
+                <ul className={listClasses}>
+                  {list.map((challenge) => (
+                    <TournamentChallengeCard
+                      key={challenge.id}
+                      challenge={challenge}
+                      busy={tournamentSubmitBusyKey === `${activeTournament.tournamentId}:${challenge.id}`}
+                      onSubmitProof={(file, quantity) => handleSubmitTournamentProof(activeTournament.tournamentId, challenge, file, quantity)}
+                    />
+                  ))}
+                </ul>
+              )}
+            </section>
+          )
+        })}
+
+      {/* SUBMISSÕES PENDENTES — só o dono aprova/recusa */}
+      {team.isOwner && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-sm font-medium text-slate-300">Submissões pendentes</h2>
+          {pendingSubmissions === null ? (
+            <Skeleton className="h-16" />
+          ) : pendingSubmissions.length === 0 ? (
+            <p className="rounded-md bg-surface px-4 py-3 text-sm text-slate-500 ring-1 ring-line">
+              Nenhuma submissão aguardando aprovação.
+            </p>
+          ) : (
+            <ul className={listClasses}>
+              {pendingSubmissions.map((submission) => (
+                <PendingSubmissionRow
+                  key={submission.id}
+                  teamId={id!}
+                  submission={submission}
+                  busy={pendingBusyId === submission.id}
+                  onApprove={() => handleApproveSubmission(submission.id)}
+                  onReject={() => handleRejectSubmission(submission.id)}
+                />
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
+      {/* RANKING DO TIME — placar INDIVIDUAL dentro desse time, visível a todo membro (dono ou
+          não). Não é o TotalPoints coletivo do time (que continua existindo, ver header/listagem
+          de Times) — é quem mais contribuiu ganhando desafios aqui dentro. */}
+      <section className="flex flex-col gap-2">
+        <h2 className="flex items-center gap-1.5 text-sm font-medium text-slate-300">
+          <Medal size={15} className="text-brand-green" aria-hidden="true" />
+          Ranking do time
+        </h2>
+        {ranking === null ? (
+          <Skeleton className="h-16" />
+        ) : (
+          <ul className={listClasses}>
+            {ranking.map((entry) => (
+              <TeamRankingRow key={entry.user.id} entry={entry} isSelf={entry.user.id === user?.id} />
+            ))}
+          </ul>
+        )}
+      </section>
+
       {/* CHAT DO TIME — em grupo, visível só pra dono e membros (ver TeamChatController/TeamChatService) */}
       <TeamChatPanel teamId={team.id} />
+
+      {/* MEMBROS */}
+      <section className="flex flex-col gap-2">
+        <h2 className="text-sm font-medium text-slate-300">
+          Membros ({team.memberCount}/{team.memberLimit})
+        </h2>
+        <ul className={listClasses}>
+          {members.map((member) => (
+            <MemberRow
+              key={member.userId}
+              member={member}
+              busy={busyId === member.userId}
+              canRemove={team.isOwner && !member.isOwner}
+              onRemove={() => handleRemoveMember(member)}
+              canTransfer={team.isOwner && !member.isOwner}
+              onTransfer={() => handleTransfer(member)}
+            />
+          ))}
+        </ul>
+      </section>
+
+      {/* CONVIDAR AMIGO */}
+      <section className="flex flex-col gap-2">
+        {!showInvitePicker ? (
+          <button
+            type="button"
+            onClick={openInvitePicker}
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold text-ink ring-1 ring-line transition hover:bg-surface"
+          >
+            <UserPlus size={16} aria-hidden="true" />
+            Convidar amigo
+          </button>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <h2 className="text-sm font-medium text-slate-300">Convidar amigo</h2>
+            {friends === null ? (
+              <Skeleton className="h-16" />
+            ) : availableFriends.length === 0 ? (
+              <p className="rounded-md bg-surface px-4 py-3 text-sm text-slate-500 ring-1 ring-line">
+                Nenhum amigo disponível para convidar — ou já estão no time, ou você ainda não tem amigos.
+              </p>
+            ) : (
+              <ul className={listClasses}>
+                {availableFriends.map((friend) => (
+                  <li key={friend.user.id} className="flex items-center gap-3 px-4 py-3">
+                    <Avatar name={friend.user.name} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium text-ink">{friend.user.name}</p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={busyId === friend.user.id}
+                      onClick={() => handleInvite(friend.user.id)}
+                      className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-brand-green px-3 py-1.5 text-sm font-semibold text-brand-dark transition hover:brightness-95 disabled:opacity-60"
+                    >
+                      <UserPlus size={15} />
+                      Convidar
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </section>
 
       {/* LINK DE CONVITE */}
       <section className="flex flex-col gap-2 rounded-md bg-surface px-4 py-3 ring-1 ring-line">
@@ -1181,185 +1360,6 @@ export function TimeDetalhe() {
           )}
         </section>
       )}
-
-      {/* CONVIDAR AMIGO */}
-      <section className="flex flex-col gap-2">
-        {!showInvitePicker ? (
-          <button
-            type="button"
-            onClick={openInvitePicker}
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold text-ink ring-1 ring-line transition hover:bg-surface"
-          >
-            <UserPlus size={16} aria-hidden="true" />
-            Convidar amigo
-          </button>
-        ) : (
-          <div className="flex flex-col gap-2">
-            <h2 className="text-sm font-medium text-slate-300">Convidar amigo</h2>
-            {friends === null ? (
-              <Skeleton className="h-16" />
-            ) : availableFriends.length === 0 ? (
-              <p className="rounded-md bg-surface px-4 py-3 text-sm text-slate-500 ring-1 ring-line">
-                Nenhum amigo disponível para convidar — ou já estão no time, ou você ainda não tem amigos.
-              </p>
-            ) : (
-              <ul className={listClasses}>
-                {availableFriends.map((friend) => (
-                  <li key={friend.user.id} className="flex items-center gap-3 px-4 py-3">
-                    <Avatar name={friend.user.name} />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium text-ink">{friend.user.name}</p>
-                    </div>
-                    <button
-                      type="button"
-                      disabled={busyId === friend.user.id}
-                      onClick={() => handleInvite(friend.user.id)}
-                      className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-brand-green px-3 py-1.5 text-sm font-semibold text-brand-dark transition hover:brightness-95 disabled:opacity-60"
-                    >
-                      <UserPlus size={15} />
-                      Convidar
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-      </section>
-
-      {/* MEMBROS */}
-      <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-medium text-slate-300">
-          Membros ({team.memberCount}/{team.memberLimit})
-        </h2>
-        <ul className={listClasses}>
-          {members.map((member) => (
-            <MemberRow
-              key={member.userId}
-              member={member}
-              busy={busyId === member.userId}
-              canRemove={team.isOwner && !member.isOwner}
-              onRemove={() => handleRemoveMember(member)}
-              canTransfer={team.isOwner && !member.isOwner}
-              onTransfer={() => handleTransfer(member)}
-            />
-          ))}
-        </ul>
-      </section>
-
-      {/* SUBMISSÕES PENDENTES — só o dono aprova/recusa */}
-      {team.isOwner && (
-        <section className="flex flex-col gap-2">
-          <h2 className="text-sm font-medium text-slate-300">Submissões pendentes</h2>
-          {pendingSubmissions === null ? (
-            <Skeleton className="h-16" />
-          ) : pendingSubmissions.length === 0 ? (
-            <p className="rounded-md bg-surface px-4 py-3 text-sm text-slate-500 ring-1 ring-line">
-              Nenhuma submissão aguardando aprovação.
-            </p>
-          ) : (
-            <ul className={listClasses}>
-              {pendingSubmissions.map((submission) => (
-                <PendingSubmissionRow
-                  key={submission.id}
-                  teamId={id!}
-                  submission={submission}
-                  busy={pendingBusyId === submission.id}
-                  onApprove={() => handleApproveSubmission(submission.id)}
-                  onReject={() => handleRejectSubmission(submission.id)}
-                />
-              ))}
-            </ul>
-          )}
-        </section>
-      )}
-
-      {/* DESAFIOS DE HOJE — 3 sorteados por dia entre as categorias ativas, cada um aparece em
-          um horário aleatório (ver DailyChallengeGeneratorService no backend). Substituiu o
-          catálogo inteiro sempre disponível. */}
-      <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-medium text-slate-300">Desafios de hoje</h2>
-        {challenges === null ? (
-          <Skeleton className="h-16" />
-        ) : challenges.length === 0 ? (
-          <p className="rounded-md bg-surface px-4 py-3 text-sm text-slate-500 ring-1 ring-line">
-            {team.isOwner
-              ? 'Nenhuma categoria ativa, ative uma categoria acima para liberar desafios pro time.'
-              : 'Nenhum desafio disponível ainda hoje, pode ser que o dono do time não tenha ativado nenhuma categoria, ou os desafios do dia ainda estão sendo sorteados.'}
-          </p>
-        ) : (
-          <ul className={listClasses}>
-            {challenges.map((challenge) => (
-              <ChallengeCard
-                key={challenge.id}
-                challenge={challenge}
-                busy={submitBusyId === challenge.id}
-                onSubmitProof={(file) => handleSubmitProof(challenge.id, file)}
-              />
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {/* DESAFIOS DE CADA TORNEIO — separados dos desafios normais do time acima, um bloco por
-          torneio Aprovado (pode haver vários agora, Fase 5b). Pendente não entra aqui: só depois
-          que a entrada é Aprovada os desafios daquele torneio ficam disponíveis. */}
-      {details.activeTournaments
-        .filter((activeTournament) => activeTournament.status === 'Aprovado')
-        .map((activeTournament) => {
-          const list = tournamentChallenges[activeTournament.tournamentId]
-          return (
-            <section key={activeTournament.tournamentId} className="flex flex-col gap-2">
-              <h2 className="flex flex-wrap items-center gap-1.5 text-sm font-medium text-slate-300">
-                <Trophy size={15} className="shrink-0 text-brand-green" aria-hidden="true" />
-                <span>Desafios do torneio</span>
-                <Link
-                  to={`/torneios/${activeTournament.tournamentId}`}
-                  className="font-semibold text-brand-green hover:underline"
-                >
-                  {activeTournament.tournamentName}
-                </Link>
-              </h2>
-              {list === undefined || list === null ? (
-                <Skeleton className="h-16" />
-              ) : list.length === 0 ? (
-                <p className="rounded-md bg-surface px-4 py-3 text-sm text-slate-500 ring-1 ring-line">
-                  Nenhum desafio disponível nesse torneio ainda.
-                </p>
-              ) : (
-                <ul className={listClasses}>
-                  {list.map((challenge) => (
-                    <TournamentChallengeCard
-                      key={challenge.id}
-                      challenge={challenge}
-                      busy={tournamentSubmitBusyKey === `${activeTournament.tournamentId}:${challenge.id}`}
-                      onSubmitProof={(file, quantity) => handleSubmitTournamentProof(activeTournament.tournamentId, challenge, file, quantity)}
-                    />
-                  ))}
-                </ul>
-              )}
-            </section>
-          )
-        })}
-
-      {/* RANKING DO TIME — placar INDIVIDUAL dentro desse time, visível a todo membro (dono ou
-          não). Não é o TotalPoints coletivo do time (que continua existindo, ver header/listagem
-          de Times) — é quem mais contribuiu ganhando desafios aqui dentro. */}
-      <section className="flex flex-col gap-2">
-        <h2 className="flex items-center gap-1.5 text-sm font-medium text-slate-300">
-          <Medal size={15} className="text-brand-green" aria-hidden="true" />
-          Ranking do time
-        </h2>
-        {ranking === null ? (
-          <Skeleton className="h-16" />
-        ) : (
-          <ul className={listClasses}>
-            {ranking.map((entry) => (
-              <TeamRankingRow key={entry.user.id} entry={entry} isSelf={entry.user.id === user?.id} />
-            ))}
-          </ul>
-        )}
-      </section>
 
       {/* AÇÕES */}
       {team.isOwner ? (
