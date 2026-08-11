@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Check, Circle } from 'lucide-react'
+import PasswordInput from '../../components/PasswordInput'
 import { useAuth } from '../../hooks/useAuth'
 import { getApiErrorMessage } from '../../services/apiError'
 
@@ -177,9 +178,8 @@ export function Cadastro() {
             >
               Senha
             </label>
-            <input
+            <PasswordInput
               id="password"
-              type="password"
               value={password}
               onChange={(event) => {
                 setPassword(event.target.value)
@@ -190,7 +190,6 @@ export function Cadastro() {
               autoComplete="new-password"
               placeholder="Crie uma senha forte"
               aria-invalid={fieldErrors.password !== undefined}
-              className={inputClasses}
             />
             {fieldErrors.password && (
               <p className="text-sm text-red-300">{fieldErrors.password}</p>
@@ -232,9 +231,8 @@ export function Cadastro() {
             >
               Confirmar senha
             </label>
-            <input
+            <PasswordInput
               id="confirmPassword"
-              type="password"
               value={confirmPassword}
               onChange={(event) => {
                 setConfirmPassword(event.target.value)
@@ -243,7 +241,6 @@ export function Cadastro() {
               autoComplete="new-password"
               placeholder="Repita a senha"
               aria-invalid={fieldErrors.confirmPassword !== undefined}
-              className={inputClasses}
             />
             {fieldErrors.confirmPassword && (
               <p className="text-sm text-red-300">{fieldErrors.confirmPassword}</p>

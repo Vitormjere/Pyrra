@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import PasswordInput from '../../components/PasswordInput'
 import { useAuth } from '../../hooks/useAuth'
 import { getApiErrorMessage } from '../../services/apiError'
 
@@ -80,9 +81,8 @@ export function Login() {
             >
               Senha
             </label>
-            <input
+            <PasswordInput
               id="password"
-              type="password"
               value={password}
               onChange={(event) => {
                 setPassword(event.target.value)
@@ -91,7 +91,6 @@ export function Login() {
               autoComplete="current-password"
               required
               placeholder="••••••••"
-              className="w-full rounded-md bg-surface px-4 py-3 text-ink ring-1 ring-line transition outline-none placeholder:text-slate-500 focus:ring-2 focus:ring-brand-green"
             />
           </div>
 
