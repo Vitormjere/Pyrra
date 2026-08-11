@@ -98,11 +98,12 @@ export function ZeloPlanModal({ onClose, onApplied }: ZeloPlanModalProps) {
     setSubmitting(true)
     setError(null)
 
-    // As 4 perguntas fixas sempre vêm antes das dinâmicas, então a partir da 4ª resposta (índice
-    // 3) esta pode ser a última — e o /responder já dispara a geração do plano (chamada de IA de
-    // vários segundos) na mesma requisição. Avisa antes de esperar, em vez de travar em silêncio.
-    // Se ainda vier outra pergunta dinâmica, a troca de fase é rápida e quase imperceptível.
-    const mayGenerate = session.answeredCount >= 3
+    // As 5 perguntas fixas (objetivo, restrições, orçamento, equipamento, dias) sempre vêm antes
+    // das dinâmicas, então a partir da 5ª resposta (índice 4) esta pode ser a última — e o
+    // /responder já dispara a geração do plano (chamada de IA de vários segundos) na mesma
+    // requisição. Avisa antes de esperar, em vez de travar em silêncio. Se ainda vier outra
+    // pergunta dinâmica, a troca de fase é rápida e quase imperceptível.
+    const mayGenerate = session.answeredCount >= 4
     if (mayGenerate) setPhase('generating')
 
     try {

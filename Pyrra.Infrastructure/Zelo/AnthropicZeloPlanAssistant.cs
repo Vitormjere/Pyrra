@@ -420,7 +420,14 @@ namespace Pyrra.Infrastructure.Zelo {
             "Regras: \"type\" de exercício é \"Academia\" ou \"Corrida\" (exatamente assim, sem acento). " +
             "Em \"Corrida\", sets e reps são null e exerciseName descreve o treino (ex.: \"5km leve\", \"tiros 6x400m\"). " +
             "Em \"Academia\", sets e reps são sempre números. Respeite restrições físicas e alimentares informadas " +
-            "nas respostas. Os 7 dias da semana devem aparecer exatamente uma vez em workoutDays e em nutritionDays.";
+            "nas respostas. Os 7 dias da semana devem aparecer exatamente uma vez em workoutDays e em nutritionDays.\n\n" +
+            "Nutrição — por padrão, monte a dieta com alimentos comuns e financeiramente acessíveis no " +
+            "Brasil (ex.: arroz, feijão, ovos, frango, carne moída, banana, aveia, batata, pão, leite, " +
+            "queijo comum, verduras e legumes da estação). Evite itens caros ou pouco usuais no dia a " +
+            "dia (ex.: salmão, pasta de amendoim, quinoa, castanhas importadas, iogurte grego, whey " +
+            "protein) A MENOS QUE a resposta sobre orçamento diga que o usuário não se preocupa com " +
+            "custo, ou uma restrição alimentar exija um substituto mais caro. Isso vale mesmo sem " +
+            "pergunta explícita de orçamento nas respostas — a acessibilidade é o padrão.";
 
         // formato bruto da resposta do modelo, antes de validar contra os enums do domínio
         private sealed class PlanJson {

@@ -12,6 +12,7 @@ namespace Pyrra.Application.Zelo {
     public static class ZeloPlanQuestionFlow {
         public const string KeyObjetivo          = "objetivo";
         public const string KeyRestricoes        = "restricoes";
+        public const string KeyOrcamento         = "orcamento";
         public const string KeyEquipamento       = "equipamento";
         public const string KeyDias              = "dias";
         public const string KeyCardioMusculacao  = "cardio_musculacao";
@@ -31,6 +32,13 @@ namespace Pyrra.Application.Zelo {
             EquipamentoNenhum, "Halteres ou elásticos em casa", "Academia completa"
         };
 
+        // feedback de usuários reais: a dieta vinha com itens caros/pouco usuais (salmão, pasta de
+        // amendoim) que não refletiam o orçamento da maioria — essa resposta chega ao modelo junto
+        // das outras (ver BuildUserContent) e o SystemPrompt já assume "econômica" como padrão
+        private static readonly IReadOnlyList<string> OrcamentoOptions = new[] {
+            "Dieta mais econômica", "Sem preocupação com custo"
+        };
+
         private static readonly IReadOnlyList<string> DiasOptions =
             new[] { "2-3 dias", "4-5 dias", "6+ dias" };
 
@@ -46,10 +54,12 @@ namespace Pyrra.Application.Zelo {
         private static readonly IReadOnlyList<string> RefeicoesDiaOptions =
             new[] { "3 refeições", "4 refeições", "5-6 refeições pequenas" };
 
-        // ordem fixa das quatro primeiras perguntas
+        // ordem fixa das cinco primeiras perguntas — orçamento entra sempre (não é condicional),
+        // já que a Nutrição é gerada pra todo mundo independente do objetivo
         private static readonly IReadOnlyList<ZeloPlanQuestionInfo> FixedQuestions = new[] {
             new ZeloPlanQuestionInfo(KeyObjetivo, "Qual é o seu objetivo principal?", ObjetivoOptions),
             new ZeloPlanQuestionInfo(KeyRestricoes, "Alguma restrição física ou alimentar? (lesão, alergia, vegetariano...)", null),
+            new ZeloPlanQuestionInfo(KeyOrcamento, "Como você prefere que a dieta seja em relação a custo?", OrcamentoOptions),
             new ZeloPlanQuestionInfo(KeyEquipamento, "Que equipamento você tem disponível?", EquipamentoOptions),
             new ZeloPlanQuestionInfo(KeyDias, "Quantos dias por semana você consegue treinar?", DiasOptions),
         };

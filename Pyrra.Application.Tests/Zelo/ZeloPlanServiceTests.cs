@@ -114,12 +114,15 @@ namespace Pyrra.Application.Tests.Zelo {
             var (service, _, _, _, _, _, _, _, _, _) = Build();
             var start = await service.StartOrResumeAsync(UserId);
 
-            // objetivo -> restricoes -> equipamento(Nenhum) -> dias
+            // objetivo -> restricoes -> orcamento -> equipamento(Nenhum) -> dias
             var afterObjetivo = await service.AnswerAsync(UserId, start.SessionId, "Emagrecimento");
             Assert.Equal(ZeloPlanQuestionFlow.KeyRestricoes, afterObjetivo.NextQuestion!.Key);
 
             var afterRestricoes = await service.AnswerAsync(UserId, start.SessionId, "Nenhuma");
-            Assert.Equal(ZeloPlanQuestionFlow.KeyEquipamento, afterRestricoes.NextQuestion!.Key);
+            Assert.Equal(ZeloPlanQuestionFlow.KeyOrcamento, afterRestricoes.NextQuestion!.Key);
+
+            var afterOrcamento = await service.AnswerAsync(UserId, start.SessionId, "Dieta mais econômica");
+            Assert.Equal(ZeloPlanQuestionFlow.KeyEquipamento, afterOrcamento.NextQuestion!.Key);
 
             var afterEquipamento = await service.AnswerAsync(UserId, start.SessionId, "Nenhum (casa)");
             Assert.Equal(ZeloPlanQuestionFlow.KeyDias, afterEquipamento.NextQuestion!.Key);
@@ -141,7 +144,7 @@ namespace Pyrra.Application.Tests.Zelo {
             var start = await service.StartOrResumeAsync(UserId);
 
             var final = await AnswerAllAsync(service, start.SessionId,
-                "Condicionamento físico", "Nenhuma", "Academia completa", "4-5 dias");
+                "Condicionamento físico", "Nenhuma", "Dieta mais econômica", "Academia completa", "4-5 dias");
 
             // nenhum dos 4 gatilhos dinâmicos se aplica: objetivo != Emagrecimento/GanhoDeMassa, equipamento != Nenhum
             Assert.Equal(ZeloPlanSessionStatus.PlanoGerado, final.Status);
@@ -154,7 +157,7 @@ namespace Pyrra.Application.Tests.Zelo {
             var start = await service.StartOrResumeAsync(UserId);
 
             var final = await AnswerAllAsync(service, start.SessionId,
-                "Condicionamento físico", "Nenhuma", "Academia completa", "4-5 dias");
+                "Condicionamento físico", "Nenhuma", "Dieta mais econômica", "Academia completa", "4-5 dias");
 
             Assert.Equal(ZeloPlanSessionStatus.PlanoGerado, final.Status);
             Assert.Null(final.NextQuestion);
@@ -175,7 +178,7 @@ namespace Pyrra.Application.Tests.Zelo {
             var start = await service.StartOrResumeAsync(UserId);
 
             var final = await AnswerAllAsync(service, start.SessionId,
-                "Condicionamento físico", "Nenhuma", "Academia completa", "4-5 dias");
+                "Condicionamento físico", "Nenhuma", "Dieta mais econômica", "Academia completa", "4-5 dias");
 
             Assert.Equal(ZeloPlanSessionStatus.Coletando, final.Status);
             Assert.Null(final.NextQuestion);
@@ -191,7 +194,7 @@ namespace Pyrra.Application.Tests.Zelo {
             var (service, _, _, logs, assistant, _, _, _, _, _) = Build();
             assistant.NextResult = new ZeloPlanGenerationResult(false, null, "falhou");
             var start = await service.StartOrResumeAsync(UserId);
-            await AnswerAllAsync(service, start.SessionId, "Condicionamento físico", "Nenhuma", "Academia completa", "4-5 dias");
+            await AnswerAllAsync(service, start.SessionId, "Condicionamento físico", "Nenhuma", "Dieta mais econômica", "Academia completa", "4-5 dias");
 
             assistant.NextResult = null; // próxima chamada usa o plano válido padrão
             var retried = await service.RetryGenerationAsync(UserId, start.SessionId);
@@ -210,14 +213,14 @@ namespace Pyrra.Application.Tests.Zelo {
             var start = await service.StartOrResumeAsync(UserId);
 
             await Assert.ThrowsAsync<ZeloPlanRateLimitExceededException>(() =>
-                AnswerAllAsync(service, start.SessionId, "Condicionamento físico", "Nenhuma", "Academia completa", "4-5 dias"));
+                AnswerAllAsync(service, start.SessionId, "Condicionamento físico", "Nenhuma", "Dieta mais econômica", "Academia completa", "4-5 dias"));
         }
 
         [Fact]
         public async Task GetPreviewAsync_PlanoGerado_DevolvePlanoDeserializado() {
             var (service, _, _, _, _, _, _, _, _, _) = Build();
             var start = await service.StartOrResumeAsync(UserId);
-            await AnswerAllAsync(service, start.SessionId, "Condicionamento físico", "Nenhuma", "Academia completa", "4-5 dias");
+            await AnswerAllAsync(service, start.SessionId, "Condicionamento físico", "Nenhuma", "Dieta mais econômica", "Academia completa", "4-5 dias");
 
             var preview = await service.GetPreviewAsync(UserId, start.SessionId);
 
@@ -237,7 +240,7 @@ namespace Pyrra.Application.Tests.Zelo {
         public async Task ApplyAsync_SobrescreveTreinoENutricaoEMarcaAplicada() {
             var (service, sessions, _, _, _, _, workoutDays, workoutExercises, nutritionItems, _) = Build();
             var start = await service.StartOrResumeAsync(UserId);
-            await AnswerAllAsync(service, start.SessionId, "Condicionamento físico", "Nenhuma", "Academia completa", "4-5 dias");
+            await AnswerAllAsync(service, start.SessionId, "Condicionamento físico", "Nenhuma", "Dieta mais econômica", "Academia completa", "4-5 dias");
 
             // plano anterior do usuário, deve sumir depois de aplicar
             workoutExercises.Exercises.Add(new Pyrra.Domain.Treinos.WorkoutPlanExercise {
@@ -274,7 +277,7 @@ namespace Pyrra.Application.Tests.Zelo {
         public async Task DiscardAsync_MarcaDescartadaSemTocarTreinoOuNutricao() {
             var (service, sessions, _, _, _, _, workoutDays, workoutExercises, nutritionItems, _) = Build();
             var start = await service.StartOrResumeAsync(UserId);
-            await AnswerAllAsync(service, start.SessionId, "Condicionamento físico", "Nenhuma", "Academia completa", "4-5 dias");
+            await AnswerAllAsync(service, start.SessionId, "Condicionamento físico", "Nenhuma", "Dieta mais econômica", "Academia completa", "4-5 dias");
 
             await service.DiscardAsync(UserId, start.SessionId);
 
@@ -297,7 +300,7 @@ namespace Pyrra.Application.Tests.Zelo {
         public async Task SendMessageAsync_ComPlanoGerado_SalvaAsDuasMensagensEConsomeCota() {
             var (service, _, _, logs, assistant, clock, _, _, _, messages) = Build();
             var start = await service.StartOrResumeAsync(UserId);
-            await AnswerAllAsync(service, start.SessionId, "Condicionamento físico", "Nenhuma", "Academia completa", "4-5 dias");
+            await AnswerAllAsync(service, start.SessionId, "Condicionamento físico", "Nenhuma", "Dieta mais econômica", "Academia completa", "4-5 dias");
 
             var result = await service.SendMessageAsync(UserId, start.SessionId, "Posso trocar o supino por outro exercício?");
 
@@ -319,7 +322,7 @@ namespace Pyrra.Application.Tests.Zelo {
         public async Task SendMessageAsync_RespostaVazia_Lanca() {
             var (service, _, _, _, _, _, _, _, _, _) = Build();
             var start = await service.StartOrResumeAsync(UserId);
-            await AnswerAllAsync(service, start.SessionId, "Condicionamento físico", "Nenhuma", "Academia completa", "4-5 dias");
+            await AnswerAllAsync(service, start.SessionId, "Condicionamento físico", "Nenhuma", "Dieta mais econômica", "Academia completa", "4-5 dias");
 
             await Assert.ThrowsAsync<InvalidZeloPlanException>(() => service.SendMessageAsync(UserId, start.SessionId, "   "));
         }
@@ -328,7 +331,7 @@ namespace Pyrra.Application.Tests.Zelo {
         public async Task SendMessageAsync_AssistenteFalha_SalvaMensagemDoUsuarioSemConsumirCota() {
             var (service, _, _, logs, assistant, _, _, _, _, messages) = Build();
             var start = await service.StartOrResumeAsync(UserId);
-            await AnswerAllAsync(service, start.SessionId, "Condicionamento físico", "Nenhuma", "Academia completa", "4-5 dias");
+            await AnswerAllAsync(service, start.SessionId, "Condicionamento físico", "Nenhuma", "Dieta mais econômica", "Academia completa", "4-5 dias");
 
             assistant.NextChatResult = new ZeloChatContinuationResult(false, "O Zelo está indisponível no momento.", null);
             var result = await service.SendMessageAsync(UserId, start.SessionId, "oi");
@@ -348,7 +351,7 @@ namespace Pyrra.Application.Tests.Zelo {
         public async Task SendMessageAsync_DepoisDeAplicado_AindaFunciona() {
             var (service, _, _, _, _, _, _, _, _, _) = Build();
             var start = await service.StartOrResumeAsync(UserId);
-            await AnswerAllAsync(service, start.SessionId, "Condicionamento físico", "Nenhuma", "Academia completa", "4-5 dias");
+            await AnswerAllAsync(service, start.SessionId, "Condicionamento físico", "Nenhuma", "Dieta mais econômica", "Academia completa", "4-5 dias");
             await service.ApplyAsync(UserId, start.SessionId);
 
             var result = await service.SendMessageAsync(UserId, start.SessionId, "Dúvida sobre o plano aplicado");
@@ -361,7 +364,7 @@ namespace Pyrra.Application.Tests.Zelo {
         public async Task GetMessagesAsync_DevolveNaOrdemCronologica() {
             var (service, _, _, _, _, _, _, _, _, _) = Build();
             var start = await service.StartOrResumeAsync(UserId);
-            await AnswerAllAsync(service, start.SessionId, "Condicionamento físico", "Nenhuma", "Academia completa", "4-5 dias");
+            await AnswerAllAsync(service, start.SessionId, "Condicionamento físico", "Nenhuma", "Dieta mais econômica", "Academia completa", "4-5 dias");
             await service.SendMessageAsync(UserId, start.SessionId, "Primeira pergunta");
             await service.SendMessageAsync(UserId, start.SessionId, "Segunda pergunta");
 
@@ -400,7 +403,7 @@ namespace Pyrra.Application.Tests.Zelo {
         private static async Task<Guid> ApplyDefaultPlanAsync(ZeloPlanService service, Guid userId = default) {
             var uid = userId == default ? UserId : userId;
             var start = await service.StartOrResumeAsync(uid);
-            await AnswerAllAsync(service, start.SessionId, "Condicionamento físico", "Nenhuma", "Academia completa", "4-5 dias");
+            await AnswerAllAsync(service, start.SessionId, "Condicionamento físico", "Nenhuma", "Dieta mais econômica", "Academia completa", "4-5 dias");
             await service.ApplyAsync(uid, start.SessionId);
             return start.SessionId;
         }
@@ -419,7 +422,7 @@ namespace Pyrra.Application.Tests.Zelo {
         public async Task SendMessageAsync_SessaoAindaNaoAplicada_NaoLiberaAllowEdits() {
             var (service, _, _, _, assistant, _, _, _, _, _) = Build();
             var start = await service.StartOrResumeAsync(UserId);
-            await AnswerAllAsync(service, start.SessionId, "Condicionamento físico", "Nenhuma", "Academia completa", "4-5 dias");
+            await AnswerAllAsync(service, start.SessionId, "Condicionamento físico", "Nenhuma", "Dieta mais econômica", "Academia completa", "4-5 dias");
 
             await service.SendMessageAsync(UserId, start.SessionId, "dúvida qualquer");
 
