@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import type { FormEvent } from 'react'
-import { LayoutTemplate, Plus, Sparkles, X } from 'lucide-react'
+import type { FormEvent, PointerEvent as ReactPointerEvent } from 'react'
+import { GripVertical, LayoutTemplate, Plus, Sparkles, X } from 'lucide-react'
 import SectionHeader from './SectionHeader'
 import Segmented from './Segmented'
 import WorkoutTemplatePicker from './WorkoutTemplatePicker'
@@ -54,6 +54,12 @@ export function WorkoutPlanSection() {
 
   // Modal do Zelo conversacional — mesma sessão do botão em Nutrição.
   const [zeloOpen, setZeloOpen] = useState(false)
+
+  // Drag de um dia inteiro sobre outro: troca (swap) o conteúdo dos dois, nenhum
+  // fica vazio. Via Pointer Events (não HTML5 DnD) pra funcionar em touch também,
+  // já que a tela é usada no celular.
+  const [draggingDay, setDraggingDay] = useState<WeekDay | null>(null)
+  const [dragOverDay, setDragOverDay] = useState<WeekDay | null>(null)
 
   const today = todayWeekDay()
 
@@ -197,6 +203,67 @@ export function WorkoutPlanSection() {
     }
   }
 
+  // troca label + exercícios entre dois dias e persiste — mesmo PUT de plano
+  // inteiro que o handleBlur usa, já que não existe endpoint de dia isolado
+  async function swapDays(source: WeekDay, target: WeekDay) {
+    if (source === target) return
+
+    const sourceDay = days.find((item) => item.dayOfWeek === source)
+    const targetDay = days.find((item) => item.dayOfWeek === target)
+    if (!sourceDay || !targetDay) return
+
+    const swapped = days.map((item) => {
+      if (item.dayOfWeek === source) {
+        return { ...item, label: targetDay.label, exercises: targetDay.exercises }
+      }
+      if (item.dayOfWeek === target) {
+        return { ...item, label: sourceDay.label, exercises: sourceDay.exercises }
+      }
+      return item
+    })
+
+    setDays(swapped)
+    setState('saving')
+    setError(null)
+
+    try {
+      const saved = await saveWorkoutPlan(swapped)
+      setDays(saved)
+      savedLabels.current = Object.fromEntries(
+        saved.map((item) => [item.dayOfWeek, item.label ?? '']),
+      )
+      setState('saved')
+    } catch (err) {
+      setState('error')
+      setError(getApiErrorMessage(err, {}, 'Não foi possível trocar os dias.'))
+    }
+  }
+
+  function handleDragHandlePointerDown(event: ReactPointerEvent<HTMLButtonElement>, day: WeekDay) {
+    // botão esquerdo/toque primário only; sem isso, um clique com o botão direito também iniciaria o drag
+    if (event.button !== 0) return
+    event.preventDefault()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    setDraggingDay(day)
+    setDragOverDay(day)
+  }
+
+  function handleDragHandlePointerMove(event: ReactPointerEvent<HTMLButtonElement>) {
+    if (draggingDay === null) return
+    const target = document.elementFromPoint(event.clientX, event.clientY)
+    const row = target instanceof Element ? target.closest<HTMLElement>('[data-week-day]') : null
+    const day = row?.dataset.weekDay as WeekDay | undefined
+    if (day) setDragOverDay(day)
+  }
+
+  function handleDragHandlePointerUp() {
+    if (draggingDay !== null && dragOverDay !== null) {
+      void swapDays(draggingDay, dragOverDay)
+    }
+    setDraggingDay(null)
+    setDragOverDay(null)
+  }
+
   if (loading || error === 'unavailable') return null
 
   return (
@@ -237,14 +304,43 @@ export function WorkoutPlanSection() {
         Plano da semana
       </SectionHeader>
 
+      {/* Só aparece a partir do segundo dia com conteúdo — antes disso não há o
+          que trocar, e a dica ficaria sem sentido num plano vazio. */}
+      {days.filter((d) => (d.label ?? '').trim() !== '' || d.exercises.length > 0).length > 1 && (
+        <p className="text-xs text-slate-500">
+          Segure e arraste <GripVertical size={11} className="inline -mt-0.5" aria-hidden="true" /> para trocar dois dias de lugar.
+        </p>
+      )}
+
       <ul className="divide-y divide-line overflow-hidden rounded-md bg-surface ring-1 ring-line">
         {days.map((day) => (
-          <li key={day.dayOfWeek} className="px-4 py-2.5">
-            <div className="flex items-center gap-3">
+          <li
+            key={day.dayOfWeek}
+            data-week-day={day.dayOfWeek}
+            className={[
+              'px-4 py-2.5 transition',
+              draggingDay === day.dayOfWeek ? 'opacity-40' : '',
+              dragOverDay === day.dayOfWeek && draggingDay !== null && draggingDay !== day.dayOfWeek
+                ? 'bg-surface-hi ring-2 ring-inset ring-brand-green'
+                : '',
+            ].join(' ')}
+          >
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                aria-label={`Arrastar treino de ${WEEK_DAY_LABELS[day.dayOfWeek]} para trocar com outro dia`}
+                onPointerDown={(event) => handleDragHandlePointerDown(event, day.dayOfWeek)}
+                onPointerMove={handleDragHandlePointerMove}
+                onPointerUp={handleDragHandlePointerUp}
+                onPointerCancel={handleDragHandlePointerUp}
+                className="-ml-1 shrink-0 touch-none rounded p-1 text-slate-600 transition hover:bg-surface-hi hover:text-slate-300 active:cursor-grabbing"
+              >
+                <GripVertical size={15} aria-hidden="true" />
+              </button>
               <label
                 htmlFor={`plano-${day.dayOfWeek}`}
                 className={[
-                  'w-20 shrink-0 text-xs font-medium',
+                  'w-16 shrink-0 text-xs font-medium',
                   // dia corrente ganha destaque, é a linha que importa ao abrir a tela pra treinar agora
                   day.dayOfWeek === today ? 'text-brand-green' : 'text-slate-500',
                 ].join(' ')}
