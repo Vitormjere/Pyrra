@@ -1329,7 +1329,7 @@ export function TimeDetalhe() {
           <p className="rounded-md bg-surface px-4 py-3 text-sm text-slate-500 ring-1 ring-line">
             {team.isOwner
               ? 'Nenhuma categoria ativa, ative uma categoria acima para liberar desafios pro time.'
-              : 'Nenhum desafio disponível ainda hoje — pode ser que o dono do time não tenha ativado nenhuma categoria, ou os desafios do dia ainda estão sendo sorteados.'}
+              : 'Nenhum desafio disponível ainda hoje, pode ser que o dono do time não tenha ativado nenhuma categoria, ou os desafios do dia ainda estão sendo sorteados.'}
           </p>
         ) : (
           <ul className={listClasses}>

@@ -135,7 +135,7 @@ export function ChatPanel({ counterpart }: { counterpart: UserSummary }) {
         {messages === null ? (
           <p className="text-center text-sm text-slate-500">Carregando…</p>
         ) : messages.length === 0 ? (
-          <p className="text-center text-sm text-slate-500">Nenhuma mensagem ainda — envie a primeira.</p>
+          <p className="text-center text-sm text-slate-500">Nenhuma mensagem ainda, envie a primeira.</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {messages.map((message) => (
