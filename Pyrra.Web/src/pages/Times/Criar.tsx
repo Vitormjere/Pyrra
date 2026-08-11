@@ -1,12 +1,16 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ChevronLeft, Check, ImagePlus, X } from 'lucide-react'
+import CategoryToggleRow from '../../components/CategoryToggleRow'
 import Segmented from '../../components/Segmented'
+import Skeleton from '../../components/Skeleton'
+import { activateTeamCategory, deactivateTeamCategory, getTeamCategories } from '../../services/challengeService'
 import { createTeam, uploadTeamBannerImage } from '../../services/teamService'
 import { getApiErrorMessage } from '../../services/apiError'
 import { TEAM_BANNER_SWATCH, TEAM_BANNER_THEMES } from '../../utils/teamBanners'
-import type { TeamBannerTheme, TeamVisibility } from '../../types/teams'
+import type { TeamCategoryStatus } from '../../types/challenges'
+import type { Team, TeamBannerTheme, TeamVisibility } from '../../types/teams'
 
 // Mesma regra do backend (TeamService.SetBannerImageAsync) — só pra dar feedback antes de
 // enviar; o backend segue sendo a validação de verdade.
@@ -30,6 +34,8 @@ const inputClasses =
 
 const labelClasses = 'text-sm font-medium text-slate-300'
 
+const listClasses = 'divide-y divide-line overflow-hidden rounded-md bg-surface ring-1 ring-line'
+
 export function CriarTime() {
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -45,9 +51,53 @@ export function CriarTime() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Passo 2: time já criado, escolhendo categorias antes de ir pro detalhe — não-nulo só depois
+  // que POST /api/times responde com sucesso.
+  const [createdTeam, setCreatedTeam] = useState<Team | null>(null)
+  const [categories, setCategories] = useState<TeamCategoryStatus[] | null>(null)
+  const [categoryBusyId, setCategoryBusyId] = useState<string | null>(null)
+  const [categoryError, setCategoryError] = useState<string | null>(null)
+
   // Mesma regra do backend: número positivo, sem mínimo/máximo do sistema.
   const limitValue = Number(memberLimit)
   const canSubmit = name.trim().length > 0 && Number.isInteger(limitValue) && limitValue > 0
+
+  useEffect(() => {
+    if (!createdTeam) return
+    let active = true
+
+    async function run() {
+      try {
+        const data = await getTeamCategories(createdTeam!.id)
+        if (active) setCategories(data)
+      } catch (err) {
+        if (active) setCategoryError(getApiErrorMessage(err, {}, 'Não foi possível carregar as categorias.'))
+      }
+    }
+
+    void run()
+    return () => {
+      active = false
+    }
+  }, [createdTeam])
+
+  async function handleToggleCategory(category: TeamCategoryStatus) {
+    if (!createdTeam) return
+    setCategoryBusyId(category.id)
+    setCategoryError(null)
+    try {
+      if (category.isActive) {
+        await deactivateTeamCategory(createdTeam.id, category.id)
+      } else {
+        await activateTeamCategory(createdTeam.id, category.id)
+      }
+      setCategories(await getTeamCategories(createdTeam.id))
+    } catch (err) {
+      setCategoryError(getApiErrorMessage(err, {}, 'Não foi possível atualizar a categoria.'))
+    } finally {
+      setCategoryBusyId(null)
+    }
+  }
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
@@ -88,7 +138,8 @@ export function CriarTime() {
           await uploadTeamBannerImage(team.id, bannerFile)
         } catch (err) {
           // O time já existe — navega mesmo assim, só carregando o erro pra tela de detalhes
-          // mostrar (dá pra tentar o upload de novo por lá).
+          // mostrar (dá pra tentar o upload de novo por lá). Categorias ficam pra depois, dá pra
+          // ativar na tela do time a qualquer momento.
           navigate(`/times/${team.id}`, {
             replace: true,
             state: { bannerError: getApiErrorMessage(err, {}, 'Time criado, mas não foi possível enviar a imagem.') },
@@ -97,11 +148,70 @@ export function CriarTime() {
         }
       }
 
-      navigate(`/times/${team.id}`, { replace: true })
+      // time criado com sucesso — passo 2 (categorias) antes de ir pro detalhe, em vez de navegar direto
+      setCreatedTeam(team)
+      setSaving(false)
     } catch (err) {
       setError(getApiErrorMessage(err, {}, 'Não foi possível criar o time.'))
       setSaving(false)
     }
+  }
+
+  function handleFinish() {
+    if (!createdTeam) return
+    navigate(`/times/${createdTeam.id}`, { replace: true })
+  }
+
+  // Passo 2: time já criado, só falta escolher categorias (ou pular) antes de ir pro time.
+  if (createdTeam) {
+    return (
+      <div className="flex flex-col gap-5">
+        <header className="flex items-center gap-2">
+          <h1 className="glow-ink font-display text-3xl font-semibold tracking-tight text-ink">
+            {createdTeam.name}
+          </h1>
+        </header>
+
+        <div className="flex flex-col gap-2">
+          <span className={labelClasses}>Categorias de desafios</span>
+          <p className="text-xs text-slate-500">
+            Ative as categorias que valem desafio pra esse time — dá pra mudar isso a qualquer
+            momento na tela do time.
+          </p>
+          {categories === null ? (
+            <Skeleton className="h-16" />
+          ) : categories.length === 0 ? (
+            <p className="rounded-md bg-surface px-4 py-3 text-sm text-slate-500 ring-1 ring-line">
+              Nenhuma categoria disponível no momento.
+            </p>
+          ) : (
+            <ul className={listClasses}>
+              {categories.map((category) => (
+                <CategoryToggleRow
+                  key={category.id}
+                  category={category}
+                  busy={categoryBusyId === category.id}
+                  onToggle={() => handleToggleCategory(category)}
+                />
+              ))}
+            </ul>
+          )}
+          {categoryError && (
+            <p role="alert" className="text-xs text-red-300">
+              {categoryError}
+            </p>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={handleFinish}
+          className="w-full rounded-xl bg-brand-green px-4 py-2.5 font-semibold text-brand-dark transition hover:brightness-95"
+        >
+          Ir para o time
+        </button>
+      </div>
+    )
   }
 
   return (
