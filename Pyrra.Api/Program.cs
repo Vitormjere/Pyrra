@@ -226,6 +226,7 @@ builder.Services.AddScoped<INutritionService, NutritionService>();
 
 builder.Services.AddScoped<IUserPreferencesService, UserPreferencesService>();
 builder.Services.AddScoped<IUsernameService, UsernameService>();
+builder.Services.AddScoped<IUserProfilePictureStorageService, AzureBlobUserProfilePictureStorageService>();
 builder.Services.AddScoped<IUserAccountService, UserAccountService>();
 builder.Services.AddScoped<INightlyMessageService, NightlyMessageService>();
 // Serviço de usuários do módulo administrativo

@@ -515,7 +515,7 @@ namespace Pyrra.Application.Desafios {
             return users.ToDictionary(u => u.Id);
         }
 
-        private static UserSummary ToSummary(User user) => new(user.Id, user.Name, user.Username);
+        private static UserSummary ToSummary(User user) => new(user.Id, user.Name, user.Username, user.ProfilePictureUrl);
 
         // valida dono do time sem expor gestão de times alheios
         private async Task<Team> GetOwnedTeamAsync(Guid ownerId, Guid teamId, CancellationToken cancellationToken) {

@@ -292,7 +292,7 @@ namespace Pyrra.Application.Desafios {
             return users.ToDictionary(u => u.Id);
         }
 
-        private static UserSummary ToSummary(User user) => new(user.Id, user.Name, user.Username);
+        private static UserSummary ToSummary(User user) => new(user.Id, user.Name, user.Username, user.ProfilePictureUrl);
 
         private async Task EnsureOwnerAsync(Guid ownerId, Guid tournamentId, CancellationToken cancellationToken) {
             var tournament = await _tournamentRepository.GetByIdAsync(tournamentId, cancellationToken);

@@ -48,6 +48,7 @@ namespace Pyrra.Application.Usuario {
                 target.Id,
                 target.Name,
                 target.Username,
+                target.ProfilePictureUrl,
                 target.Plan,
                 friendCount,
                 streak.DisplayCount,

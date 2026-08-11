@@ -61,6 +61,6 @@ namespace Pyrra.Application.Comunidade {
                 .ToList();
         }
 
-        private static UserSummary ToSummary(User user) => new(user.Id, user.Name, user.Username);
+        private static UserSummary ToSummary(User user) => new(user.Id, user.Name, user.Username, user.ProfilePictureUrl);
     }
 }

@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Identity;
@@ -8,17 +10,25 @@ using Pyrra.Domain.Users;
 
 namespace Pyrra.Application.Usuario {
     public class UserAccountService : IUserAccountService {
-        private readonly IUserRepository        _userRepository;
-        private readonly IPasswordHasher<User>  _passwordHasher;
-        private readonly IClockService          _clock;
+        private static readonly HashSet<string> AllowedProfilePictureContentTypes =
+            new(StringComparer.OrdinalIgnoreCase) { "image/jpeg", "image/png", "image/webp" };
+
+        private const long MaxProfilePictureBytes = 3 * 1024 * 1024;
+
+        private readonly IUserRepository                   _userRepository;
+        private readonly IPasswordHasher<User>             _passwordHasher;
+        private readonly IUserProfilePictureStorageService _profilePictureStorage;
+        private readonly IClockService                     _clock;
 
         public UserAccountService(
-            IUserRepository       userRepository,
-            IPasswordHasher<User> passwordHasher,
-            IClockService         clock) {
-            _userRepository = userRepository;
-            _passwordHasher = passwordHasher;
-            _clock          = clock;
+            IUserRepository                   userRepository,
+            IPasswordHasher<User>             passwordHasher,
+            IUserProfilePictureStorageService profilePictureStorage,
+            IClockService                     clock) {
+            _userRepository        = userRepository;
+            _passwordHasher        = passwordHasher;
+            _profilePictureStorage = profilePictureStorage;
+            _clock                 = clock;
         }
 
         public async Task<User> UpdateNameAsync(Guid userId, string name, CancellationToken cancellationToken = default) {
@@ -110,6 +120,40 @@ namespace Pyrra.Application.Usuario {
             user.UpdatedAt = _clock.UtcNow;
 
             await _userRepository.UpdateAsync(user, cancellationToken);
+        }
+
+        public async Task<User> SetProfilePictureAsync(
+            Guid userId, Stream content, string contentType, long contentLength, CancellationToken cancellationToken = default) {
+            if (!AllowedProfilePictureContentTypes.Contains(contentType)) {
+                throw new InvalidAccountException("Formato de imagem inválido. Use JPG, PNG ou WEBP.");
+            }
+
+            if (contentLength <= 0 || contentLength > MaxProfilePictureBytes) {
+                throw new InvalidAccountException("A imagem deve ter até 3MB.");
+            }
+
+            var user = await GetOwnedUserAsync(userId, cancellationToken);
+
+            var url = await _profilePictureStorage.UploadAsync(userId, content, contentType, cancellationToken);
+
+            user.ProfilePictureUrl = url;
+            user.UpdatedAt         = _clock.UtcNow;
+            await _userRepository.UpdateAsync(user, cancellationToken);
+
+            return user;
+        }
+
+        public async Task<User> RemoveProfilePictureAsync(Guid userId, CancellationToken cancellationToken = default) {
+            var user = await GetOwnedUserAsync(userId, cancellationToken);
+
+            if (user.ProfilePictureUrl is not null) {
+                await _profilePictureStorage.DeleteAsync(userId, cancellationToken);
+                user.ProfilePictureUrl = null;
+                user.UpdatedAt         = _clock.UtcNow;
+                await _userRepository.UpdateAsync(user, cancellationToken);
+            }
+
+            return user;
         }
 
         private async Task<User> GetOwnedUserAsync(Guid userId, CancellationToken cancellationToken) {

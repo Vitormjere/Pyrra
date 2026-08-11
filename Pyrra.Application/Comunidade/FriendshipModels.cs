@@ -2,7 +2,7 @@ using System;
 
 namespace Pyrra.Application.Comunidade {
     // dados públicos do usuário, sem informação sensível
-    public record UserSummary(Guid Id, string Name, string? Username);
+    public record UserSummary(Guid Id, string Name, string? Username, string? ProfilePictureUrl);
 
     // dados de uma amizade já confirmada
     public record FriendSummary(Guid FriendshipId, UserSummary User, DateTime Since);

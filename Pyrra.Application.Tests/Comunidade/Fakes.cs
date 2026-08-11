@@ -33,6 +33,22 @@ namespace Pyrra.Application.Tests.Comunidade {
         }
     }
 
+    // mesmo padrão do FakeTeamBannerStorageService acima, agora pra foto de perfil de usuário
+    internal sealed class FakeUserProfilePictureStorageService : IUserProfilePictureStorageService {
+        public int UploadCallCount { get; private set; }
+        public int DeleteCallCount { get; private set; }
+
+        public Task<string> UploadAsync(Guid userId, Stream content, string contentType, CancellationToken cancellationToken = default) {
+            UploadCallCount++;
+            return Task.FromResult($"https://fake.blob.core.windows.net/profile-pictures/{userId:N}");
+        }
+
+        public Task DeleteAsync(Guid userId, CancellationToken cancellationToken = default) {
+            DeleteCallCount++;
+            return Task.CompletedTask;
+        }
+    }
+
     internal sealed class FakeUserRepository : IUserRepository {
         public readonly List<User> Users = new();
 

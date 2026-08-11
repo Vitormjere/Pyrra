@@ -3,8 +3,8 @@ using System.ComponentModel.DataAnnotations;
 using Pyrra.Application.Comunidade;
 
 namespace Pyrra.Api.Dtos.Comunidade {
-    public record UserSummaryResponse(Guid Id, string Name, string? Username) {
-        public static UserSummaryResponse FromSummary(UserSummary s) => new(s.Id, s.Name, s.Username);
+    public record UserSummaryResponse(Guid Id, string Name, string? Username, string? ProfilePictureUrl) {
+        public static UserSummaryResponse FromSummary(UserSummary s) => new(s.Id, s.Name, s.Username, s.ProfilePictureUrl);
     }
 
     public record FriendResponse(Guid FriendshipId, UserSummaryResponse User, DateTime Since) {

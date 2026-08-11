@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Identity;
@@ -22,11 +23,12 @@ namespace Pyrra.Application.Tests.Usuario {
             return user;
         }
 
-        private static (UserAccountService service, FakeUserRepository users, FakeClock clock) Build(params User[] users) {
+        private static (UserAccountService service, FakeUserRepository users, FakeClock clock, FakeUserProfilePictureStorageService pictures) Build(params User[] users) {
             var repo = new FakeUserRepository(users);
             var clock = new FakeClock();
-            var service = new UserAccountService(repo, Hasher, clock);
-            return (service, repo, clock);
+            var pictures = new FakeUserProfilePictureStorageService();
+            var service = new UserAccountService(repo, Hasher, pictures, clock);
+            return (service, repo, clock, pictures);
         }
 
         // ---- nome ----
@@ -34,7 +36,7 @@ namespace Pyrra.Application.Tests.Usuario {
         [Fact]
         public async Task UpdateNameAsync_AtualizaNome() {
             var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
-            var (service, _, clock) = Build(alice);
+            var (service, _, clock, _) = Build(alice);
 
             var updated = await service.UpdateNameAsync(Alice, "  Alice Silva  ");
 
@@ -45,7 +47,7 @@ namespace Pyrra.Application.Tests.Usuario {
         [Fact]
         public async Task UpdateNameAsync_Vazio_Lanca() {
             var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
-            var (service, _, _) = Build(alice);
+            var (service, _, _, _) = Build(alice);
 
             await Assert.ThrowsAsync<InvalidAccountException>(() => service.UpdateNameAsync(Alice, "   "));
         }
@@ -55,7 +57,7 @@ namespace Pyrra.Application.Tests.Usuario {
         [Fact]
         public async Task ChangeEmailAsync_ComSenhaCorreta_Atualiza() {
             var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
-            var (service, _, _) = Build(alice);
+            var (service, _, _, _) = Build(alice);
 
             var updated = await service.ChangeEmailAsync(Alice, "novo@x.com", "SenhaForte123");
 
@@ -65,7 +67,7 @@ namespace Pyrra.Application.Tests.Usuario {
         [Fact]
         public async Task ChangeEmailAsync_NormalizaParaMinusculas() {
             var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
-            var (service, _, _) = Build(alice);
+            var (service, _, _, _) = Build(alice);
 
             var updated = await service.ChangeEmailAsync(Alice, "  NOVO@X.com  ", "SenhaForte123");
 
@@ -75,7 +77,7 @@ namespace Pyrra.Application.Tests.Usuario {
         [Fact]
         public async Task ChangeEmailAsync_SenhaAtualErrada_Lanca() {
             var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
-            var (service, users, _) = Build(alice);
+            var (service, users, _, _) = Build(alice);
 
             await Assert.ThrowsAsync<IncorrectPasswordException>(
                 () => service.ChangeEmailAsync(Alice, "novo@x.com", "SenhaErrada"));
@@ -88,7 +90,7 @@ namespace Pyrra.Application.Tests.Usuario {
         public async Task ChangeEmailAsync_JaEmUsoPorOutroUsuario_Lanca() {
             var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
             var bob   = MakeUser(Bob, "bob@x.com", "OutraSenha123");
-            var (service, _, _) = Build(alice, bob);
+            var (service, _, _, _) = Build(alice, bob);
 
             await Assert.ThrowsAsync<EmailAlreadyRegisteredException>(
                 () => service.ChangeEmailAsync(Alice, "bob@x.com", "SenhaForte123"));
@@ -97,7 +99,7 @@ namespace Pyrra.Application.Tests.Usuario {
         [Fact]
         public async Task ChangeEmailAsync_MesmoEmailAtual_EhNoOp() {
             var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
-            var (service, _, _) = Build(alice);
+            var (service, _, _, _) = Build(alice);
 
             // mesmo e-mail (só a caixa muda, já normalizado) não deve checar unicidade contra si mesmo nem lançar
             var updated = await service.ChangeEmailAsync(Alice, "ALICE@X.COM", "SenhaForte123");
@@ -110,7 +112,7 @@ namespace Pyrra.Application.Tests.Usuario {
         [Fact]
         public async Task ChangePasswordAsync_ComSenhaAtualCorreta_TrocaEValidaComANova() {
             var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
-            var (service, users, _) = Build(alice);
+            var (service, users, _, _) = Build(alice);
 
             await service.ChangePasswordAsync(Alice, "SenhaForte123", "NovaSenha456");
 
@@ -122,7 +124,7 @@ namespace Pyrra.Application.Tests.Usuario {
         [Fact]
         public async Task ChangePasswordAsync_SenhaAtualErrada_Lanca_ENaoTrocaANova() {
             var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
-            var (service, users, _) = Build(alice);
+            var (service, users, _, _) = Build(alice);
 
             await Assert.ThrowsAsync<IncorrectPasswordException>(
                 () => service.ChangePasswordAsync(Alice, "SenhaErrada", "NovaSenha456"));
@@ -136,7 +138,7 @@ namespace Pyrra.Application.Tests.Usuario {
         [Fact]
         public async Task ChangePasswordAsync_NovaSenhaFraca_Lanca() {
             var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
-            var (service, _, _) = Build(alice);
+            var (service, _, _, _) = Build(alice);
 
             await Assert.ThrowsAsync<WeakPasswordException>(
                 () => service.ChangePasswordAsync(Alice, "SenhaForte123", "curta"));
@@ -147,7 +149,7 @@ namespace Pyrra.Application.Tests.Usuario {
         [Fact]
         public async Task UpdateTimezoneAsync_ValidoIana_Atualiza() {
             var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
-            var (service, _, _) = Build(alice);
+            var (service, _, _, _) = Build(alice);
 
             var updated = await service.UpdateTimezoneAsync(Alice, "America/New_York");
 
@@ -157,7 +159,7 @@ namespace Pyrra.Application.Tests.Usuario {
         [Fact]
         public async Task UpdateTimezoneAsync_Invalido_Lanca() {
             var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
-            var (service, _, _) = Build(alice);
+            var (service, _, _, _) = Build(alice);
 
             await Assert.ThrowsAsync<InvalidAccountException>(
                 () => service.UpdateTimezoneAsync(Alice, "Nao/Existe"));
@@ -168,7 +170,7 @@ namespace Pyrra.Application.Tests.Usuario {
         [Fact]
         public async Task UpdateProfileVisibilityAsync_Atualiza() {
             var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
-            var (service, users, clock) = Build(alice);
+            var (service, users, clock, _) = Build(alice);
 
             var updated = await service.UpdateProfileVisibilityAsync(Alice, ProfileVisibility.SomenteAmigos);
 
@@ -181,7 +183,7 @@ namespace Pyrra.Application.Tests.Usuario {
         [Fact]
         public async Task DeleteAccountAsync_ComSenhaCorreta_MarcaDeletedAt() {
             var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
-            var (service, users, clock) = Build(alice);
+            var (service, users, clock, _) = Build(alice);
 
             await service.DeleteAccountAsync(Alice, "SenhaForte123");
 
@@ -192,7 +194,7 @@ namespace Pyrra.Application.Tests.Usuario {
         [Fact]
         public async Task DeleteAccountAsync_ContaExcluidaSomeDeTodaConsulta() {
             var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
-            var (service, users, _) = Build(alice);
+            var (service, users, _, _) = Build(alice);
 
             await service.DeleteAccountAsync(Alice, "SenhaForte123");
 
@@ -204,7 +206,7 @@ namespace Pyrra.Application.Tests.Usuario {
         [Fact]
         public async Task DeleteAccountAsync_SenhaErrada_Lanca_ENaoMarcaDeletedAt() {
             var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
-            var (service, users, _) = Build(alice);
+            var (service, users, _, _) = Build(alice);
 
             await Assert.ThrowsAsync<IncorrectPasswordException>(
                 () => service.DeleteAccountAsync(Alice, "SenhaErrada"));
@@ -215,11 +217,73 @@ namespace Pyrra.Application.Tests.Usuario {
         [Fact]
         public async Task DeleteAccountAsync_Novamente_LancaNotFound() {
             var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
-            var (service, _, _) = Build(alice);
+            var (service, _, _, _) = Build(alice);
             await service.DeleteAccountAsync(Alice, "SenhaForte123");
 
             // segunda tentativa não encontra a conta (mesmo critério de sumir de toda consulta), fica indistinguível de usuário inexistente
             await Assert.ThrowsAsync<NotFoundException>(() => service.DeleteAccountAsync(Alice, "SenhaForte123"));
+        }
+
+        // ---- foto de perfil ----
+
+        [Fact]
+        public async Task SetProfilePictureAsync_TipoValido_ArmazenaEAtualizaUrl() {
+            var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
+            var (service, users, clock, pictures) = Build(alice);
+
+            using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
+            var updated = await service.SetProfilePictureAsync(Alice, stream, "image/png", stream.Length);
+
+            Assert.Equal($"https://fake.blob.core.windows.net/profile-pictures/{Alice:N}", updated.ProfilePictureUrl);
+            Assert.Equal(1, pictures.UploadCallCount);
+            Assert.Equal(clock.UtcNow, users.Users.Single(u => u.Id == Alice).UpdatedAt);
+        }
+
+        [Fact]
+        public async Task SetProfilePictureAsync_TipoInvalido_Lanca() {
+            var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
+            var (service, _, _, pictures) = Build(alice);
+
+            using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
+            await Assert.ThrowsAsync<InvalidAccountException>(
+                () => service.SetProfilePictureAsync(Alice, stream, "application/pdf", stream.Length));
+
+            Assert.Equal(0, pictures.UploadCallCount);
+        }
+
+        [Fact]
+        public async Task SetProfilePictureAsync_MaiorQue3MB_Lanca() {
+            var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
+            var (service, _, _, pictures) = Build(alice);
+
+            using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
+            await Assert.ThrowsAsync<InvalidAccountException>(
+                () => service.SetProfilePictureAsync(Alice, stream, "image/png", 3 * 1024 * 1024 + 1));
+
+            Assert.Equal(0, pictures.UploadCallCount);
+        }
+
+        [Fact]
+        public async Task RemoveProfilePictureAsync_ComFoto_RemoveEZeraUrl() {
+            var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
+            alice.ProfilePictureUrl = "https://fake.blob.core.windows.net/profile-pictures/existente";
+            var (service, users, _, pictures) = Build(alice);
+
+            var updated = await service.RemoveProfilePictureAsync(Alice);
+
+            Assert.Null(updated.ProfilePictureUrl);
+            Assert.Equal(1, pictures.DeleteCallCount);
+            Assert.Null(users.Users.Single(u => u.Id == Alice).ProfilePictureUrl);
+        }
+
+        [Fact]
+        public async Task RemoveProfilePictureAsync_SemFoto_NaoChamaStorage() {
+            var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
+            var (service, _, _, pictures) = Build(alice);
+
+            await service.RemoveProfilePictureAsync(Alice);
+
+            Assert.Equal(0, pictures.DeleteCallCount);
         }
     }
 }

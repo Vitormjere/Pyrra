@@ -7,6 +7,7 @@ namespace Pyrra.Application.Usuario {
         Guid     Id,
         string   Name,
         string?  Username,
+        string?  ProfilePictureUrl,
         UserPlan Plan,
         int      FriendCount,
         int      StreakCurrent,

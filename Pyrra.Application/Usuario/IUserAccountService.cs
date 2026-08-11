@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Pyrra.Domain.Users;
@@ -21,5 +22,12 @@ namespace Pyrra.Application.Usuario {
 
         // desativa a conta sem remover os dados
         Task DeleteAccountAsync(Guid userId, string currentPassword, CancellationToken cancellationToken = default);
+
+        // mesma validação de tipo/tamanho do banner de time (JPG/PNG/WEBP, até 3MB)
+        Task<User> SetProfilePictureAsync(
+            Guid userId, Stream content, string contentType, long contentLength, CancellationToken cancellationToken = default);
+
+        // volta pro fallback de inicial
+        Task<User> RemoveProfilePictureAsync(Guid userId, CancellationToken cancellationToken = default);
     }
 }

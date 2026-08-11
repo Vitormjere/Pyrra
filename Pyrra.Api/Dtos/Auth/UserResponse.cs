@@ -8,6 +8,8 @@ namespace Pyrra.Api.Dtos.Auth {
         string Name,
         // vem sem o "@" na frente e pode não estar definido
         string?  Username,
+        // nulo até o usuário enviar uma foto — fallback é o círculo com a inicial no front
+        string?  ProfilePictureUrl,
         string   Timezone,
         string   CommunicationTone,
         string   EveningNotificationTime,
@@ -22,6 +24,7 @@ namespace Pyrra.Api.Dtos.Auth {
                 user.Email,
                 user.Name,
                 user.Username,
+                user.ProfilePictureUrl,
                 user.Timezone,
                 user.CommunicationTone.ToString(),
                 user.EveningNotificationTime.ToString("HH:mm"),

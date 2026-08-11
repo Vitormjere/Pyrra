@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Pyrra.Api.Dtos.Auth;
 using Pyrra.Api.Dtos.Usuario;
@@ -29,6 +30,45 @@ namespace Pyrra.Api.Controllers {
             _usernameService    = usernameService;
             _accountService     = accountService;
             _profileService     = profileService;
+        }
+
+        // foto de perfil — mesmo padrão do banner de time (upload/remover), primeiro na tela de config
+
+        [HttpPost("foto")]
+        [RequestSizeLimit(3 * 1024 * 1024 + 1024)]
+        public async Task<ActionResult<UserResponse>> UploadProfilePicture(IFormFile file, CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            if (file is null || file.Length == 0) {
+                return BadRequest(new { message = "Envie um arquivo de imagem." });
+            }
+
+            try {
+                await using var stream = file.OpenReadStream();
+                var user = await _accountService.SetProfilePictureAsync(userId, stream, file.ContentType, file.Length, cancellationToken);
+                return Ok(UserResponse.FromEntity(user));
+            } catch (InvalidAccountException ex) {
+                return BadRequest(new { message = ex.Message });
+            } catch (NotFoundException ex) {
+                return NotFound(new { message = ex.Message });
+            }
+        }
+
+        // remove a foto e volta a mostrar o círculo com a inicial do nome
+        [HttpDelete("foto")]
+        public async Task<ActionResult<UserResponse>> RemoveProfilePicture(CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            try {
+                var user = await _accountService.RemoveProfilePictureAsync(userId, cancellationToken);
+                return Ok(UserResponse.FromEntity(user));
+            } catch (NotFoundException ex) {
+                return NotFound(new { message = ex.Message });
+            }
         }
 
         // métodos de edição da conta, na mesma ordem da tela de config

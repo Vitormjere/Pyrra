@@ -7,8 +7,11 @@ namespace Pyrra.Domain.Users {
         public string PasswordHash { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
 
-        // nulo até o usuário escolher um (contas antigas, principalmente) 
+        // nulo até o usuário escolher um (contas antigas, principalmente)
         public string? Username { get; set; }
+
+        // nulo até o usuário enviar uma foto — fallback é o círculo com a inicial do nome (ver Avatar.tsx)
+        public string? ProfilePictureUrl { get; set; }
 
         // gerado sob demanda no primeiro pedido de link e nunca muda, senão o compartilhado quebra
         public string? InviteToken { get; set; }

@@ -114,7 +114,7 @@ namespace Pyrra.Application.Chat {
             return users.ToDictionary(u => u.Id);
         }
 
-        private static UserSummary ToSummary(User user) => new(user.Id, user.Name, user.Username);
+        private static UserSummary ToSummary(User user) => new(user.Id, user.Name, user.Username, user.ProfilePictureUrl);
 
         private static TeamChatMessageSummary ToSummary(TeamChatMessage message, UserSummary sender) => new(
             message.Id, sender, message.TeamId, message.Content, message.CreatedAt);
