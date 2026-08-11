@@ -54,6 +54,7 @@ namespace Pyrra.Infrastructure.Data {
         public DbSet<ChallengeCategory> ChallengeCategories => Set<ChallengeCategory>();
         public DbSet<Challenge> Challenges => Set<Challenge>();
         public DbSet<TeamActiveCategory> TeamActiveCategories => Set<TeamActiveCategory>();
+        public DbSet<TeamDailyChallenge> TeamDailyChallenges => Set<TeamDailyChallenge>();
         public DbSet<ChallengeSubmission> ChallengeSubmissions => Set<ChallengeSubmission>();
         public DbSet<TeamMemberScore> TeamMemberScores => Set<TeamMemberScore>();
         public DbSet<TournamentChallenge> TournamentChallenges => Set<TournamentChallenge>();
@@ -360,6 +361,19 @@ namespace Pyrra.Infrastructure.Data {
             modelBuilder.Entity<TeamActiveCategory>()
                 .HasIndex(a => new { a.TeamId, a.CategoryId })
                 .IsUnique();
+
+            // um desafio não pode ser sorteado duas vezes pro mesmo time no mesmo dia
+            modelBuilder.Entity<TeamDailyChallenge>()
+                .HasIndex(d => new { d.TeamId, d.Date, d.ChallengeId })
+                .IsUnique();
+
+            // cobre a query principal (desafios de hoje de um time) e a checagem do job (quais
+            // times já têm sorteio pra hoje)
+            modelBuilder.Entity<TeamDailyChallenge>()
+                .HasIndex(d => new { d.TeamId, d.Date });
+
+            modelBuilder.Entity<TeamDailyChallenge>()
+                .HasIndex(d => d.Date);
 
             // url do blob — nunca filtrada, só exibida, mesmo critério do BannerImageUrl de Team
             modelBuilder.Entity<ChallengeSubmission>()

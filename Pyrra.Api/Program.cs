@@ -26,6 +26,7 @@ using Pyrra.Application.Tarefas;
 using Pyrra.Application.Treinos;
 using Pyrra.Application.Zelo;
 using Pyrra.Domain.Users;
+using Pyrra.Api.HostedServices;
 using Pyrra.Api.Hubs;
 using Pyrra.Infrastructure.Auth;
 using Pyrra.Infrastructure.Common;
@@ -257,10 +258,16 @@ builder.Services.AddScoped<IChallengeCatalogService, ChallengeCatalogService>();
 
 // Gerencia desafios das equipes
 builder.Services.AddScoped<ITeamActiveCategoryRepository, TeamActiveCategoryRepository>();
+builder.Services.AddScoped<ITeamDailyChallengeRepository, TeamDailyChallengeRepository>();
 builder.Services.AddScoped<IChallengeSubmissionRepository, ChallengeSubmissionRepository>();
 builder.Services.AddScoped<ITeamMemberScoreRepository, TeamMemberScoreRepository>();
 builder.Services.AddScoped<IChallengeSubmissionStorageService, AzureBlobChallengeSubmissionStorageService>();
 builder.Services.AddScoped<ITeamChallengeService, TeamChallengeService>();
+
+// Sorteio diário dos 3 desafios por time (Fase 3) — job roda a cada 15min, ver
+// DailyChallengeGeneratorHostedService
+builder.Services.AddScoped<IDailyChallengeGeneratorService, DailyChallengeGeneratorService>();
+builder.Services.AddHostedService<DailyChallengeGeneratorHostedService>();
 
 // Gerencia torneios e aprova solicitações
 builder.Services.AddScoped<ITournamentRepository, TournamentRepository>();

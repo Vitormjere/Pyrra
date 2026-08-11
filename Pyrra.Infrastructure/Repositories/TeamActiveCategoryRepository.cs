@@ -25,6 +25,12 @@ namespace Pyrra.Infrastructure.Repositories {
             _context.TeamActiveCategories
                 .FirstOrDefaultAsync(a => a.TeamId == teamId && a.CategoryId == categoryId, cancellationToken);
 
+        public async Task<IReadOnlyList<Guid>> GetDistinctTeamIdsAsync(CancellationToken cancellationToken = default) =>
+            await _context.TeamActiveCategories
+                .Select(a => a.TeamId)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+
         public async Task AddAsync(TeamActiveCategory activation, CancellationToken cancellationToken = default) {
             await _context.TeamActiveCategories.AddAsync(activation, cancellationToken);
             await _context.SaveChangesAsync(cancellationToken);

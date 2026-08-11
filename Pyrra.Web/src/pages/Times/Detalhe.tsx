@@ -268,6 +268,12 @@ function ChallengeCard({
         <p className={['mt-1 text-xs font-medium', CHALLENGE_CATEGORY_TEXT[challenge.category.color]].join(' ')}>
           {challenge.category.name}
         </p>
+        {/* horário em que esse desafio do dia apareceu — dá contexto de por que só ele (e não os
+            outros 2 do dia) está visível agora */}
+        <p className="mt-0.5 text-[11px] text-slate-500">
+          Apareceu às{' '}
+          {new Date(challenge.revealAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+        </p>
         {fileError && <p className="mt-1 text-xs text-red-300">{fileError}</p>}
       </div>
       <div className="flex shrink-0 flex-col items-end gap-2">
@@ -1308,16 +1314,18 @@ export function TimeDetalhe() {
         </section>
       )}
 
-      {/* DESAFIOS DISPONÍVEIS — visível a todo membro */}
+      {/* DESAFIOS DE HOJE — 3 sorteados por dia entre as categorias ativas, cada um aparece em
+          um horário aleatório (ver DailyChallengeGeneratorService no backend). Substituiu o
+          catálogo inteiro sempre disponível. */}
       <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-medium text-slate-300">Desafios disponíveis</h2>
+        <h2 className="text-sm font-medium text-slate-300">Desafios de hoje</h2>
         {challenges === null ? (
           <Skeleton className="h-16" />
         ) : challenges.length === 0 ? (
           <p className="rounded-md bg-surface px-4 py-3 text-sm text-slate-500 ring-1 ring-line">
             {team.isOwner
               ? 'Nenhuma categoria ativa, ative uma categoria acima para liberar desafios pro time.'
-              : 'Nenhum desafio disponível, o dono do time ainda não ativou nenhuma categoria.'}
+              : 'Nenhum desafio disponível ainda hoje — pode ser que o dono do time não tenha ativado nenhuma categoria, ou os desafios do dia ainda estão sendo sorteados.'}
           </p>
         ) : (
           <ul className={listClasses}>

@@ -20,11 +20,13 @@ namespace Pyrra.Api.Dtos.Desafios {
         string?   Description,
         int       Points,
         DateTime? Deadline,
+        // instante em que esse desafio do dia passou a aparecer pro time
+        DateTime  RevealAt,
         ChallengeCategoryResponse Category,
         string? MySubmissionStatus) {
         public static AvailableChallengeResponse FromAvailable(AvailableChallenge a) => new(
             a.Challenge.Id, a.Challenge.Title, a.Challenge.Description, a.Challenge.Points, a.Challenge.Deadline,
-            ChallengeCategoryResponse.FromEntity(a.Category), a.MySubmissionStatus?.ToString());
+            a.RevealAt, ChallengeCategoryResponse.FromEntity(a.Category), a.MySubmissionStatus?.ToString());
     }
 
     public record ChallengeSubmissionResponse(

@@ -25,6 +25,7 @@ namespace Pyrra.Application.Desafios {
         private readonly IChallengeCategoryRepository       _categoryRepository;
         private readonly IChallengeRepository               _challengeRepository;
         private readonly ITeamActiveCategoryRepository      _activeCategoryRepository;
+        private readonly ITeamDailyChallengeRepository      _dailyChallengeRepository;
         private readonly IChallengeSubmissionRepository     _submissionRepository;
         private readonly IChallengeSubmissionStorageService _submissionStorage;
         private readonly ITournamentTeamRepository          _tournamentTeamRepository;
@@ -42,6 +43,7 @@ namespace Pyrra.Application.Desafios {
             IChallengeCategoryRepository       categoryRepository,
             IChallengeRepository               challengeRepository,
             ITeamActiveCategoryRepository      activeCategoryRepository,
+            ITeamDailyChallengeRepository      dailyChallengeRepository,
             IChallengeSubmissionRepository     submissionRepository,
             IChallengeSubmissionStorageService submissionStorage,
             ITournamentTeamRepository          tournamentTeamRepository,
@@ -57,6 +59,7 @@ namespace Pyrra.Application.Desafios {
             _categoryRepository        = categoryRepository;
             _challengeRepository       = challengeRepository;
             _activeCategoryRepository  = activeCategoryRepository;
+            _dailyChallengeRepository  = dailyChallengeRepository;
             _submissionRepository      = submissionRepository;
             _submissionStorage         = submissionStorage;
             _tournamentTeamRepository  = tournamentTeamRepository;
@@ -116,50 +119,45 @@ namespace Pyrra.Application.Desafios {
             await _activeCategoryRepository.RemoveAsync(existing, cancellationToken);
         }
 
+        // desafios sorteados pra hoje (ver DailyChallengeGeneratorService), só os já revelados —
+        // não devolve os do dia com RevealAt no futuro, então não existe estado "ainda não abriu"
+        // no front, só aparece quando chega a hora
         public async Task<IReadOnlyList<AvailableChallenge>> GetAvailableChallengesAsync(Guid userId, Guid teamId, CancellationToken cancellationToken = default) {
             await GetOwnedOrMemberOrAdminTeamAsync(userId, teamId, cancellationToken);
 
-            var activeCategoryIds = (await _activeCategoryRepository.GetByTeamAsync(teamId, cancellationToken))
-                .Select(a => a.CategoryId)
+            var now   = _clock.UtcNow;
+            var today = DateOnly.FromDateTime(now);
+
+            var todaysEntries = (await _dailyChallengeRepository.GetForTeamAndDateAsync(teamId, today, cancellationToken))
+                .Where(e => e.RevealAt <= now)
+                .OrderBy(e => e.RevealAt)
                 .ToList();
 
-            if (activeCategoryIds.Count == 0) {
+            if (todaysEntries.Count == 0) {
                 return Array.Empty<AvailableChallenge>();
             }
 
-            // catálogo pequeno, busca completa em memória simplifica o filtro
-            var categoriesById = (await _categoryRepository.GetAllAsync(cancellationToken))
-                .Where(c => activeCategoryIds.Contains(c.Id))
-                .ToDictionary(c => c.Id);
+            var categoriesById = (await _categoryRepository.GetAllAsync(cancellationToken)).ToDictionary(c => c.Id);
 
             // usa a submissão mais recente para definir o status exibido
             var latestSubmissionByChallenge = (await _submissionRepository.GetForUserAndTeamAsync(userId, teamId, cancellationToken))
                 .GroupBy(s => s.ChallengeId)
                 .ToDictionary(g => g.Key, g => g.OrderByDescending(s => s.CreatedAt).First().Status);
 
-            var now = _clock.UtcNow;
             var result = new List<AvailableChallenge>();
-
-            foreach (var categoryId in activeCategoryIds) {
-                // ignora ativações sem categoria existente no catálogo
-                if (!categoriesById.TryGetValue(categoryId, out var category)) {
+            foreach (var entry in todaysEntries) {
+                var challenge = await _challengeRepository.GetByIdAsync(entry.ChallengeId, cancellationToken);
+                // ignora entradas cujo desafio foi removido do catálogo depois do sorteio
+                if (challenge is null || !categoriesById.TryGetValue(challenge.CategoryId, out var category)) {
                     continue;
                 }
 
-                var challenges = await _challengeRepository.GetByCategoryAsync(categoryId, cancellationToken);
-
-                // remove desafios expirados e mantém os sem prazo disponíveis
-                result.AddRange(challenges
-                    .Where(c => c.Deadline is null || c.Deadline > now)
-                    .Select(c => new AvailableChallenge(
-                        c, category,
-                        latestSubmissionByChallenge.TryGetValue(c.Id, out var status) ? status : null)));
+                result.Add(new AvailableChallenge(
+                    challenge, category, entry.RevealAt,
+                    latestSubmissionByChallenge.TryGetValue(challenge.Id, out var status) ? status : null));
             }
 
-            return result
-                .OrderBy(a => a.Category.Name)
-                .ThenBy(a => a.Challenge.Title)
-                .ToList();
+            return result;
         }
 
         public async Task<ChallengeSubmission> SubmitChallengeProofAsync(
@@ -172,13 +170,14 @@ namespace Pyrra.Application.Desafios {
                 throw new NotFoundException($"Desafio '{challengeId}' não encontrado.");
             }
 
-            var isActive = await _activeCategoryRepository.GetAsync(teamId, challenge.CategoryId, cancellationToken) is not null;
-            if (!isActive) {
-                throw new InvalidChallengeException("A categoria desse desafio não está ativa nesse time.");
-            }
-
-            if (challenge.Deadline is not null && challenge.Deadline <= _clock.UtcNow) {
-                throw new InvalidChallengeException("O prazo desse desafio já passou.");
+            // só aceita prova de um desafio que é um dos sorteados de hoje pra esse time e já foi
+            // revelado — cobre categoria ativa, prazo e rotação diária de uma vez só
+            var now   = _clock.UtcNow;
+            var today = DateOnly.FromDateTime(now);
+            var isTodaysChallenge = (await _dailyChallengeRepository.GetForTeamAndDateAsync(teamId, today, cancellationToken))
+                .Any(e => e.ChallengeId == challengeId && e.RevealAt <= now);
+            if (!isTodaysChallenge) {
+                throw new InvalidChallengeException("Esse desafio não está disponível hoje pra esse time.");
             }
 
             // apenas pendente ou aprovado bloqueiam novo envio

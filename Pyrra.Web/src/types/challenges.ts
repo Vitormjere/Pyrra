@@ -26,15 +26,18 @@ export interface TeamCategoryStatus {
   isActive: boolean
 }
 
-// GET /api/times/{id}/desafios — desafio disponível, já com a categoria embutida.
-// mySubmissionStatus nulo = quem pediu a lista nunca enviou prova pra esse desafio nesse time.
+// GET /api/times/{id}/desafios — um dos 3 desafios sorteados pro time HOJE, já revelado (a rota
+// nunca devolve os do dia ainda não revelados). mySubmissionStatus nulo = quem pediu a lista
+// nunca enviou prova pra esse desafio nesse time.
 export interface AvailableChallenge {
   id: string
   title: string
   description: string | null
   points: number
-  /** DateTime ISO — nulo = sempre disponível enquanto a categoria estiver ativa. */
+  /** DateTime ISO — nulo = sem prazo próprio (o corte é sempre a meia-noite do dia do sorteio). */
   deadline: string | null
+  /** DateTime ISO — instante em que esse desafio do dia passou a aparecer pro time. */
+  revealAt: string
   category: ChallengeCategory
   mySubmissionStatus: ChallengeSubmissionStatus | null
 }

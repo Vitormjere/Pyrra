@@ -82,6 +82,9 @@ namespace Pyrra.Application.Tests.Desafios {
         public Task<TeamActiveCategory?> GetAsync(Guid teamId, Guid categoryId, CancellationToken cancellationToken = default) =>
             Task.FromResult(Activations.FirstOrDefault(a => a.TeamId == teamId && a.CategoryId == categoryId));
 
+        public Task<IReadOnlyList<Guid>> GetDistinctTeamIdsAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<Guid>>(Activations.Select(a => a.TeamId).Distinct().ToList());
+
         public Task AddAsync(TeamActiveCategory activation, CancellationToken cancellationToken = default) {
             Activations.Add(activation);
             return Task.CompletedTask;
@@ -89,6 +92,22 @@ namespace Pyrra.Application.Tests.Desafios {
 
         public Task RemoveAsync(TeamActiveCategory activation, CancellationToken cancellationToken = default) {
             Activations.RemoveAll(a => a.Id == activation.Id);
+            return Task.CompletedTask;
+        }
+    }
+
+    internal sealed class FakeTeamDailyChallengeRepository : ITeamDailyChallengeRepository {
+        public readonly List<TeamDailyChallenge> Entries = new();
+
+        public Task<IReadOnlyList<TeamDailyChallenge>> GetForTeamAndDateAsync(Guid teamId, DateOnly date, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<TeamDailyChallenge>>(
+                Entries.Where(e => e.TeamId == teamId && e.Date == date).ToList());
+
+        public Task<IReadOnlyList<Guid>> GetTeamIdsWithEntriesForDateAsync(DateOnly date, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<Guid>>(Entries.Where(e => e.Date == date).Select(e => e.TeamId).Distinct().ToList());
+
+        public Task AddRangeAsync(IEnumerable<TeamDailyChallenge> entries, CancellationToken cancellationToken = default) {
+            Entries.AddRange(entries);
             return Task.CompletedTask;
         }
     }
