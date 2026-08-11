@@ -1,4 +1,4 @@
-import { Apple, Dumbbell, Flame, Footprints, Sparkles } from 'lucide-react'
+import { Apple, BookOpen, Dumbbell, Flame, Footprints, GraduationCap, Home, Shuffle, Sparkles, Trees, Users } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 // Mapa nome (salvo em ChallengeCategory.Icon, escolhido pelo admin) -> componente lucide-react.
@@ -9,6 +9,12 @@ const ICONS: Record<string, LucideIcon> = {
   dumbbell: Dumbbell,
   apple: Apple,
   flame: Flame,
+  shuffle: Shuffle,
+  users: Users,
+  'graduation-cap': GraduationCap,
+  home: Home,
+  'book-open': BookOpen,
+  trees: Trees,
 }
 
 export function getCategoryIcon(icon: string): LucideIcon {

@@ -352,7 +352,11 @@ namespace Pyrra.Infrastructure.Data {
             modelBuilder.Entity<Challenge>()
                 .HasIndex(c => c.CategoryId);
 
-            // um time não pode ativar a mesma categoria duas vezes 
+            // catálogo inicial de categorias e desafios — ver ChallengeCatalogSeed
+            modelBuilder.Entity<ChallengeCategory>().HasData(ChallengeCatalogSeed.Categories);
+            modelBuilder.Entity<Challenge>().HasData(ChallengeCatalogSeed.Challenges);
+
+            // um time não pode ativar a mesma categoria duas vezes
             modelBuilder.Entity<TeamActiveCategory>()
                 .HasIndex(a => new { a.TeamId, a.CategoryId })
                 .IsUnique();
