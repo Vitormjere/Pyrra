@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { FormEvent, ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { AtSign, Check, ChevronLeft, LogOut, X } from 'lucide-react'
+import { AtSign, Check, ChevronLeft, LogOut, Pencil, X } from 'lucide-react'
 import Segmented from '../../components/Segmented'
 import SectionHeader from '../../components/SectionHeader'
 import DeleteAccountDialog from '../../components/DeleteAccountDialog'
+import PasswordInput from '../../components/PasswordInput'
 import { useAuth } from '../../hooks/useAuth'
 import {
   changeEmail,
@@ -55,13 +56,32 @@ const inputClasses =
 const cardClasses = 'flex flex-col gap-3 rounded-md bg-surface px-5 py-4 ring-1 ring-line'
 
 const saveButtonClasses =
-  'w-full rounded-xl bg-brand-green px-4 py-2.5 font-semibold text-brand-dark transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60'
+  'flex-1 rounded-xl bg-brand-green px-4 py-2.5 text-sm font-semibold text-brand-dark transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60'
+
+const cancelButtonClasses =
+  'rounded-xl px-4 py-2.5 text-sm font-medium text-slate-400 ring-1 ring-line transition hover:bg-surface-hi'
 
 type UsernameAvailability =
   | { status: 'idle' }
   | { status: 'checking' }
   | { status: 'available' }
   | { status: 'unavailable'; reason: string }
+
+// linha compacta de modo leitura: valor atual + lápis. Clicar em qualquer ponto
+// (texto ou ícone) abre o formulário de edição — mesmo alvo de clique, sem
+// distinção, porque não há motivo pro usuário mirar só no lápis.
+function FieldPreview({ value, onEdit }: { value: ReactNode; onEdit: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onEdit}
+      className="flex w-full items-center justify-between gap-3 rounded-md py-1 text-left transition hover:opacity-80"
+    >
+      <span className="min-w-0 truncate text-sm text-ink">{value}</span>
+      <Pencil size={15} aria-hidden="true" className="shrink-0 text-slate-500" />
+    </button>
+  )
+}
 
 // edição/administração da conta (separado do Perfil, que é só leitura) — cada seção tem seu próprio form e save, independentes entre si
 export function Configuracoes() {
@@ -120,12 +140,18 @@ export function Configuracoes() {
 // --- Nome ---
 
 function NameSection({ name, onSaved }: { name: string; onSaved: () => Promise<void> }) {
+  const [editing, setEditing] = useState(false)
   const [value, setValue] = useState(name)
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const changed = value.trim() !== name && value.trim().length > 0
+
+  function startEditing() {
+    setValue(name)
+    setError(null)
+    setEditing(true)
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -136,12 +162,21 @@ function NameSection({ name, onSaved }: { name: string; onSaved: () => Promise<v
     try {
       await updateName(value.trim())
       await onSaved()
-      setSaved(true)
+      setEditing(false)
     } catch (err) {
       setError(getApiErrorMessage(err, {}, 'Não foi possível salvar seu nome.'))
     } finally {
       setSaving(false)
     }
+  }
+
+  if (!editing) {
+    return (
+      <div className={cardClasses}>
+        <SectionHeader>Nome</SectionHeader>
+        <FieldPreview value={name} onEdit={startEditing} />
+      </div>
+    )
   }
 
   return (
@@ -150,18 +185,20 @@ function NameSection({ name, onSaved }: { name: string; onSaved: () => Promise<v
       <input
         type="text"
         value={value}
-        onChange={(event) => {
-          setValue(event.target.value)
-          setSaved(false)
-        }}
+        onChange={(event) => setValue(event.target.value)}
         maxLength={100}
         aria-label="Nome"
+        autoFocus
         className={inputClasses}
       />
-      <button type="submit" disabled={!changed || saving} className={saveButtonClasses}>
-        {saving ? 'Salvando…' : 'Salvar nome'}
-      </button>
-      {saved && <p role="status" className="text-center text-xs text-brand-green">Nome atualizado.</p>}
+      <div className="flex gap-2">
+        <button type="submit" disabled={!changed || saving} className={saveButtonClasses}>
+          {saving ? 'Salvando…' : 'Salvar nome'}
+        </button>
+        <button type="button" onClick={() => setEditing(false)} className={cancelButtonClasses}>
+          Cancelar
+        </button>
+      </div>
       {error && <p role="alert" className="text-center text-xs text-red-300">{error}</p>}
     </form>
   )
@@ -170,13 +207,20 @@ function NameSection({ name, onSaved }: { name: string; onSaved: () => Promise<v
 // --- E-mail ---
 
 function EmailSection({ email, onSaved }: { email: string; onSaved: () => Promise<void> }) {
+  const [editing, setEditing] = useState(false)
   const [newEmail, setNewEmail] = useState('')
   const [currentPassword, setCurrentPassword] = useState('')
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const canSubmit = newEmail.trim().length > 0 && currentPassword.length > 0
+
+  function startEditing() {
+    setNewEmail('')
+    setCurrentPassword('')
+    setError(null)
+    setEditing(true)
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -187,9 +231,7 @@ function EmailSection({ email, onSaved }: { email: string; onSaved: () => Promis
     try {
       await changeEmail(newEmail.trim(), currentPassword)
       await onSaved()
-      setNewEmail('')
-      setCurrentPassword('')
-      setSaved(true)
+      setEditing(false)
     } catch (err) {
       setError(
         getApiErrorMessage(
@@ -201,6 +243,15 @@ function EmailSection({ email, onSaved }: { email: string; onSaved: () => Promis
     } finally {
       setSaving(false)
     }
+  }
+
+  if (!editing) {
+    return (
+      <div className={cardClasses}>
+        <SectionHeader>E-mail</SectionHeader>
+        <FieldPreview value={email} onEdit={startEditing} />
+      </div>
+    )
   }
 
   return (
@@ -216,11 +267,9 @@ function EmailSection({ email, onSaved }: { email: string; onSaved: () => Promis
           id="novo-email"
           type="email"
           value={newEmail}
-          onChange={(event) => {
-            setNewEmail(event.target.value)
-            setSaved(false)
-          }}
+          onChange={(event) => setNewEmail(event.target.value)}
           autoComplete="email"
+          autoFocus
           placeholder="novo@exemplo.com"
           className={inputClasses}
         />
@@ -230,24 +279,22 @@ function EmailSection({ email, onSaved }: { email: string; onSaved: () => Promis
         <label htmlFor="senha-email" className="text-xs font-medium text-slate-400">
           Senha atual (para confirmar)
         </label>
-        <input
+        <PasswordInput
           id="senha-email"
-          type="password"
           value={currentPassword}
-          onChange={(event) => {
-            setCurrentPassword(event.target.value)
-            setSaved(false)
-            if (error) setError(null)
-          }}
+          onChange={(event) => setCurrentPassword(event.target.value)}
           autoComplete="current-password"
-          className={inputClasses}
         />
       </div>
 
-      <button type="submit" disabled={!canSubmit || saving} className={saveButtonClasses}>
-        {saving ? 'Salvando…' : 'Trocar e-mail'}
-      </button>
-      {saved && <p role="status" className="text-center text-xs text-brand-green">E-mail atualizado.</p>}
+      <div className="flex gap-2">
+        <button type="submit" disabled={!canSubmit || saving} className={saveButtonClasses}>
+          {saving ? 'Salvando…' : 'Trocar e-mail'}
+        </button>
+        <button type="button" onClick={() => setEditing(false)} className={cancelButtonClasses}>
+          Cancelar
+        </button>
+      </div>
       {error && <p role="alert" className="text-center text-xs text-red-300">{error}</p>}
     </form>
   )
@@ -256,17 +303,25 @@ function EmailSection({ email, onSaved }: { email: string; onSaved: () => Promis
 // --- Senha ---
 
 function PasswordSection() {
+  const [editing, setEditing] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const newPasswordValid = newPassword.length >= 8
   // confirmação é só client-side, mesmo critério do Cadastro
   const confirmMatches = confirmPassword.length > 0 && confirmPassword === newPassword
   const canSubmit = currentPassword.length > 0 && newPasswordValid && confirmMatches
+
+  function startEditing() {
+    setCurrentPassword('')
+    setNewPassword('')
+    setConfirmPassword('')
+    setError(null)
+    setEditing(true)
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -276,15 +331,22 @@ function PasswordSection() {
     setError(null)
     try {
       await changePassword(currentPassword, newPassword)
-      setCurrentPassword('')
-      setNewPassword('')
-      setConfirmPassword('')
-      setSaved(true)
+      setEditing(false)
     } catch (err) {
       setError(getApiErrorMessage(err, {}, 'Não foi possível trocar sua senha.'))
     } finally {
       setSaving(false)
     }
+  }
+
+  if (!editing) {
+    return (
+      <div className={cardClasses}>
+        <SectionHeader>Senha</SectionHeader>
+        {/* nada real pra mostrar aqui — os pontos só sinalizam "existe uma senha", não o valor */}
+        <FieldPreview value="••••••••" onEdit={startEditing} />
+      </div>
+    )
   }
 
   return (
@@ -295,17 +357,12 @@ function PasswordSection() {
         <label htmlFor="senha-atual" className="text-xs font-medium text-slate-400">
           Senha atual
         </label>
-        <input
+        <PasswordInput
           id="senha-atual"
-          type="password"
           value={currentPassword}
-          onChange={(event) => {
-            setCurrentPassword(event.target.value)
-            setSaved(false)
-            if (error) setError(null)
-          }}
+          onChange={(event) => setCurrentPassword(event.target.value)}
           autoComplete="current-password"
-          className={inputClasses}
+          autoFocus
         />
       </div>
 
@@ -313,16 +370,11 @@ function PasswordSection() {
         <label htmlFor="nova-senha" className="text-xs font-medium text-slate-400">
           Nova senha
         </label>
-        <input
+        <PasswordInput
           id="nova-senha"
-          type="password"
           value={newPassword}
-          onChange={(event) => {
-            setNewPassword(event.target.value)
-            setSaved(false)
-          }}
+          onChange={(event) => setNewPassword(event.target.value)}
           autoComplete="new-password"
-          className={inputClasses}
         />
         <p className="text-xs text-slate-500">Mínimo de 8 caracteres.</p>
       </div>
@@ -331,26 +383,25 @@ function PasswordSection() {
         <label htmlFor="confirmar-senha" className="text-xs font-medium text-slate-400">
           Confirmar nova senha
         </label>
-        <input
+        <PasswordInput
           id="confirmar-senha"
-          type="password"
           value={confirmPassword}
-          onChange={(event) => {
-            setConfirmPassword(event.target.value)
-            setSaved(false)
-          }}
+          onChange={(event) => setConfirmPassword(event.target.value)}
           autoComplete="new-password"
-          className={inputClasses}
         />
         {confirmPassword.length > 0 && !confirmMatches && (
           <p className="text-xs text-red-300">As senhas não coincidem.</p>
         )}
       </div>
 
-      <button type="submit" disabled={!canSubmit || saving} className={saveButtonClasses}>
-        {saving ? 'Salvando…' : 'Trocar senha'}
-      </button>
-      {saved && <p role="status" className="text-center text-xs text-brand-green">Senha atualizada.</p>}
+      <div className="flex gap-2">
+        <button type="submit" disabled={!canSubmit || saving} className={saveButtonClasses}>
+          {saving ? 'Salvando…' : 'Trocar senha'}
+        </button>
+        <button type="button" onClick={() => setEditing(false)} className={cancelButtonClasses}>
+          Cancelar
+        </button>
+      </div>
       {error && <p role="alert" className="text-center text-xs text-red-300">{error}</p>}
     </form>
   )
@@ -369,12 +420,20 @@ function PreferencesSection({
   timezone: string
   onSaved: () => Promise<void>
 }) {
+  const [editing, setEditing] = useState(false)
   const [tone, setTone] = useState(initialTone)
   const [notificationTime, setNotificationTime] = useState(initialTime)
   const [timezone, setTimezone] = useState(initialTimezone)
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  function startEditing() {
+    setTone(initialTone)
+    setNotificationTime(initialTime)
+    setTimezone(initialTimezone)
+    setError(null)
+    setEditing(true)
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -387,12 +446,27 @@ function PreferencesSection({
         updateTimezone(timezone),
       ])
       await onSaved()
-      setSaved(true)
+      setEditing(false)
     } catch (err) {
       setError(getApiErrorMessage(err, {}, 'Não foi possível salvar suas preferências.'))
     } finally {
       setSaving(false)
     }
+  }
+
+  if (!editing) {
+    const timezoneLabel =
+      TIMEZONE_OPTIONS.find((option) => option.value === initialTimezone)?.label ?? initialTimezone
+
+    return (
+      <div className={cardClasses}>
+        <SectionHeader>Preferências</SectionHeader>
+        <FieldPreview
+          value={`${initialTone} · ${initialTime} · ${timezoneLabel}`}
+          onEdit={startEditing}
+        />
+      </div>
+    )
   }
 
   return (
@@ -405,10 +479,7 @@ function PreferencesSection({
           label="Tom de comunicação"
           options={TONES}
           value={tone}
-          onChange={(next) => {
-            setTone(next)
-            setSaved(false)
-          }}
+          onChange={setTone}
         />
         <p className="text-xs text-slate-500">{TONE_HINTS[tone]}</p>
       </div>
@@ -421,10 +492,7 @@ function PreferencesSection({
           id="horario-notificacao"
           type="time"
           value={notificationTime}
-          onChange={(event) => {
-            setNotificationTime(event.target.value)
-            setSaved(false)
-          }}
+          onChange={(event) => setNotificationTime(event.target.value)}
           required
           className={inputClasses}
         />
@@ -437,10 +505,7 @@ function PreferencesSection({
         <select
           id="fuso-horario"
           value={timezone}
-          onChange={(event) => {
-            setTimezone(event.target.value)
-            setSaved(false)
-          }}
+          onChange={(event) => setTimezone(event.target.value)}
           className={inputClasses}
         >
           {/* Se o fuso salvo não estiver na lista curada, mostra-o mesmo assim — trocar de select
@@ -456,10 +521,14 @@ function PreferencesSection({
         </select>
       </div>
 
-      <button type="submit" disabled={saving} className={saveButtonClasses}>
-        {saving ? 'Salvando…' : 'Salvar preferências'}
-      </button>
-      {saved && <p role="status" className="text-center text-xs text-brand-green">Preferências salvas.</p>}
+      <div className="flex gap-2">
+        <button type="submit" disabled={saving} className={saveButtonClasses}>
+          {saving ? 'Salvando…' : 'Salvar preferências'}
+        </button>
+        <button type="button" onClick={() => setEditing(false)} className={cancelButtonClasses}>
+          Cancelar
+        </button>
+      </div>
       {error && <p role="alert" className="text-center text-xs text-red-300">{error}</p>}
     </form>
   )
@@ -474,19 +543,20 @@ function UsernameSection({
   currentUsername: string | null
   onSaved: (user: Awaited<ReturnType<typeof setUsernameApi>>) => void
 }) {
+  const [editing, setEditing] = useState(false)
   const [username, setUsername] = useState(currentUsername ?? '')
   const [availability, setAvailability] = useState<UsernameAvailability>({ status: 'idle' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
 
   const normalized = normalizeUsername(username)
   const formatValid = USERNAME_PATTERN.test(normalized)
   const changed = normalized !== currentUsername
 
-  // checagem de disponibilidade com debounce, só quando o formato é válido e mudou do atual
+  // checagem de disponibilidade com debounce, só quando o formato é válido, mudou do atual
+  // e a seção está mesmo aberta — sem o guard de `editing`, o timer seguiria rodando escondido
   useEffect(() => {
-    if (!formatValid || !changed) {
+    if (!editing || !formatValid || !changed) {
       return
     }
 
@@ -510,7 +580,14 @@ function UsernameSection({
       active = false
       clearTimeout(timer)
     }
-  }, [normalized, formatValid, changed])
+  }, [editing, normalized, formatValid, changed])
+
+  function startEditing() {
+    setUsername(currentUsername ?? '')
+    setAvailability({ status: 'idle' })
+    setError(null)
+    setEditing(true)
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -521,7 +598,7 @@ function UsernameSection({
     try {
       const updated = await setUsernameApi(normalized)
       onSaved(updated)
-      setSaved(true)
+      setEditing(false)
     } catch (err) {
       setError(
         getApiErrorMessage(err, { 409: 'Esse username já está em uso.' }, 'Não foi possível salvar seu username.'),
@@ -529,6 +606,18 @@ function UsernameSection({
     } finally {
       setSaving(false)
     }
+  }
+
+  if (!editing) {
+    return (
+      <div className={cardClasses}>
+        <SectionHeader>Username</SectionHeader>
+        <FieldPreview
+          value={currentUsername ? `@${currentUsername}` : 'Não definido'}
+          onEdit={startEditing}
+        />
+      </div>
+    )
   }
 
   return (
@@ -546,12 +635,12 @@ function UsernameSection({
           value={username}
           onChange={(event) => {
             setUsername(event.target.value)
-            setSaved(false)
             if (error) setError(null)
           }}
           autoComplete="off"
           autoCapitalize="none"
           spellCheck={false}
+          autoFocus
           placeholder="seunome"
           aria-label="Username"
           aria-invalid={availability.status === 'unavailable'}
@@ -577,14 +666,18 @@ function UsernameSection({
         </p>
       )}
 
-      <button
-        type="submit"
-        disabled={saving || !formatValid || !changed || availability.status === 'unavailable'}
-        className={saveButtonClasses}
-      >
-        {saving ? 'Salvando…' : 'Salvar username'}
-      </button>
-      {saved && <p role="status" className="text-center text-xs text-brand-green">Username atualizado.</p>}
+      <div className="flex gap-2">
+        <button
+          type="submit"
+          disabled={saving || !formatValid || !changed || availability.status === 'unavailable'}
+          className={saveButtonClasses}
+        >
+          {saving ? 'Salvando…' : 'Salvar username'}
+        </button>
+        <button type="button" onClick={() => setEditing(false)} className={cancelButtonClasses}>
+          Cancelar
+        </button>
+      </div>
       {error && <p role="alert" className="text-center text-xs text-red-300">{error}</p>}
     </form>
   )
@@ -592,6 +685,9 @@ function UsernameSection({
 
 // --- Privacidade do perfil ---
 
+// Fica sempre visível (sem modo leitura/edição): é um seletor de opção única que
+// já mostra o valor atual destacado e salva no clique, mesma lógica de um toggle
+// — não tem "rascunho" pra esconder, então o padrão de campo de texto não se aplica.
 function PrivacySection({
   visibility: initialVisibility,
   onSaved,
