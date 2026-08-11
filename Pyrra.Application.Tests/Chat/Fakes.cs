@@ -35,4 +35,17 @@ namespace Pyrra.Application.Tests.Chat {
             return Task.CompletedTask;
         }
     }
+
+    internal sealed class FakeTeamChatMessageRepository : ITeamChatMessageRepository {
+        public readonly List<TeamChatMessage> Messages = new();
+
+        public Task<IReadOnlyList<TeamChatMessage>> GetByTeamAsync(Guid teamId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<TeamChatMessage>>(
+                Messages.Where(m => m.TeamId == teamId).OrderBy(m => m.CreatedAt).ToList());
+
+        public Task AddAsync(TeamChatMessage message, CancellationToken cancellationToken = default) {
+            Messages.Add(message);
+            return Task.CompletedTask;
+        }
+    }
 }

@@ -22,6 +22,7 @@ import ProgressBar from '../../components/ProgressBar'
 import Segmented from '../../components/Segmented'
 import Skeleton from '../../components/Skeleton'
 import TeamBanner from '../../components/TeamBanner'
+import TeamChatPanel from '../../components/TeamChatPanel'
 import { useAuth } from '../../hooks/useAuth'
 import { useConfirm } from '../../hooks/useConfirm'
 import { getFriends } from '../../services/friendService'
@@ -1076,6 +1077,9 @@ export function TimeDetalhe() {
           {error}
         </p>
       )}
+
+      {/* CHAT DO TIME — em grupo, visível só pra dono e membros (ver TeamChatController/TeamChatService) */}
+      <TeamChatPanel teamId={team.id} />
 
       {/* LINK DE CONVITE */}
       <section className="flex flex-col gap-2 rounded-md bg-surface px-4 py-3 ring-1 ring-line">

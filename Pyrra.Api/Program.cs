@@ -244,6 +244,10 @@ builder.Services.AddScoped<ITeamInviteRepository, TeamInviteRepository>();
 builder.Services.AddScoped<ITeamBannerStorageService, AzureBlobTeamBannerStorageService>();
 builder.Services.AddScoped<ITeamService, TeamService>();
 
+// Chat em grupo por time
+builder.Services.AddScoped<ITeamChatMessageRepository, TeamChatMessageRepository>();
+builder.Services.AddScoped<ITeamChatService, TeamChatService>();
+
 // Ranking baseado no streak dos amigos
 builder.Services.AddScoped<IRankingService, RankingService>();
 

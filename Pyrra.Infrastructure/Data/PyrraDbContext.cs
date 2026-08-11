@@ -60,6 +60,7 @@ namespace Pyrra.Infrastructure.Data {
         public DbSet<TournamentChallenge> TournamentChallenges => Set<TournamentChallenge>();
         public DbSet<TournamentOwnChallenge> TournamentOwnChallenges => Set<TournamentOwnChallenge>();
         public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+        public DbSet<TeamChatMessage> TeamChatMessages => Set<TeamChatMessage>();
         public DbSet<Achievement> Achievements => Set<Achievement>();
         public DbSet<UserAchievement> UserAchievements => Set<UserAchievement>();
 
@@ -492,9 +493,17 @@ namespace Pyrra.Infrastructure.Data {
             modelBuilder.Entity<ChatMessage>()
                 .HasIndex(m => new { m.RecipientId, m.SenderId });
 
-            // este é só pra contagem de não lidas (RecipientId + ReadAt) 
+            // este é só pra contagem de não lidas (RecipientId + ReadAt)
             modelBuilder.Entity<ChatMessage>()
                 .HasIndex(m => new { m.RecipientId, m.ReadAt });
+
+            // chat em grupo por time
+            modelBuilder.Entity<TeamChatMessage>()
+                .Property(m => m.Content)
+                .HasMaxLength(2000);
+
+            modelBuilder.Entity<TeamChatMessage>()
+                .HasIndex(m => new { m.TeamId, m.CreatedAt });
 
             // catálogo fixo de conquistas (seed)
             modelBuilder.Entity<Achievement>()
