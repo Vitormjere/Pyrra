@@ -10,20 +10,19 @@ import {
   ImagePlus,
   Link2,
   Medal,
-  Trash2,
+  Settings,
   Trophy,
   UserMinus,
   UserPlus,
   Users,
   X,
 } from 'lucide-react'
-import CategoryToggleRow from '../../components/CategoryToggleRow'
 import EmptyState from '../../components/EmptyState'
 import ProgressBar from '../../components/ProgressBar'
-import Segmented from '../../components/Segmented'
 import Skeleton from '../../components/Skeleton'
 import TeamBanner from '../../components/TeamBanner'
 import TeamChatPanel from '../../components/TeamChatPanel'
+import TeamSettingsModal from '../../components/TeamSettingsModal'
 import { useAuth } from '../../hooks/useAuth'
 import { useConfirm } from '../../hooks/useConfirm'
 import { getFriends } from '../../services/friendService'
@@ -60,21 +59,12 @@ import { getApiErrorMessage } from '../../services/apiError'
 import { CHALLENGE_CATEGORY_SWATCH, CHALLENGE_CATEGORY_TEXT } from '../../utils/challengeCategoryColors'
 import { getCategoryIcon } from '../../utils/challengeCategoryIcons'
 import { formatNumber } from '../../utils/format'
-import { TEAM_BANNER_SWATCH, TEAM_BANNER_THEMES } from '../../utils/teamBanners'
 import type { Friend } from '../../types/community'
 import type { AvailableChallenge, PendingSubmission, TeamCategoryStatus, TeamMemberRanking } from '../../types/challenges'
 import type { AvailableTournamentChallenge } from '../../types/tournamentChallenges'
 import type { TeamBannerTheme, TeamDetails, TeamMember, TeamVisibility } from '../../types/teams'
 
-const VISIBILITY_OPTIONS: readonly TeamVisibility[] = ['Privado', 'Publico']
-
-const VISIBILITY_LABELS: Record<TeamVisibility, string> = {
-  Privado: 'Privado',
-  Publico: 'Público',
-}
-
 const MAX_BANNER_BYTES = 3 * 1024 * 1024
-const ACCEPTED_BANNER_TYPES = 'image/jpeg,image/png,image/webp'
 
 const MAX_SUBMISSION_BYTES = 3 * 1024 * 1024
 const ACCEPTED_SUBMISSION_TYPES = 'image/jpeg,image/png,image/webp'
@@ -517,9 +507,9 @@ export function TimeDetalhe() {
   const navigate = useNavigate()
   const location = useLocation()
   const { confirm, dialog } = useConfirm()
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [details, setDetails] = useState<TeamDetails | null>(null)
+  const [showSettings, setShowSettings] = useState(false)
   const [loading, setLoading] = useState(true)
   // Estado inicial (não efeito): erro de upload vindo da tela de Criar Time, se houver — o time
   // já existia quando o upload falhou, então a navegação aconteceu mesmo assim, e a mensagem
@@ -1245,133 +1235,21 @@ export function TimeDetalhe() {
         </div>
       </section>
 
-      {/* VISIBILIDADE — só o dono altera */}
+      {/* CONFIGURAÇÕES DO TIME — só o dono vê o botão; abre o modal com banner/cor, visibilidade,
+          categorias ativas e excluir time (ver TeamSettingsModal) */}
       {team.isOwner && (
-        <section className="flex flex-col gap-1.5 rounded-md bg-surface px-4 py-3 ring-1 ring-line">
-          <span className="text-sm font-medium text-ink">Visibilidade</span>
-          <Segmented
-            label="Visibilidade do time"
-            options={VISIBILITY_OPTIONS}
-            value={team.visibility}
-            onChange={handleVisibilityChange}
-            labels={VISIBILITY_LABELS}
-          />
-          <p className="text-xs text-slate-400">
-            {team.visibility === 'Publico'
-              ? 'Aparece na aba Explorar — qualquer um entra direto.'
-              : 'Só entra por convite direto ou link.'}
-          </p>
-        </section>
-      )}
-
-      {/* BANNER — só o dono altera */}
-      {team.isOwner && (
-        <section className="flex flex-col gap-2 rounded-md bg-surface px-4 py-3 ring-1 ring-line">
-          <span className="text-sm font-medium text-ink">Banner</span>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {TEAM_BANNER_THEMES.map((theme) => (
-              <button
-                key={theme}
-                type="button"
-                aria-label={theme}
-                aria-pressed={team.bannerTheme === theme}
-                disabled={bannerBusy}
-                onClick={() => handleBannerThemeChange(theme)}
-                className={[
-                  'flex size-9 shrink-0 items-center justify-center rounded-full ring-2 transition disabled:opacity-50',
-                  TEAM_BANNER_SWATCH[theme],
-                  team.bannerTheme === theme ? 'ring-ink' : 'ring-transparent',
-                ].join(' ')}
-              >
-                {team.bannerTheme === theme && <Check size={16} className="text-brand-dark" />}
-              </button>
-            ))}
-
-            <span className="mx-1 h-9 w-px bg-line" aria-hidden="true" />
-
-            <button
-              type="button"
-              disabled={bannerBusy}
-              onClick={() => fileInputRef.current?.click()}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-ink ring-1 ring-line transition hover:bg-surface-hi disabled:opacity-50"
-            >
-              <ImagePlus size={15} aria-hidden="true" />
-              {bannerBusy ? 'Enviando…' : 'Enviar imagem'}
-            </button>
-
-            {team.bannerImageUrl && (
-              <button
-                type="button"
-                disabled={bannerBusy}
-                onClick={handleRemoveBannerImage}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-xl p-2 text-slate-400 transition hover:bg-surface-hi hover:text-red-400 disabled:opacity-50"
-                aria-label="Remover imagem do banner"
-              >
-                <X size={15} />
-              </button>
-            )}
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept={ACCEPTED_BANNER_TYPES}
-              onChange={handleBannerFileChange}
-              className="hidden"
-            />
-          </div>
-
-          <p className="text-xs text-slate-400">
-            {team.bannerImageUrl
-              ? 'A imagem personalizada tem prioridade sobre a cor — remova a imagem para usar a cor escolhida.'
-              : 'Opcional — JPG, PNG ou WEBP, até 3MB.'}
-          </p>
-          {bannerFileError && (
-            <p role="alert" className="text-xs text-red-300">
-              {bannerFileError}
-            </p>
-          )}
-        </section>
-      )}
-
-      {/* CATEGORIAS ATIVAS — só o dono ativa/desativa. Escondida de quem não é dono: o conteúdo
-          (quais categorias estão ativas) já aparece implícito em "Desafios disponíveis", que todo
-          membro vê logo abaixo — duplicar aqui sem nenhuma ação disponível não agregaria nada. */}
-      {team.isOwner && (
-        <section className="flex flex-col gap-2">
-          <h2 className="text-sm font-medium text-slate-300">Categorias ativas</h2>
-          {categories === null ? (
-            <Skeleton className="h-16" />
-          ) : categories.length === 0 ? (
-            <p className="rounded-md bg-surface px-4 py-3 text-sm text-slate-500 ring-1 ring-line">
-              Nenhuma categoria disponível no momento.
-            </p>
-          ) : (
-            <ul className={listClasses}>
-              {categories.map((category) => (
-                <CategoryToggleRow
-                  key={category.id}
-                  category={category}
-                  busy={categoryBusyId === category.id}
-                  onToggle={() => handleToggleCategory(category)}
-                />
-              ))}
-            </ul>
-          )}
-        </section>
-      )}
-
-      {/* AÇÕES */}
-      {team.isOwner ? (
         <button
           type="button"
-          onClick={handleDelete}
-          className="inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold text-red-400 ring-1 ring-red-500/20 transition hover:bg-red-500/10"
+          onClick={() => setShowSettings(true)}
+          className="inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold text-ink ring-1 ring-line transition hover:bg-surface"
         >
-          <Trash2 size={16} aria-hidden="true" />
-          Excluir time
+          <Settings size={16} aria-hidden="true" />
+          Configurações do time
         </button>
-      ) : (
+      )}
+
+      {/* AÇÕES — dono exclui de dentro do modal de Configurações (acima); só quem não é dono sai por aqui */}
+      {!team.isOwner && (
         <button
           type="button"
           onClick={handleLeave}
@@ -1379,6 +1257,23 @@ export function TimeDetalhe() {
         >
           Sair do time
         </button>
+      )}
+
+      {showSettings && (
+        <TeamSettingsModal
+          team={team}
+          categories={categories}
+          categoryBusyId={categoryBusyId}
+          onToggleCategory={handleToggleCategory}
+          bannerBusy={bannerBusy}
+          bannerFileError={bannerFileError}
+          onVisibilityChange={handleVisibilityChange}
+          onBannerThemeChange={handleBannerThemeChange}
+          onBannerFileChange={handleBannerFileChange}
+          onRemoveBannerImage={handleRemoveBannerImage}
+          onDelete={handleDelete}
+          onClose={() => setShowSettings(false)}
+        />
       )}
 
       {dialog}
