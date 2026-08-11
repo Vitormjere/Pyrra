@@ -330,7 +330,7 @@ namespace Pyrra.Application.Tests.Zelo {
             var start = await service.StartOrResumeAsync(UserId);
             await AnswerAllAsync(service, start.SessionId, "Condicionamento físico", "Nenhuma", "Academia completa", "4-5 dias");
 
-            assistant.NextChatResult = new ZeloAssistantResult(false, "O Zelo está indisponível no momento.");
+            assistant.NextChatResult = new ZeloChatContinuationResult(false, "O Zelo está indisponível no momento.", null);
             var result = await service.SendMessageAsync(UserId, start.SessionId, "oi");
 
             Assert.Null(result.Reply);
@@ -370,6 +370,184 @@ namespace Pyrra.Application.Tests.Zelo {
             Assert.Equal(4, history.Count);
             Assert.Equal("Primeira pergunta", history[0].Content);
             Assert.Equal("Segunda pergunta", history[2].Content);
+        }
+
+        // ---- edição pontual via chat livre (Fase 1) ----
+
+        private static ZeloEditProposal MakeWorkoutProposal(Pyrra.Domain.Common.WeekDay day = Pyrra.Domain.Common.WeekDay.Terca) =>
+            new(
+                Description: $"Trocar treino de {day} para pernas",
+                Target: ZeloEditTarget.Treino,
+                DayOfWeek: day,
+                Label: "Pernas",
+                Exercises: new[] { new GeneratedWorkoutExercise(Pyrra.Domain.Treinos.WorkoutType.Academia, "Agachamento", 4, 10, 0) },
+                MealType: null,
+                Items: null);
+
+        private static ZeloEditProposal MakeNutritionProposal(
+            Pyrra.Domain.Common.WeekDay day = Pyrra.Domain.Common.WeekDay.Quarta,
+            Pyrra.Domain.Nutricao.MealType meal = Pyrra.Domain.Nutricao.MealType.Almoco) =>
+            new(
+                Description: $"Adicionar frango ao almoço de {day}",
+                Target: ZeloEditTarget.Nutricao,
+                DayOfWeek: day,
+                Label: null,
+                Exercises: null,
+                MealType: meal,
+                Items: new[] { new GeneratedNutritionItem(meal, "Frango grelhado", "100g") });
+
+        // leva uma sessão até Aplicada com um plano padrão (FakeZeloPlanAssistant.MakeValidPlan)
+        private static async Task<Guid> ApplyDefaultPlanAsync(ZeloPlanService service, Guid userId = default) {
+            var uid = userId == default ? UserId : userId;
+            var start = await service.StartOrResumeAsync(uid);
+            await AnswerAllAsync(service, start.SessionId, "Condicionamento físico", "Nenhuma", "Academia completa", "4-5 dias");
+            await service.ApplyAsync(uid, start.SessionId);
+            return start.SessionId;
+        }
+
+        [Fact]
+        public async Task SendMessageAsync_SessaoAplicada_LiberaAllowEditsNoAssistente() {
+            var (service, _, _, _, assistant, _, _, _, _, _) = Build();
+            var sessionId = await ApplyDefaultPlanAsync(service);
+
+            await service.SendMessageAsync(UserId, sessionId, "troca terça pra pernas");
+
+            Assert.True(assistant.LastAllowEdits);
+        }
+
+        [Fact]
+        public async Task SendMessageAsync_SessaoAindaNaoAplicada_NaoLiberaAllowEdits() {
+            var (service, _, _, _, assistant, _, _, _, _, _) = Build();
+            var start = await service.StartOrResumeAsync(UserId);
+            await AnswerAllAsync(service, start.SessionId, "Condicionamento físico", "Nenhuma", "Academia completa", "4-5 dias");
+
+            await service.SendMessageAsync(UserId, start.SessionId, "dúvida qualquer");
+
+            Assert.False(assistant.LastAllowEdits);
+        }
+
+        [Fact]
+        public async Task SendMessageAsync_AssistenteProposeEdicao_SalvaMensagemComEditStatusProposta() {
+            var (service, _, _, _, assistant, _, _, _, _, messages) = Build();
+            var sessionId = await ApplyDefaultPlanAsync(service);
+            var proposal = MakeWorkoutProposal();
+            assistant.NextChatResult = new ZeloChatContinuationResult(true, "Pode confirmar?", proposal);
+
+            var result = await service.SendMessageAsync(UserId, sessionId, "troca terça pra pernas");
+
+            Assert.NotNull(result.Reply);
+            Assert.Equal(ZeloEditStatus.Proposta, result.Reply!.EditStatus);
+            Assert.Equal(proposal.Description, result.Reply.EditProposal!.Description);
+
+            var stored = messages.Messages.Single(m => m.Id == result.Reply.Id);
+            Assert.Equal(ZeloEditStatus.Proposta, stored.EditStatus);
+            Assert.NotNull(stored.EditProposalJson);
+        }
+
+        [Fact]
+        public async Task SendMessageAsync_SemProposta_EditStatusFicaNenhuma() {
+            var (service, _, _, _, _, _, _, _, _, _) = Build();
+            var sessionId = await ApplyDefaultPlanAsync(service);
+
+            var result = await service.SendMessageAsync(UserId, sessionId, "só uma dúvida");
+
+            Assert.Equal(ZeloEditStatus.Nenhuma, result.Reply!.EditStatus);
+            Assert.Null(result.Reply.EditProposal);
+        }
+
+        [Fact]
+        public async Task ConfirmEditAsync_Treino_SubstituiSoODiaProposto() {
+            var (service, _, _, _, assistant, _, _, workoutExercises, _, _) = Build();
+            var sessionId = await ApplyDefaultPlanAsync(service);
+            var quartaBefore = workoutExercises.Exercises.Where(e => e.DayOfWeek == Pyrra.Domain.Common.WeekDay.Quarta).ToList();
+
+            assistant.NextChatResult = new ZeloChatContinuationResult(true, "Pode confirmar?", MakeWorkoutProposal());
+            var result = await service.SendMessageAsync(UserId, sessionId, "troca terça pra pernas");
+
+            await service.ConfirmEditAsync(UserId, sessionId, result.Reply!.Id);
+
+            var terca = workoutExercises.Exercises.Where(e => e.UserId == UserId && e.DayOfWeek == Pyrra.Domain.Common.WeekDay.Terca).ToList();
+            Assert.Single(terca);
+            Assert.Equal("Agachamento", terca[0].ExerciseName);
+
+            // outro dia não foi tocado
+            var quartaAfter = workoutExercises.Exercises.Where(e => e.DayOfWeek == Pyrra.Domain.Common.WeekDay.Quarta).ToList();
+            Assert.Equal(quartaBefore.Select(e => e.Id), quartaAfter.Select(e => e.Id));
+        }
+
+        [Fact]
+        public async Task ConfirmEditAsync_Nutricao_SubstituiSoARefeicaoProposta() {
+            var (service, _, _, _, assistant, _, _, _, nutritionItems, _) = Build();
+            var sessionId = await ApplyDefaultPlanAsync(service);
+            var outraRefeicaoAntes = nutritionItems.Items
+                .Where(i => i.DayOfWeek == Pyrra.Domain.Common.WeekDay.Quarta && i.MealType == Pyrra.Domain.Nutricao.MealType.CafeDaManha)
+                .ToList();
+
+            assistant.NextChatResult = new ZeloChatContinuationResult(true, "Pode confirmar?", MakeNutritionProposal());
+            var result = await service.SendMessageAsync(UserId, sessionId, "adiciona frango no almoço de quarta");
+
+            await service.ConfirmEditAsync(UserId, sessionId, result.Reply!.Id);
+
+            var almoco = nutritionItems.Items
+                .Where(i => i.UserId == UserId && i.DayOfWeek == Pyrra.Domain.Common.WeekDay.Quarta && i.MealType == Pyrra.Domain.Nutricao.MealType.Almoco)
+                .ToList();
+            Assert.Single(almoco);
+            Assert.Equal("Frango grelhado", almoco[0].ItemName);
+
+            // outra refeição do mesmo dia não foi tocada
+            var outraRefeicaoDepois = nutritionItems.Items
+                .Where(i => i.DayOfWeek == Pyrra.Domain.Common.WeekDay.Quarta && i.MealType == Pyrra.Domain.Nutricao.MealType.CafeDaManha)
+                .ToList();
+            Assert.Equal(outraRefeicaoAntes.Select(i => i.Id), outraRefeicaoDepois.Select(i => i.Id));
+        }
+
+        [Fact]
+        public async Task ConfirmEditAsync_MarcaMensagemComoAplicada() {
+            var (service, _, _, _, assistant, _, _, _, _, messages) = Build();
+            var sessionId = await ApplyDefaultPlanAsync(service);
+            assistant.NextChatResult = new ZeloChatContinuationResult(true, "Pode confirmar?", MakeWorkoutProposal());
+            var result = await service.SendMessageAsync(UserId, sessionId, "troca terça pra pernas");
+
+            await service.ConfirmEditAsync(UserId, sessionId, result.Reply!.Id);
+
+            Assert.Equal(ZeloEditStatus.Aplicada, messages.Messages.Single(m => m.Id == result.Reply.Id).EditStatus);
+        }
+
+        [Fact]
+        public async Task ConfirmEditAsync_JaResolvida_Lanca() {
+            var (service, _, _, _, assistant, _, _, _, _, _) = Build();
+            var sessionId = await ApplyDefaultPlanAsync(service);
+            assistant.NextChatResult = new ZeloChatContinuationResult(true, "Pode confirmar?", MakeWorkoutProposal());
+            var result = await service.SendMessageAsync(UserId, sessionId, "troca terça pra pernas");
+            await service.ConfirmEditAsync(UserId, sessionId, result.Reply!.Id);
+
+            await Assert.ThrowsAsync<InvalidZeloPlanException>(() => service.ConfirmEditAsync(UserId, sessionId, result.Reply.Id));
+        }
+
+        [Fact]
+        public async Task ConfirmEditAsync_ComoOutroUsuario_LancaNotFound() {
+            var (service, _, _, _, assistant, _, _, _, _, _) = Build();
+            var sessionId = await ApplyDefaultPlanAsync(service);
+            assistant.NextChatResult = new ZeloChatContinuationResult(true, "Pode confirmar?", MakeWorkoutProposal());
+            var result = await service.SendMessageAsync(UserId, sessionId, "troca terça pra pernas");
+
+            await Assert.ThrowsAsync<NotFoundException>(() => service.ConfirmEditAsync(OtherUserId, sessionId, result.Reply!.Id));
+        }
+
+        [Fact]
+        public async Task DismissEditAsync_MarcaDescartadaSemAplicarNada() {
+            var (service, _, _, _, assistant, _, _, workoutExercises, _, messages) = Build();
+            var sessionId = await ApplyDefaultPlanAsync(service);
+            var tercaAntes = workoutExercises.Exercises.Where(e => e.DayOfWeek == Pyrra.Domain.Common.WeekDay.Terca).ToList();
+
+            assistant.NextChatResult = new ZeloChatContinuationResult(true, "Pode confirmar?", MakeWorkoutProposal());
+            var result = await service.SendMessageAsync(UserId, sessionId, "troca terça pra pernas");
+
+            await service.DismissEditAsync(UserId, sessionId, result.Reply!.Id);
+
+            Assert.Equal(ZeloEditStatus.Descartada, messages.Messages.Single(m => m.Id == result.Reply.Id).EditStatus);
+            var tercaDepois = workoutExercises.Exercises.Where(e => e.DayOfWeek == Pyrra.Domain.Common.WeekDay.Terca).ToList();
+            Assert.Equal(tercaAntes.Select(e => e.Id), tercaDepois.Select(e => e.Id));
         }
     }
 }

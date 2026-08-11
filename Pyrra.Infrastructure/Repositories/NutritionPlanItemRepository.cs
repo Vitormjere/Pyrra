@@ -54,5 +54,16 @@ namespace Pyrra.Infrastructure.Repositories {
             await _context.NutritionPlanItems.AddRangeAsync(items, cancellationToken);
             await _context.SaveChangesAsync(cancellationToken);
         }
+
+        // mesmo padrão de ReplaceAllForUserAsync, só que filtrado por dia+refeição — as outras refeições/dias não são tocados
+        public async Task ReplaceForDayAndMealAsync(Guid userId, WeekDay dayOfWeek, MealType mealType, IReadOnlyList<NutritionPlanItem> items, CancellationToken cancellationToken = default) {
+            var existing = await _context.NutritionPlanItems
+                .Where(i => i.UserId == userId && i.DayOfWeek == dayOfWeek && i.MealType == mealType)
+                .ToListAsync(cancellationToken);
+
+            _context.NutritionPlanItems.RemoveRange(existing);
+            await _context.NutritionPlanItems.AddRangeAsync(items, cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
     }
 }

@@ -8,6 +8,10 @@ export type ZeloPlanSessionStatus = 'Coletando' | 'PlanoGerado' | 'Aplicada' | '
 
 export type ZeloPlanMessageRole = 'Usuario' | 'Zelo'
 
+export type ZeloEditStatus = 'Nenhuma' | 'Proposta' | 'Aplicada' | 'Descartada'
+
+export type ZeloEditTarget = 'Treino' | 'Nutricao'
+
 export interface ZeloPlanQuestionResponse {
   key: string
   text: string
@@ -64,6 +68,18 @@ export interface ZeloPlanPreviewResponse {
   plan: GeneratedPlanResponse
 }
 
+// edição pontual proposta pelo Zelo — sempre um dia inteiro de Treino OU uma refeição de um dia de
+// Nutrição, nunca os dois ao mesmo tempo (o par correspondente vem null)
+export interface ZeloEditProposalResponse {
+  description: string
+  target: ZeloEditTarget
+  dayOfWeek: WeekDay
+  label: string | null
+  exercises: GeneratedWorkoutExerciseResponse[] | null
+  mealType: MealType | null
+  items: GeneratedNutritionItemResponse[] | null
+}
+
 // GET/POST /api/zelo/plano/{sessionId}/mensagens
 export interface ZeloPlanChatMessageResponse {
   id: string
@@ -71,6 +87,9 @@ export interface ZeloPlanChatMessageResponse {
   content: string
   /** ISO 8601. */
   createdAt: string
+  editStatus: ZeloEditStatus
+  /** presente só quando editStatus é 'Proposta' — Aplicada/Descartada já foram resolvidas */
+  editProposal: ZeloEditProposalResponse | null
 }
 
 // POST .../mensagens — reply nulo + error preenchido = o Zelo não conseguiu responder (a mensagem do usuário já foi salva, aparece no próximo GET)

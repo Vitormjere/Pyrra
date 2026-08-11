@@ -21,5 +21,9 @@ namespace Pyrra.Application.Common.Interfaces {
         // que garante que exercícios de um plano anterior não sobrem em dias que o novo template
         // deixa vazios (os "órfãos" que a sobrescrita não pode deixar).
         Task ReplaceAllForUserAsync(Guid userId, IReadOnlyList<WorkoutPlanExercise> exercises, CancellationToken cancellationToken = default);
+
+        // mesma ideia, mas escopada a UM dia — usada pela edição pontual do Zelo via chat livre, que
+        // não pode mexer em dias que o usuário não pediu pra trocar
+        Task ReplaceForDayAsync(Guid userId, WeekDay dayOfWeek, IReadOnlyList<WorkoutPlanExercise> exercises, CancellationToken cancellationToken = default);
     }
 }

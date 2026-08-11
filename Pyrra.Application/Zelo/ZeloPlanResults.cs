@@ -14,7 +14,11 @@ namespace Pyrra.Application.Zelo {
 
     public record ZeloPlanPreview(Guid SessionId, GeneratedPlan Plan, ZeloPlanSessionStatus Status);
 
-    public record ZeloPlanChatMessage(Guid Id, ZeloPlanMessageRole Role, string Content, DateTime CreatedAt);
+    // EditProposal preenchido só em mensagens do Zelo com EditStatus=Proposta — o front mostra
+    // Aplicar/Cancelar enquanto ficar assim; Aplicada/Descartada já foram resolvidas, sem mais ação
+    public record ZeloPlanChatMessage(
+        Guid Id, ZeloPlanMessageRole Role, string Content, DateTime CreatedAt,
+        ZeloEditStatus EditStatus, ZeloEditProposal? EditProposal);
 
     // Error preenchido quando o modelo falhou — a mensagem do usuário já foi salva, mas sem resposta do Zelo (não conta na cota)
     public record ZeloPlanChatResult(ZeloPlanChatMessage? Reply, string? Error);

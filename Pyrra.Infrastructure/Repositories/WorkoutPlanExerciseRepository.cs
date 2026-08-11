@@ -55,5 +55,16 @@ namespace Pyrra.Infrastructure.Repositories {
             await _context.WorkoutPlanExercises.AddRangeAsync(exercises, cancellationToken);
             await _context.SaveChangesAsync(cancellationToken);
         }
+
+        // mesmo padrão de ReplaceAllForUserAsync, só que filtrado por dia — os outros 6 dias não são tocados
+        public async Task ReplaceForDayAsync(Guid userId, WeekDay dayOfWeek, IReadOnlyList<WorkoutPlanExercise> exercises, CancellationToken cancellationToken = default) {
+            var existing = await _context.WorkoutPlanExercises
+                .Where(e => e.UserId == userId && e.DayOfWeek == dayOfWeek)
+                .ToListAsync(cancellationToken);
+
+            _context.WorkoutPlanExercises.RemoveRange(existing);
+            await _context.WorkoutPlanExercises.AddRangeAsync(exercises, cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
     }
 }

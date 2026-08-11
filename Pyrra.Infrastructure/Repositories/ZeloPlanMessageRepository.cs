@@ -22,8 +22,16 @@ namespace Pyrra.Infrastructure.Repositories {
                 .OrderBy(m => m.CreatedAt)
                 .ToListAsync(cancellationToken);
 
+        public Task<ZeloPlanMessage?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
+            _context.ZeloPlanMessages.FirstOrDefaultAsync(m => m.Id == id, cancellationToken);
+
         public async Task AddAsync(ZeloPlanMessage message, CancellationToken cancellationToken = default) {
             await _context.ZeloPlanMessages.AddAsync(message, cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+
+        public async Task UpdateAsync(ZeloPlanMessage message, CancellationToken cancellationToken = default) {
+            _context.ZeloPlanMessages.Update(message);
             await _context.SaveChangesAsync(cancellationToken);
         }
     }

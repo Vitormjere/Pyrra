@@ -66,6 +66,12 @@ namespace Pyrra.Application.Tests.Treinos {
             Exercises.AddRange(exercises);
             return Task.CompletedTask;
         }
+
+        public Task ReplaceForDayAsync(Guid userId, WeekDay dayOfWeek, IReadOnlyList<WorkoutPlanExercise> exercises, CancellationToken cancellationToken = default) {
+            Exercises.RemoveAll(e => e.UserId == userId && e.DayOfWeek == dayOfWeek);
+            Exercises.AddRange(exercises);
+            return Task.CompletedTask;
+        }
     }
 
     internal sealed class FakeWorkoutTemplateRepository : IWorkoutTemplateRepository {

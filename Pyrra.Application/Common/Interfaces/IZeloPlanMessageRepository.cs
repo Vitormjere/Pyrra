@@ -9,6 +9,11 @@ namespace Pyrra.Application.Common.Interfaces {
         // em ordem cronológica
         Task<IReadOnlyList<ZeloPlanMessage>> GetBySessionIdAsync(Guid sessionId, CancellationToken cancellationToken = default);
 
+        Task<ZeloPlanMessage?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+
         Task AddAsync(ZeloPlanMessage message, CancellationToken cancellationToken = default);
+
+        // usado pra marcar EditStatus depois que o usuário confirma/descarta uma edição proposta
+        Task UpdateAsync(ZeloPlanMessage message, CancellationToken cancellationToken = default);
     }
 }

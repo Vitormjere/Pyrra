@@ -25,9 +25,13 @@ namespace Pyrra.Infrastructure.Zelo {
         // na prática cortando a resposta no meio do JSON (achado testando ao vivo)
         private const int MaxTokens = 8000;
 
-        // chat livre é pergunta curta sobre um plano já pronto — mesmo modelo/orçamento do Zelo geral, não precisa do Sonnet
+        // chat livre é pergunta curta sobre um plano já pronto — mesmo modelo do Zelo geral, não
+        // precisa do Sonnet. O orçamento de tokens é maior que o do Zelo geral (300): quando a
+        // sessão permite edição, a resposta carrega o envelope JSON inteiro (reply + editProposal
+        // com a lista completa de exercícios/itens do dia) — 300 tokens truncava esse JSON no meio
+        // e derrubava o parse (achado testando ao vivo).
         private const string ChatModel = "claude-haiku-4-5";
-        private const int ChatMaxTokens = 300;
+        private const int ChatMaxTokens = 1024;
 
         private const string FriendlyErrorMessage =
             "O Zelo não conseguiu montar seu plano agora. Tente novamente em alguns instantes.";
@@ -106,11 +110,14 @@ namespace Pyrra.Infrastructure.Zelo {
             return new ZeloPlanGenerationResult(true, plan, string.Empty);
         }
 
-        public async Task<ZeloAssistantResult> ContinueChatAsync(
+        public async Task<ZeloChatContinuationResult> ContinueChatAsync(
             string userContext, GeneratedPlan plan, IReadOnlyList<ZeloPlanMessage> history, string newMessage,
-            CancellationToken cancellationToken = default) {
-            var systemPrompt = ChatSystemPrompt + "\n\n" + SummarizePlan(plan) + "\n\n" + userContext;
+            bool allowEdits, CancellationToken cancellationToken = default) {
+            var systemPrompt = ChatSystemPromptBase + "\n\n" + (allowEdits ? ChatEditInstructions : ChatNoEditInstructions) +
+                                "\n\n" + SummarizePlan(plan) + "\n\n" + userContext;
 
+            // histórico manda só o texto que o Zelo de fato "disse" (reply já extraído), não o
+            // envelope JSON bruto — senão o modelo veria seu próprio JSON como parte da conversa
             var messages = history
                 .Select(m => new { role = m.Role == ZeloPlanMessageRole.Usuario ? "user" : "assistant", content = m.Content })
                 .Append(new { role = "user", content = newMessage })
@@ -133,12 +140,12 @@ namespace Pyrra.Infrastructure.Zelo {
                 throw;
             } catch (Exception ex) {
                 _logger.LogError(ex, "Falha ao chamar a API da Anthropic para o chat do Zelo.");
-                return new ZeloAssistantResult(false, ChatFriendlyErrorMessage);
+                return new ZeloChatContinuationResult(false, ChatFriendlyErrorMessage, null);
             }
 
             if (!response.IsSuccessStatusCode) {
                 _logger.LogError("API da Anthropic respondeu {StatusCode} para o chat do Zelo.", (int)response.StatusCode);
-                return new ZeloAssistantResult(false, ChatFriendlyErrorMessage);
+                return new ZeloChatContinuationResult(false, ChatFriendlyErrorMessage, null);
             }
 
             // ReadAsStringAsync() decide o charset pelo Content-Type da resposta e, sem um charset
@@ -147,21 +154,35 @@ namespace Pyrra.Infrastructure.Zelo {
             // em UTF-8, então força a decodificação em vez de confiar na detecção automática.
             var jsonBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
             var json      = Encoding.UTF8.GetString(jsonBytes);
+            string? text;
             try {
                 using var doc = JsonDocument.Parse(json);
-                var text = doc.RootElement.GetProperty("content")[0].GetProperty("text").GetString();
-                if (string.IsNullOrWhiteSpace(text)) {
-                    _logger.LogError("Resposta da Anthropic para o chat do Zelo veio sem texto.");
-                    return new ZeloAssistantResult(false, ChatFriendlyErrorMessage);
-                }
-                return new ZeloAssistantResult(true, text.Trim());
+                text = doc.RootElement.GetProperty("content")[0].GetProperty("text").GetString();
             } catch (Exception ex) {
                 _logger.LogError(ex, "Não foi possível ler a resposta da Anthropic para o chat do Zelo.");
-                return new ZeloAssistantResult(false, ChatFriendlyErrorMessage);
+                return new ZeloChatContinuationResult(false, ChatFriendlyErrorMessage, null);
             }
+
+            if (string.IsNullOrWhiteSpace(text)) {
+                _logger.LogError("Resposta da Anthropic para o chat do Zelo veio sem texto.");
+                return new ZeloChatContinuationResult(false, ChatFriendlyErrorMessage, null);
+            }
+
+            var stripped = StripJsonFence(text);
+            var (reply, proposal) = ParseChatResponse(stripped);
+
+            // chat é mais tolerante que a geração do plano: se o envelope JSON vier malformado,
+            // usa o texto cru como resposta em vez de derrubar a conversa inteira por um formato
+            // levemente errado — só perde a chance de propor edição nesse turno
+            return reply is not null
+                ? new ZeloChatContinuationResult(true, reply, proposal)
+                : new ZeloChatContinuationResult(true, stripped.Trim(), null);
         }
 
-        // resumo compacto do plano pro prompt do chat — não manda o JSON inteiro pra não estourar o orçamento de tokens à toa
+        // resumo compacto do plano pro prompt do chat — não manda o JSON inteiro pra não estourar o
+        // orçamento de tokens à toa. Nutrição vai por refeição (não só os nomes do dia inteiro
+        // juntos): edições pontuais ("adiciona proteína no almoço de quarta") precisam saber
+        // exatamente o que já tem em CADA refeição, não só no dia.
         private static string SummarizePlan(GeneratedPlan plan) {
             var sb = new StringBuilder();
             sb.Append("PLANO ATUAL DO USUÁRIO\n").Append(plan.Summary).AppendLine();
@@ -171,24 +192,127 @@ namespace Pyrra.Infrastructure.Zelo {
                 var exercises = day.Exercises.Count == 0
                     ? "descanso"
                     : string.Join(", ", day.Exercises.Select(e => e.ExerciseName));
-                sb.Append("- ").Append(day.DayOfWeek).Append(": ").AppendLine(exercises);
+                var label = day.Label is not null ? $" ({day.Label})" : "";
+                sb.Append("- ").Append(day.DayOfWeek).Append(label).Append(": ").AppendLine(exercises);
             }
 
-            sb.AppendLine("Nutrição:");
+            sb.AppendLine("Nutrição (por refeição):");
             foreach (var day in plan.NutritionDays) {
-                var items = string.Join(", ", day.Items.Select(i => i.ItemName));
-                sb.Append("- ").Append(day.DayOfWeek).Append(": ").AppendLine(items);
+                sb.Append("- ").Append(day.DayOfWeek).AppendLine(":");
+                foreach (var meal in day.Items.GroupBy(i => i.MealType)) {
+                    var items = string.Join(", ", meal.Select(i => $"{i.ItemName} ({i.Quantity})"));
+                    sb.Append("  ").Append(meal.Key).Append(": ").AppendLine(items.Length > 0 ? items : "vazio");
+                }
             }
 
             return sb.ToString();
         }
 
-        private const string ChatSystemPrompt =
-            "Você é o Zelo, assistente pessoal dentro do app Pyrra. O usuário acabou de receber um " +
-            "plano de Treino e Nutrição que você mesmo montou (resumido abaixo). Responda dúvidas e " +
-            "pedidos de ajuste sobre esse plano de forma direta, breve (2-4 frases) e encorajadora. " +
-            "Você não pode alterar o plano diretamente nesta conversa — se o usuário pedir uma mudança, " +
-            "explique a sugestão e diga que ele pode gerar um novo plano se quiser aplicá-la.";
+        private const string ChatSystemPromptBase =
+            "Você é o Zelo, assistente pessoal dentro do app Pyrra. O usuário tem um plano de Treino " +
+            "e Nutrição (resumido abaixo). Responda dúvidas e pedidos de ajuste sobre esse plano de " +
+            "forma direta, breve (2-4 frases) e encorajadora.\n\n" +
+            "Responda SEMPRE com um objeto JSON válido, sem markdown, sem texto antes ou depois, " +
+            "exatamente neste formato:\n" +
+            "{ \"reply\": \"sua resposta em texto, 2-4 frases\", \"editProposal\": null }";
+
+        // sessão já Aplicada: o Zelo pode propor uma edição pontual em vez de só responder
+        private const string ChatEditInstructions =
+            "O plano já foi aplicado. Se o usuário pedir uma mudança pontual (trocar um dia de " +
+            "treino inteiro, tirar/adicionar/ajustar um item de UMA refeição), preencha " +
+            "\"editProposal\" (em vez de null) neste formato:\n" +
+            "{\n" +
+            "  \"description\": \"frase curta resumindo a mudança, ex.: 'Trocar treino de Terça para pernas'\",\n" +
+            "  \"target\": \"Treino\" ou \"Nutricao\",\n" +
+            "  \"dayOfWeek\": um de Segunda, Terca, Quarta, Quinta, Sexta, Sabado, Domingo (sem acento),\n" +
+            "  \"label\": rótulo do dia depois da mudança — só quando target=Treino (null se for descanso; null quando target=Nutricao),\n" +
+            "  \"exercises\": lista COMPLETA dos exercícios do dia DEPOIS da mudança — só quando target=Treino (null quando target=Nutricao), " +
+            "cada item { \"type\": \"Academia\" ou \"Corrida\", \"exerciseName\", \"sets\", \"reps\", \"order\" },\n" +
+            "  \"mealType\": \"CafeDaManha\", \"Almoco\", \"Lanche\" ou \"Jantar\" — só quando target=Nutricao (null quando target=Treino),\n" +
+            "  \"items\": lista COMPLETA dos itens dessa refeição DEPOIS da mudança — só quando target=Nutricao (null quando target=Treino), " +
+            "cada item { \"itemName\", \"quantity\" }\n" +
+            "}\n" +
+            "IMPORTANTE: \"exercises\"/\"items\" é sempre a lista inteira depois da mudança (não só o " +
+            "que mudou) — ela substitui tudo daquele dia (treino) ou daquela refeição (nutrição). " +
+            "Proponha só UMA edição por vez, sempre sobre um único dia inteiro (treino) ou uma única " +
+            "refeição de um único dia (nutrição) — nunca o plano inteiro nem múltiplos dias. Se não " +
+            "tiver certeza de qual dia ou refeição o usuário quer mudar, pergunte antes de propor " +
+            "(editProposal continua null nesse turno). Não aplique nada sozinho — só proponha; quem " +
+            "confirma é o usuário.";
+
+        // sessão ainda não aplicada (preview) — comportamento de sempre, sem propor edição
+        private const string ChatNoEditInstructions =
+            "Você ainda não pode propor edição nesta conversa — o plano gerado ainda não foi " +
+            "aplicado. Se o usuário pedir uma mudança, explique a sugestão em texto e diga que dá " +
+            "pra pedir esse tipo de ajuste depois de aplicar o plano. \"editProposal\" deve ser " +
+            "sempre null.";
+
+        // o modelo às vezes envolve o JSON em markdown apesar da instrução, ou volta texto puro
+        // quando o formato falha — reply nulo sinaliza pro chamador cair no fallback de texto cru
+        private static (string? Reply, ZeloEditProposal? Proposal) ParseChatResponse(string json) {
+            ChatResponseJson? raw;
+            try {
+                raw = JsonSerializer.Deserialize<ChatResponseJson>(json, ResponseJsonOptions);
+            } catch (JsonException) {
+                return (null, null);
+            }
+
+            if (raw is null || string.IsNullOrWhiteSpace(raw.Reply)) {
+                return (null, null);
+            }
+
+            // proposta malformada não derruba a resposta — só vira "sem proposta" nesse turno
+            return (raw.Reply.Trim(), ParseEditProposal(raw.EditProposal));
+        }
+
+        private static ZeloEditProposal? ParseEditProposal(EditProposalJson? raw) {
+            if (raw is null || string.IsNullOrWhiteSpace(raw.Description) || string.IsNullOrWhiteSpace(raw.Target)
+                || string.IsNullOrWhiteSpace(raw.DayOfWeek)) {
+                return null;
+            }
+
+            if (!Enum.TryParse<ZeloEditTarget>(raw.Target, out var target)) {
+                return null;
+            }
+            if (!Enum.TryParse<WeekDay>(raw.DayOfWeek, out var dayOfWeek)) {
+                return null;
+            }
+
+            if (target == ZeloEditTarget.Treino) {
+                if (raw.Exercises is null) {
+                    return null;
+                }
+
+                var exercises = new List<GeneratedWorkoutExercise>();
+                foreach (var exercise in raw.Exercises) {
+                    if (!Enum.TryParse<WorkoutType>(exercise.Type, out var type) || string.IsNullOrWhiteSpace(exercise.ExerciseName)) {
+                        return null;
+                    }
+                    exercises.Add(new GeneratedWorkoutExercise(type, exercise.ExerciseName.Trim(), exercise.Sets, exercise.Reps, exercise.Order));
+                }
+
+                return new ZeloEditProposal(
+                    raw.Description.Trim(), target, dayOfWeek,
+                    string.IsNullOrWhiteSpace(raw.Label) ? null : raw.Label.Trim(), exercises, null, null);
+            }
+
+            if (string.IsNullOrWhiteSpace(raw.MealType) || raw.Items is null) {
+                return null;
+            }
+            if (!Enum.TryParse<MealType>(raw.MealType, out var mealType)) {
+                return null;
+            }
+
+            var items = new List<GeneratedNutritionItem>();
+            foreach (var item in raw.Items) {
+                if (string.IsNullOrWhiteSpace(item.ItemName) || string.IsNullOrWhiteSpace(item.Quantity)) {
+                    return null;
+                }
+                items.Add(new GeneratedNutritionItem(mealType, item.ItemName.Trim(), item.Quantity.Trim()));
+            }
+
+            return new ZeloEditProposal(raw.Description.Trim(), target, dayOfWeek, null, null, mealType, items);
+        }
 
         private static string BuildUserContent(string userContext, IReadOnlyList<ZeloPlanAnswer> answers) {
             var sb = new StringBuilder();
@@ -355,6 +479,39 @@ namespace Pyrra.Infrastructure.Zelo {
 
             [JsonPropertyName("quantity")]
             public string? Quantity { get; set; }
+        }
+
+        // formato bruto da resposta de cada turno do chat livre, antes de validar contra os enums do domínio
+        private sealed class ChatResponseJson {
+            [JsonPropertyName("reply")]
+            public string? Reply { get; set; }
+
+            [JsonPropertyName("editProposal")]
+            public EditProposalJson? EditProposal { get; set; }
+        }
+
+        // "exercises"/"items" reaproveitam WorkoutExerciseJson/NutritionItemJson (mesmo formato dos itens usados na geração do plano)
+        private sealed class EditProposalJson {
+            [JsonPropertyName("description")]
+            public string? Description { get; set; }
+
+            [JsonPropertyName("target")]
+            public string? Target { get; set; }
+
+            [JsonPropertyName("dayOfWeek")]
+            public string? DayOfWeek { get; set; }
+
+            [JsonPropertyName("label")]
+            public string? Label { get; set; }
+
+            [JsonPropertyName("exercises")]
+            public List<WorkoutExerciseJson>? Exercises { get; set; }
+
+            [JsonPropertyName("mealType")]
+            public string? MealType { get; set; }
+
+            [JsonPropertyName("items")]
+            public List<NutritionItemJson>? Items { get; set; }
         }
     }
 }

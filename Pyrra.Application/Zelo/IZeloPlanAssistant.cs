@@ -9,9 +9,12 @@ namespace Pyrra.Application.Zelo {
         Task<ZeloPlanGenerationResult> GeneratePlanAsync(
             string userContext, IReadOnlyList<ZeloPlanAnswer> answers, CancellationToken cancellationToken = default);
 
-        // continua a conversa livre pós-formulário, com o plano gerado e o histórico como contexto
-        Task<ZeloAssistantResult> ContinueChatAsync(
+        // continua a conversa livre pós-formulário, com o plano e o histórico como contexto.
+        // allowEdits=true (sessão já Aplicada) libera o Zelo a propor uma edição pontual — nesse
+        // caso "plan" é o plano AO VIVO (tabelas reais), não o snapshot gerado originalmente, já
+        // que o usuário pode ter editado o plano por fora do chat desde então
+        Task<ZeloChatContinuationResult> ContinueChatAsync(
             string userContext, GeneratedPlan plan, IReadOnlyList<ZeloPlanMessage> history, string newMessage,
-            CancellationToken cancellationToken = default);
+            bool allowEdits, CancellationToken cancellationToken = default);
     }
 }

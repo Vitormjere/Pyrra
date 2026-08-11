@@ -39,6 +39,12 @@ namespace Pyrra.Application.Tests.Zelo {
             Items.AddRange(items);
             return Task.CompletedTask;
         }
+
+        public Task ReplaceForDayAndMealAsync(Guid userId, WeekDay dayOfWeek, MealType mealType, IReadOnlyList<NutritionPlanItem> items, CancellationToken cancellationToken = default) {
+            Items.RemoveAll(i => i.UserId == userId && i.DayOfWeek == dayOfWeek && i.MealType == mealType);
+            Items.AddRange(items);
+            return Task.CompletedTask;
+        }
     }
     internal sealed class FakeZeloPlanSessionRepository : IZeloPlanSessionRepository {
         public readonly List<ZeloPlanSession> Sessions = new();
@@ -108,10 +114,15 @@ namespace Pyrra.Application.Tests.Zelo {
             Task.FromResult<IReadOnlyList<ZeloPlanMessage>>(
                 Messages.Where(m => m.SessionId == sessionId).OrderBy(m => m.CreatedAt).ToList());
 
+        public Task<ZeloPlanMessage?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Messages.FirstOrDefault(m => m.Id == id));
+
         public Task AddAsync(ZeloPlanMessage message, CancellationToken cancellationToken = default) {
             Messages.Add(message);
             return Task.CompletedTask;
         }
+
+        public Task UpdateAsync(ZeloPlanMessage message, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
     internal sealed class FakeZeloPlanAssistant : IZeloPlanAssistant {
@@ -121,8 +132,11 @@ namespace Pyrra.Application.Tests.Zelo {
         // configurável por teste: null usa um plano válido padrão
         public ZeloPlanGenerationResult? NextResult { get; set; }
 
-        // configurável por teste: null usa uma resposta de sucesso padrão
-        public ZeloAssistantResult? NextChatResult { get; set; }
+        // configurável por teste: null usa uma resposta de sucesso padrão (sem proposta de edição)
+        public ZeloChatContinuationResult? NextChatResult { get; set; }
+
+        // último valor de allowEdits recebido — dá pra teste conferir que a sessão Aplicada liberou edição
+        public bool LastAllowEdits { get; private set; }
 
         public Task<ZeloPlanGenerationResult> GeneratePlanAsync(
             string userContext, IReadOnlyList<ZeloPlanAnswer> answers, CancellationToken cancellationToken = default) {
@@ -130,11 +144,12 @@ namespace Pyrra.Application.Tests.Zelo {
             return Task.FromResult(NextResult ?? new ZeloPlanGenerationResult(true, MakeValidPlan(), string.Empty));
         }
 
-        public Task<ZeloAssistantResult> ContinueChatAsync(
+        public Task<ZeloChatContinuationResult> ContinueChatAsync(
             string userContext, GeneratedPlan plan, IReadOnlyList<ZeloPlanMessage> history, string newMessage,
-            CancellationToken cancellationToken = default) {
+            bool allowEdits, CancellationToken cancellationToken = default) {
             ChatCallCount++;
-            return Task.FromResult(NextChatResult ?? new ZeloAssistantResult(true, "Resposta de teste do Zelo."));
+            LastAllowEdits = allowEdits;
+            return Task.FromResult(NextChatResult ?? new ZeloChatContinuationResult(true, "Resposta de teste do Zelo.", null));
         }
 
         public static GeneratedPlan MakeValidPlan() {

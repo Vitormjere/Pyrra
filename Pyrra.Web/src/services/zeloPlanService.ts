@@ -47,3 +47,14 @@ export async function sendZeloPlanMessage(sessionId: string, mensagem: string): 
   const { data } = await api.post<ZeloPlanChatResponse>(`/api/zelo/plano/${sessionId}/mensagens`, { mensagem })
   return data
 }
+
+// aplica a edição proposta numa mensagem do Zelo (EditStatus precisa estar 'Proposta') direto no
+// Treino/Nutrição já aplicados
+export async function confirmZeloPlanEdit(sessionId: string, messageId: string): Promise<void> {
+  await api.post(`/api/zelo/plano/${sessionId}/mensagens/${messageId}/confirmar`)
+}
+
+// descarta a edição proposta sem aplicar nada
+export async function dismissZeloPlanEdit(sessionId: string, messageId: string): Promise<void> {
+  await api.post(`/api/zelo/plano/${sessionId}/mensagens/${messageId}/descartar`)
+}

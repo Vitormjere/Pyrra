@@ -152,6 +152,40 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
+        // aplica a edição pontual proposta numa mensagem do Zelo direto nas tabelas de Treino/Nutrição
+        [HttpPost("{sessionId:guid}/mensagens/{messageId:guid}/confirmar")]
+        public async Task<IActionResult> ConfirmEdit(Guid sessionId, Guid messageId, CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            try {
+                await _service.ConfirmEditAsync(userId, sessionId, messageId, cancellationToken);
+                return NoContent();
+            } catch (InvalidZeloPlanException ex) {
+                return BadRequest(new { message = ex.Message });
+            } catch (NotFoundException ex) {
+                return NotFound(new { message = ex.Message });
+            }
+        }
+
+        // descarta a edição proposta sem aplicar nada
+        [HttpPost("{sessionId:guid}/mensagens/{messageId:guid}/descartar")]
+        public async Task<IActionResult> DismissEdit(Guid sessionId, Guid messageId, CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            try {
+                await _service.DismissEditAsync(userId, sessionId, messageId, cancellationToken);
+                return NoContent();
+            } catch (InvalidZeloPlanException ex) {
+                return BadRequest(new { message = ex.Message });
+            } catch (NotFoundException ex) {
+                return NotFound(new { message = ex.Message });
+            }
+        }
+
         private bool TryGetUserId(out Guid userId) {
             var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
             return Guid.TryParse(claim, out userId);

@@ -1,12 +1,59 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
-import { Sparkles } from 'lucide-react'
-import { getZeloPlanMessages, sendZeloPlanMessage } from '../services/zeloPlanService'
+import { Check, Sparkles, X } from 'lucide-react'
+import { confirmZeloPlanEdit, dismissZeloPlanEdit, getZeloPlanMessages, sendZeloPlanMessage } from '../services/zeloPlanService'
 import { getApiErrorMessage } from '../services/apiError'
-import type { ZeloPlanChatMessageResponse } from '../types/zeloPlan'
+import { formatPlannedExercise } from '../utils/format'
+import { WEEK_DAY_LABELS } from '../types/plan'
+import type { ZeloEditProposalResponse, ZeloPlanChatMessageResponse } from '../types/zeloPlan'
+import type { MealType } from '../types/nutrition'
 
 // mesmo teto do backend
 const MAX_LENGTH = 300
+
+// mesmos rótulos do ZeloPlanPreviewStep
+const MEAL_LABELS: Record<MealType, string> = {
+  CafeDaManha: 'Café da manhã',
+  Almoco: 'Almoço',
+  Lanche: 'Lanche',
+  Jantar: 'Jantar',
+}
+
+// resumo do "depois" da proposta — mesmo formato do preview do plano gerado
+function EditProposalSummary({ proposal }: { proposal: ZeloEditProposalResponse }) {
+  return (
+    <div className="mt-2 rounded-md bg-brand-dark px-3 py-2 ring-1 ring-line">
+      <p className="text-xs font-medium text-slate-400">
+        {WEEK_DAY_LABELS[proposal.dayOfWeek]}
+        {proposal.target === 'Nutricao' && proposal.mealType && ` · ${MEAL_LABELS[proposal.mealType]}`}
+      </p>
+      {proposal.target === 'Treino' ? (
+        <>
+          <p className="mt-0.5 text-sm text-ink">{proposal.label ?? 'Descanso'}</p>
+          {proposal.exercises && proposal.exercises.length > 0 && (
+            <ul className="mt-1 flex flex-col gap-0.5">
+              {proposal.exercises.map((exercise, index) => (
+                <li key={index} className="text-xs text-slate-400">
+                  {exercise.type === 'Corrida'
+                    ? exercise.exerciseName
+                    : formatPlannedExercise(exercise.exerciseName, exercise.sets, exercise.reps)}
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      ) : (
+        <ul className="mt-1 flex flex-col gap-0.5">
+          {(proposal.items ?? []).map((item, index) => (
+            <li key={index} className="text-xs text-slate-400">
+              {item.itemName} ({item.quantity})
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
 
 interface ZeloPlanChatStepProps {
   sessionId: string
@@ -21,6 +68,8 @@ export function ZeloPlanChatStep({ sessionId, onClose }: ZeloPlanChatStepProps) 
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [resolvingId, setResolvingId] = useState<string | null>(null)
+  const [resolveError, setResolveError] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -60,7 +109,14 @@ export function ZeloPlanChatStep({ sessionId, onClose }: ZeloPlanChatStepProps) 
     const optimisticId = `pending-${Date.now()}`
     setMessages((current) => [
       ...current,
-      { id: optimisticId, role: 'Usuario', content: trimmed, createdAt: new Date().toISOString() },
+      {
+        id: optimisticId,
+        role: 'Usuario',
+        content: trimmed,
+        createdAt: new Date().toISOString(),
+        editStatus: 'Nenhuma',
+        editProposal: null,
+      },
     ])
     setText('')
 
@@ -86,11 +142,41 @@ export function ZeloPlanChatStep({ sessionId, onClose }: ZeloPlanChatStepProps) 
     }
   }
 
+  async function handleConfirmEdit(messageId: string) {
+    setResolvingId(messageId)
+    setResolveError(null)
+    try {
+      await confirmZeloPlanEdit(sessionId, messageId)
+      setMessages((current) =>
+        current.map((m) => (m.id === messageId ? { ...m, editStatus: 'Aplicada' } : m)),
+      )
+    } catch (err) {
+      setResolveError(getApiErrorMessage(err, {}, 'Não foi possível aplicar essa edição.'))
+    } finally {
+      setResolvingId(null)
+    }
+  }
+
+  async function handleDismissEdit(messageId: string) {
+    setResolvingId(messageId)
+    setResolveError(null)
+    try {
+      await dismissZeloPlanEdit(sessionId, messageId)
+      setMessages((current) =>
+        current.map((m) => (m.id === messageId ? { ...m, editStatus: 'Descartada' } : m)),
+      )
+    } catch (err) {
+      setResolveError(getApiErrorMessage(err, {}, 'Não foi possível cancelar essa edição.'))
+    } finally {
+      setResolvingId(null)
+    }
+  }
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
         <Sparkles size={16} className="glow-icon shrink-0 text-brand-green" aria-hidden="true" />
-        <p className="text-sm text-slate-400">Quer tirar mais alguma dúvida sobre o plano?</p>
+        <p className="text-sm text-slate-400">Tire dúvidas ou peça um ajuste pontual no plano.</p>
       </div>
 
       <div className="flex max-h-64 flex-col gap-2 overflow-y-auto rounded-md bg-brand-dark p-3 ring-1 ring-line">
@@ -109,6 +195,41 @@ export function ZeloPlanChatStep({ sessionId, onClose }: ZeloPlanChatStepProps) 
             ].join(' ')}
           >
             {message.content}
+
+            {message.editStatus === 'Proposta' && message.editProposal && (
+              <>
+                <EditProposalSummary proposal={message.editProposal} />
+                <div className="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    disabled={resolvingId === message.id}
+                    onClick={() => handleConfirmEdit(message.id)}
+                    className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg bg-brand-green px-2.5 py-1.5 text-xs font-semibold text-brand-dark transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Check size={13} aria-hidden="true" />
+                    {resolvingId === message.id ? 'Aplicando...' : 'Aplicar'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={resolvingId === message.id}
+                    onClick={() => handleDismissEdit(message.id)}
+                    className="inline-flex items-center justify-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-400 ring-1 ring-line transition hover:bg-surface-hi hover:text-ink disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <X size={13} aria-hidden="true" />
+                    Cancelar
+                  </button>
+                </div>
+              </>
+            )}
+            {message.editStatus === 'Aplicada' && (
+              <p className="mt-1.5 flex items-center gap-1 text-xs text-brand-green">
+                <Check size={12} aria-hidden="true" />
+                Aplicado
+              </p>
+            )}
+            {message.editStatus === 'Descartada' && (
+              <p className="mt-1.5 text-xs text-slate-500">Edição cancelada.</p>
+            )}
           </div>
         ))}
         <div ref={bottomRef} />
@@ -117,6 +238,11 @@ export function ZeloPlanChatStep({ sessionId, onClose }: ZeloPlanChatStepProps) 
       {error && (
         <p role="alert" className="text-sm text-red-300">
           {error}
+        </p>
+      )}
+      {resolveError && (
+        <p role="alert" className="text-sm text-red-300">
+          {resolveError}
         </p>
       )}
 
@@ -132,7 +258,7 @@ export function ZeloPlanChatStep({ sessionId, onClose }: ZeloPlanChatStepProps) 
           rows={2}
           maxLength={MAX_LENGTH}
           disabled={sending}
-          placeholder="Pergunte ao Zelo sobre seu plano..."
+          placeholder="Ex.: troca o treino de terça pra pernas"
           className="w-full resize-y rounded-md bg-brand-dark px-4 py-3 text-sm leading-relaxed text-ink ring-1 ring-line transition outline-none placeholder:text-slate-500 focus:ring-2 focus:ring-brand-green disabled:opacity-60"
         />
         <div className="flex gap-2">

@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Pyrra.Application.Common.Exceptions;
 using Pyrra.Application.Common.Interfaces;
+using Pyrra.Domain.Common;
 using Pyrra.Domain.Nutricao;
 using Pyrra.Domain.Treinos;
 using Pyrra.Domain.Users;
@@ -230,13 +231,13 @@ namespace Pyrra.Application.Zelo {
         public async Task<IReadOnlyList<ZeloPlanChatMessage>> GetMessagesAsync(Guid userId, Guid sessionId, CancellationToken cancellationToken = default) {
             await GetOwnedActiveSessionAsync(userId, sessionId, cancellationToken);
             var messages = await _messageRepository.GetBySessionIdAsync(sessionId, cancellationToken);
-            return messages.Select(m => new ZeloPlanChatMessage(m.Id, m.Role, m.Content, m.CreatedAt)).ToList();
+            return messages.Select(ToChatMessage).ToList();
         }
 
         public async Task<ZeloPlanChatResult> SendMessageAsync(Guid userId, Guid sessionId, string message, CancellationToken cancellationToken = default) {
             var session = await GetOwnedActiveSessionAsync(userId, sessionId, cancellationToken);
             var planReady = session.Status is ZeloPlanSessionStatus.PlanoGerado or ZeloPlanSessionStatus.Aplicada;
-            if (!planReady || session.GeneratedPlanJson is null) {
+            if (!planReady) {
                 throw new InvalidZeloPlanException("O chat livre só fica disponível depois que o plano é gerado.");
             }
 
@@ -257,8 +258,22 @@ namespace Pyrra.Application.Zelo {
                 throw new ZeloPlanRateLimitExceededException();
             }
 
-            var plan = JsonSerializer.Deserialize<GeneratedPlan>(session.GeneratedPlanJson, JsonOptions)
+            // sessão Aplicada libera o Zelo a propor edição pontual, sobre o plano AO VIVO (tabelas
+            // reais — pode ter mudado desde a geração, inclusive por edições anteriores do próprio
+            // chat). Enquanto só PlanoGerado (preview ainda não aplicado), mantém o comportamento de
+            // sempre — chat só responde, usa o snapshot gerado.
+            var allowEdits = session.Status == ZeloPlanSessionStatus.Aplicada;
+            GeneratedPlan plan;
+            if (allowEdits) {
+                plan = await BuildLivePlanAsync(userId, cancellationToken);
+            } else {
+                if (session.GeneratedPlanJson is null) {
+                    throw new InvalidZeloPlanException("O chat livre só fica disponível depois que o plano é gerado.");
+                }
+                plan = JsonSerializer.Deserialize<GeneratedPlan>(session.GeneratedPlanJson, JsonOptions)
                        ?? throw new InvalidZeloPlanException("O chat livre só fica disponível depois que o plano é gerado.");
+            }
+
             var history = await _messageRepository.GetBySessionIdAsync(sessionId, cancellationToken);
 
             // salva a pergunta do usuário mesmo que o Zelo não consiga responder — é entrada real dele, não deveria se perder
@@ -268,7 +283,7 @@ namespace Pyrra.Application.Zelo {
             }, cancellationToken);
 
             var context = await _contextBuilder.BuildAsync(userId, cancellationToken);
-            var result  = await _assistant.ContinueChatAsync(context, plan, history, normalizedMessage, cancellationToken);
+            var result  = await _assistant.ContinueChatAsync(context, plan, history, normalizedMessage, allowEdits, cancellationToken);
 
             if (!result.Success) {
                 // não consome cota em falha, mesma regra da geração de plano
@@ -277,12 +292,118 @@ namespace Pyrra.Application.Zelo {
 
             var reply = new ZeloPlanMessage {
                 Id = Guid.NewGuid(), SessionId = sessionId, Role = ZeloPlanMessageRole.Zelo,
-                Content = result.Message, CreatedAt = _clock.UtcNow
+                Content = result.Message, CreatedAt = _clock.UtcNow,
+                EditProposalJson = result.EditProposal is null ? null : JsonSerializer.Serialize(result.EditProposal, JsonOptions),
+                EditStatus = result.EditProposal is null ? ZeloEditStatus.Nenhuma : ZeloEditStatus.Proposta
             };
             await _messageRepository.AddAsync(reply, cancellationToken);
             await IncrementQuotaAsync(userId, today, log, cancellationToken);
 
-            return new ZeloPlanChatResult(new ZeloPlanChatMessage(reply.Id, reply.Role, reply.Content, reply.CreatedAt), null);
+            return new ZeloPlanChatResult(ToChatMessage(reply, result.EditProposal), null);
+        }
+
+        public async Task ConfirmEditAsync(Guid userId, Guid sessionId, Guid messageId, CancellationToken cancellationToken = default) {
+            var session = await GetOwnedActiveSessionAsync(userId, sessionId, cancellationToken);
+            if (session.Status != ZeloPlanSessionStatus.Aplicada) {
+                throw new InvalidZeloPlanException("Só é possível aplicar edições depois que o plano foi aplicado.");
+            }
+
+            var message = await GetOwnedProposedEditMessageAsync(session, messageId, cancellationToken);
+            var proposal = DeserializeProposal(message.EditProposalJson)
+                           ?? throw new InvalidZeloPlanException("Essa proposta de edição não é mais válida.");
+
+            if (proposal.Target == ZeloEditTarget.Treino) {
+                await _workoutPlanDayRepository.UpsertManyAsync(userId, new List<WorkoutPlanDay> {
+                    new() { DayOfWeek = proposal.DayOfWeek, Label = proposal.Label }
+                }, cancellationToken);
+
+                var exercises = (proposal.Exercises ?? Array.Empty<GeneratedWorkoutExercise>())
+                    .Select(e => new WorkoutPlanExercise {
+                        Id = Guid.NewGuid(), UserId = userId, DayOfWeek = proposal.DayOfWeek,
+                        Type = e.Type, ExerciseName = e.ExerciseName, Sets = e.Sets, Reps = e.Reps, Order = e.Order
+                    })
+                    .ToList();
+                await _workoutPlanExerciseRepository.ReplaceForDayAsync(userId, proposal.DayOfWeek, exercises, cancellationToken);
+            } else {
+                if (proposal.MealType is null) {
+                    throw new InvalidZeloPlanException("Essa proposta de edição não é mais válida.");
+                }
+
+                var items = (proposal.Items ?? Array.Empty<GeneratedNutritionItem>())
+                    .Select(i => new NutritionPlanItem {
+                        Id = Guid.NewGuid(), UserId = userId, DayOfWeek = proposal.DayOfWeek,
+                        MealType = proposal.MealType.Value, ItemName = i.ItemName, Quantity = i.Quantity
+                    })
+                    .ToList();
+                await _nutritionPlanItemRepository.ReplaceForDayAndMealAsync(userId, proposal.DayOfWeek, proposal.MealType.Value, items, cancellationToken);
+            }
+
+            message.EditStatus = ZeloEditStatus.Aplicada;
+            await _messageRepository.UpdateAsync(message, cancellationToken);
+        }
+
+        public async Task DismissEditAsync(Guid userId, Guid sessionId, Guid messageId, CancellationToken cancellationToken = default) {
+            var session = await GetOwnedActiveSessionAsync(userId, sessionId, cancellationToken);
+            var message = await GetOwnedProposedEditMessageAsync(session, messageId, cancellationToken);
+
+            message.EditStatus = ZeloEditStatus.Descartada;
+            await _messageRepository.UpdateAsync(message, cancellationToken);
+        }
+
+        // monta o plano a partir das tabelas reais (não do snapshot gerado) — usado como contexto do
+        // chat quando a sessão já está Aplicada, pra o Zelo propor edições sobre o que existe de fato
+        private async Task<GeneratedPlan> BuildLivePlanAsync(Guid userId, CancellationToken cancellationToken) {
+            var days      = await _workoutPlanDayRepository.GetByUserAsync(userId, cancellationToken);
+            var exercises = await _workoutPlanExerciseRepository.GetByUserAsync(userId, cancellationToken);
+            var items     = await _nutritionPlanItemRepository.GetByUserAsync(userId, cancellationToken);
+
+            var labelByDay = days.ToDictionary(d => d.DayOfWeek, d => d.Label);
+            var exercisesByDay = exercises
+                .GroupBy(e => e.DayOfWeek)
+                .ToDictionary(g => g.Key, g => (IReadOnlyList<GeneratedWorkoutExercise>)g
+                    .OrderBy(e => e.Order)
+                    .Select(e => new GeneratedWorkoutExercise(e.Type, e.ExerciseName, e.Sets, e.Reps, e.Order))
+                    .ToList());
+            var itemsByDay = items
+                .GroupBy(i => i.DayOfWeek)
+                .ToDictionary(g => g.Key, g => (IReadOnlyList<GeneratedNutritionItem>)g
+                    .Select(i => new GeneratedNutritionItem(i.MealType, i.ItemName, i.Quantity))
+                    .ToList());
+
+            var workoutDays = Enum.GetValues<WeekDay>()
+                .Select(day => new GeneratedWorkoutDay(
+                    day,
+                    labelByDay.GetValueOrDefault(day),
+                    exercisesByDay.TryGetValue(day, out var dayExercises) ? dayExercises : Array.Empty<GeneratedWorkoutExercise>()))
+                .ToList();
+
+            var nutritionDays = Enum.GetValues<WeekDay>()
+                .Select(day => new GeneratedNutritionDay(
+                    day,
+                    itemsByDay.TryGetValue(day, out var dayItems) ? dayItems : Array.Empty<GeneratedNutritionItem>()))
+                .ToList();
+
+            return new GeneratedPlan("Plano atual do usuário, já aplicado.", workoutDays, nutritionDays);
+        }
+
+        private static ZeloPlanChatMessage ToChatMessage(ZeloPlanMessage message) =>
+            ToChatMessage(message, DeserializeProposal(message.EditProposalJson));
+
+        private static ZeloPlanChatMessage ToChatMessage(ZeloPlanMessage message, ZeloEditProposal? editProposal) =>
+            new(message.Id, message.Role, message.Content, message.CreatedAt, message.EditStatus, editProposal);
+
+        private static ZeloEditProposal? DeserializeProposal(string? json) =>
+            json is null ? null : JsonSerializer.Deserialize<ZeloEditProposal>(json, JsonOptions);
+
+        private async Task<ZeloPlanMessage> GetOwnedProposedEditMessageAsync(ZeloPlanSession session, Guid messageId, CancellationToken cancellationToken) {
+            var message = await _messageRepository.GetByIdAsync(messageId, cancellationToken);
+            if (message is null || message.SessionId != session.Id || message.Role != ZeloPlanMessageRole.Zelo) {
+                throw new NotFoundException($"Mensagem '{messageId}' não encontrada.");
+            }
+            if (message.EditStatus != ZeloEditStatus.Proposta) {
+                throw new InvalidZeloPlanException("Essa proposta de edição já foi resolvida.");
+            }
+            return message;
         }
 
         private async Task IncrementQuotaAsync(Guid userId, DateOnly today, ZeloPlanQueryLog? existing, CancellationToken cancellationToken) {

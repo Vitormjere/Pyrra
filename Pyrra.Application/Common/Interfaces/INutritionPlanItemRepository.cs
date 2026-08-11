@@ -20,5 +20,9 @@ namespace Pyrra.Application.Common.Interfaces {
         // que "aplicar plano do Zelo" usa pra sobrescrever sem deixar item órfão de um dia que o
         // novo plano deixa vazio.
         Task ReplaceAllForUserAsync(Guid userId, IReadOnlyList<NutritionPlanItem> items, CancellationToken cancellationToken = default);
+
+        // mesma ideia, mas escopada a UMA refeição de UM dia — usada pela edição pontual do Zelo via
+        // chat livre, que não pode mexer em refeições que o usuário não pediu pra trocar
+        Task ReplaceForDayAndMealAsync(Guid userId, WeekDay dayOfWeek, MealType mealType, IReadOnlyList<NutritionPlanItem> items, CancellationToken cancellationToken = default);
     }
 }
