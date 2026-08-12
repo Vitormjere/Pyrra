@@ -32,7 +32,8 @@ namespace Pyrra.Domain.Users {
         // soft delete — o repositório já filtra isso em toda consulta, então a conta some de login, busca e afins sem precisar repetir a checagem em cada serviço
         public DateTime? DeletedAt { get; set; }
 
-        // só muda por migration ou SQL direto, nunca por uma requisição 
+        // true só é setado por AdminUserService.CreateAdminAccountAsync, que exige que quem chama
+        // já seja admin (EnsureAdminAsync) — fora desse caminho, só muda por migration ou SQL direto
         public bool IsAdmin { get; set; }
 
         public DateTime CreatedAt { get; set; }
