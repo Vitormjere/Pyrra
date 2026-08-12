@@ -101,7 +101,7 @@ namespace Pyrra.Application.Usuario {
         }
 
         private static AdminUserSummary ToSummary(User user) => new(
-            user.Id, user.Email, user.Name, user.Username, user.IsAdmin, user.CreatedAt, user.DeletedAt);
+            user.Id, user.Email, user.Name, user.Username, user.ProfilePictureUrl, user.IsAdmin, user.CreatedAt, user.DeletedAt);
 
         private static string NormalizeUsername(string raw) {
             var trimmed = (raw ?? string.Empty).Trim();

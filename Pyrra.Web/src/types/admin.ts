@@ -6,6 +6,7 @@ export interface AdminUser {
   email: string
   name: string
   username: string | null
+  profilePictureUrl: string | null
   isAdmin: boolean
   /** DateTime ISO 8601. */
   createdAt: string

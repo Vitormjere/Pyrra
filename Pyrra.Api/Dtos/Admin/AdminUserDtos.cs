@@ -9,11 +9,12 @@ namespace Pyrra.Api.Dtos.Admin {
         string    Email,
         string    Name,
         string?   Username,
+        string?   ProfilePictureUrl,
         bool      IsAdmin,
         DateTime  CreatedAt,
         DateTime? DeletedAt) {
         public static AdminUserResponse FromSummary(AdminUserSummary s) => new(
-            s.Id, s.Email, s.Name, s.Username, s.IsAdmin, s.CreatedAt, s.DeletedAt);
+            s.Id, s.Email, s.Name, s.Username, s.ProfilePictureUrl, s.IsAdmin, s.CreatedAt, s.DeletedAt);
     }
 
     // senha chega em texto puro via https, nunca é logada nem guardada assim — o hash acontece no backend, igual no RegisterRequest

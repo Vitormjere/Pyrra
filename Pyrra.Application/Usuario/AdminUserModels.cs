@@ -7,6 +7,7 @@ namespace Pyrra.Application.Usuario {
         string  Email,
         string  Name,
         string? Username,
+        string? ProfilePictureUrl,
         bool    IsAdmin,
         DateTime  CreatedAt,
         DateTime? DeletedAt);

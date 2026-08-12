@@ -64,7 +64,7 @@ export function AdminMensagens() {
         setPlayers(
           allUsers
             .filter((u) => !u.isAdmin && u.deletedAt === null)
-            .map((u) => ({ id: u.id, name: u.name, username: u.username })),
+            .map((u) => ({ id: u.id, name: u.name, username: u.username, profilePictureUrl: u.profilePictureUrl })),
         )
         setConversations(conversationList)
       } catch (err) {
