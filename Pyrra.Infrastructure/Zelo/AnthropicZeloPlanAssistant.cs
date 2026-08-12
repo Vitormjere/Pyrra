@@ -103,7 +103,13 @@ namespace Pyrra.Infrastructure.Zelo {
             var stripped = StripJsonFence(text);
             var plan = ParsePlan(stripped);
             if (plan is null) {
-                _logger.LogError("Resposta da Anthropic para o plano do Zelo não é um JSON válido/completo: {Text}", stripped);
+                // nunca loga o texto inteiro: a resposta é construída a partir de respostas do
+                // próprio usuário (restrições alimentares, lesões) e pode carregar contexto de
+                // saúde — só o suficiente pra diagnosticar o formato (tamanho e as bordas, onde
+                // costuma aparecer o problema: cerca de markdown não removida, JSON cortado no meio)
+                _logger.LogError(
+                    "Resposta da Anthropic para o plano do Zelo não é um JSON válido/completo ({Length} caracteres). Início: {Prefix}… Fim: …{Suffix}",
+                    stripped.Length, SummarizeEdge(stripped, fromStart: true), SummarizeEdge(stripped, fromStart: false));
                 return new ZeloPlanGenerationResult(false, null, FriendlyErrorMessage);
             }
 
@@ -328,6 +334,18 @@ namespace Pyrra.Infrastructure.Zelo {
         }
 
         // o modelo às vezes envolve o JSON em ```json apesar da instrução — remove antes de parsear
+        // primeiros/últimos 40 caracteres de uma resposta que falhou o parse — o suficiente pra
+        // reconhecer o tipo de problema (cerca de markdown sobrando, JSON cortado) sem logar o
+        // conteúdo do meio, onde fica o que o usuário de fato respondeu no formulário
+        private const int LogEdgeLength = 40;
+
+        private static string SummarizeEdge(string text, bool fromStart) {
+            if (text.Length <= LogEdgeLength) {
+                return text;
+            }
+            return fromStart ? text[..LogEdgeLength] : text[^LogEdgeLength..];
+        }
+
         private static string StripJsonFence(string text) {
             var trimmed = text.Trim();
             if (!trimmed.StartsWith("```")) {
