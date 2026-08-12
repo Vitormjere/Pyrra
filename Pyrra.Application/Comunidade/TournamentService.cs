@@ -173,7 +173,10 @@ namespace Pyrra.Application.Comunidade {
         public async Task<TournamentDetails> GetDetailsAsync(Guid userId, Guid tournamentId, CancellationToken cancellationToken = default) {
             var tournament = await GetTournamentAsync(tournamentId, cancellationToken);
             var summary   = await ToSummaryAsync(tournament, userId, cancellationToken);
-            return new TournamentDetails(summary, tournament.InviteToken);
+            // torneios são navegáveis por qualquer usuário autenticado (sem conceito de
+            // visibilidade, ao contrário de Team) — só o token do convite é sensível, então só ele
+            // é escondido de quem não é dono, em vez de travar o endpoint inteiro
+            return new TournamentDetails(summary, summary.IsOwner ? tournament.InviteToken : null);
         }
 
         public async Task<TournamentSummary> SetBannerThemeAsync(Guid ownerId, Guid tournamentId, TeamBannerTheme bannerTheme, CancellationToken cancellationToken = default) {

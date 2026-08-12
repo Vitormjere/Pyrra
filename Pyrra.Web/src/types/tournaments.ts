@@ -22,9 +22,10 @@ export interface Tournament {
 // GET /api/torneios/{id}
 export interface TournamentDetails {
   tournament: Tournament
-  inviteToken: string
+  /** null pra quem não é dono do torneio — só o dono vê/compartilha o link de convite. */
+  inviteToken: string | null
   /** Caminho relativo (/torneios/convite/{token}); a URL absoluta é montada com window.location.origin. */
-  invitePath: string
+  invitePath: string | null
 }
 
 // POST /api/torneios/solicitacoes — solicitação de criação de torneio, aguardando aprovação de um admin

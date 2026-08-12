@@ -16,11 +16,12 @@ namespace Pyrra.Api.Dtos.Comunidade {
             s.BannerTheme.ToString(), s.BannerImageUrl);
     }
 
-    public record TournamentDetailsResponse(TournamentSummaryResponse Tournament, string InviteToken, string InvitePath) {
+    // InviteToken/InvitePath nulos pra quem não é dono do torneio (ver TournamentService.GetDetailsAsync)
+    public record TournamentDetailsResponse(TournamentSummaryResponse Tournament, string? InviteToken, string? InvitePath) {
         public static TournamentDetailsResponse FromDetails(TournamentDetails d) => new(
             TournamentSummaryResponse.FromSummary(d.Summary),
             d.InviteToken,
-            $"/torneios/convite/{d.InviteToken}");
+            d.InviteToken is not null ? $"/torneios/convite/{d.InviteToken}" : null);
     }
 
     // status e reviewedat já existiam na entidade, só passaram a ser expostos aqui — ver TournamentRequestSummary

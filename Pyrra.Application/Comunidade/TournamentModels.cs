@@ -12,7 +12,9 @@ namespace Pyrra.Application.Comunidade {
         TeamBannerTheme BannerTheme,
         string? BannerImageUrl);
 
-    public record TournamentDetails(TournamentSummary Summary, string InviteToken);
+    // InviteToken nulo pra quem não é dono — mesmo padrão de TeamController.GetDetails, que só
+    // expõe o token do time pra dono/membro
+    public record TournamentDetails(TournamentSummary Summary, string? InviteToken);
 
     // Status/ReviewedAt só passaram a aparecer aqui quando esse resumo também virou base do histórico completo — nas solicitações pendentes eles eram sempre iguais (Status fixo, ReviewedAt nulo), não valia a pena expor
     public record TournamentRequestSummary(

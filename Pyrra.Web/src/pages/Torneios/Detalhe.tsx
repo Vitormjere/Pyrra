@@ -748,7 +748,7 @@ export function TorneioDetalhe() {
     }
   }
 
-  const inviteUrl = details ? `${window.location.origin}${details.invitePath}` : null
+  const inviteUrl = details?.invitePath ? `${window.location.origin}${details.invitePath}` : null
 
   async function handleCopy() {
     if (!inviteUrl) return
@@ -872,35 +872,38 @@ export function TorneioDetalhe() {
         </p>
       )}
 
-      {/* LINK DE CONVITE — compartilhe com o dono de um time pra ele solicitar entrada. */}
-      <section className="flex flex-col gap-2 rounded-md bg-surface px-4 py-3 ring-1 ring-line">
-        <div className="flex items-center gap-2 text-sm font-medium text-ink">
-          <Link2 size={16} className="text-brand-green" aria-hidden="true" />
-          Link de convite
-        </div>
-        <p className="text-xs text-slate-400">
-          Quem abrir esse link pode solicitar a entrada de um time seu neste torneio — a entrada só
-          é confirmada depois que o dono do torneio aprovar.
-        </p>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            readOnly
-            value={inviteUrl ?? ''}
-            aria-label="Link de convite do torneio"
-            onFocus={(event) => event.target.select()}
-            className="min-w-0 flex-1 rounded-md bg-surface-hi px-3 py-2 text-xs text-slate-300 ring-1 ring-line outline-none"
-          />
-          <button
-            type="button"
-            onClick={handleCopy}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-brand-green px-3 py-2 text-sm font-semibold text-brand-dark transition hover:brightness-95"
-          >
-            {copied ? <Check size={15} /> : <Copy size={15} />}
-            {copied ? 'Copiado' : 'Copiar'}
-          </button>
-        </div>
-      </section>
+      {/* LINK DE CONVITE — compartilhe com o dono de um time pra ele solicitar entrada. Só o dono
+          do torneio vê/compartilha o link (o backend só devolve o token pra ele). */}
+      {details.tournament.isOwner && (
+        <section className="flex flex-col gap-2 rounded-md bg-surface px-4 py-3 ring-1 ring-line">
+          <div className="flex items-center gap-2 text-sm font-medium text-ink">
+            <Link2 size={16} className="text-brand-green" aria-hidden="true" />
+            Link de convite
+          </div>
+          <p className="text-xs text-slate-400">
+            Quem abrir esse link pode solicitar a entrada de um time seu neste torneio — a entrada só
+            é confirmada depois que o dono do torneio aprovar.
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              readOnly
+              value={inviteUrl ?? ''}
+              aria-label="Link de convite do torneio"
+              onFocus={(event) => event.target.select()}
+              className="min-w-0 flex-1 rounded-md bg-surface-hi px-3 py-2 text-xs text-slate-300 ring-1 ring-line outline-none"
+            />
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-brand-green px-3 py-2 text-sm font-semibold text-brand-dark transition hover:brightness-95"
+            >
+              {copied ? <Check size={15} /> : <Copy size={15} />}
+              {copied ? 'Copiado' : 'Copiar'}
+            </button>
+          </div>
+        </section>
+      )}
 
       {/* SOLICITAR ENTRADA — visível a qualquer usuário, mesmo quem não é dono do torneio, desde
           que tenha pelo menos um time próprio sem entrada ativa em outro torneio agora. */}

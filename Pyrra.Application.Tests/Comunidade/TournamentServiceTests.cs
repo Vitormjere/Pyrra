@@ -285,13 +285,27 @@ namespace Pyrra.Application.Tests.Comunidade {
         }
 
         [Fact]
-        public async Task GetDetails_RetornaInviteToken() {
+        public async Task GetDetails_ComoDono_RetornaInviteToken() {
+            var (service, _, _, _, _, _, _) = Build();
+            var tournament = await service.CreateOfficialAsync(AdminId, "Copa Pyrra", null, TeamBannerTheme.Verde);
+
+            var details = await service.GetDetailsAsync(AdminId, tournament.Id);
+
+            Assert.False(string.IsNullOrWhiteSpace(details.InviteToken));
+            Assert.True(details.Summary.IsOwner);
+        }
+
+        // segurança: qualquer usuário autenticado pode ver os detalhes de um torneio (torneio não
+        // tem conceito de visibilidade, ao contrário de Team), mas o token de convite é sensível —
+        // só o dono deve recebê-lo, senão qualquer um poderia inscrever times usando o link alheio
+        [Fact]
+        public async Task GetDetails_ComoNaoDono_NaoRetornaInviteToken() {
             var (service, _, _, _, _, _, _) = Build();
             var tournament = await service.CreateOfficialAsync(AdminId, "Copa Pyrra", null, TeamBannerTheme.Verde);
 
             var details = await service.GetDetailsAsync(RegularId, tournament.Id);
 
-            Assert.False(string.IsNullOrWhiteSpace(details.InviteToken));
+            Assert.Null(details.InviteToken);
             Assert.False(details.Summary.IsOwner);
         }
 
