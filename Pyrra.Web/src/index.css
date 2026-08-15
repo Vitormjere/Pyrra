@@ -161,6 +161,24 @@
   animation: pyrra-splash-pulse-core 2.6s ease-in-out 0.4s infinite;
 }
 
+/*
+  Fora de qualquer @layer de propósito: regras sem layer ganham de qualquer
+  regra do Tailwind (base ou utilities) na cascata, então isso sobrescreve
+  o text-sm (14px) que a maioria dos inputs usa — sem precisar !important
+  nem editar campo por campo.
+
+  Abaixo de 16px, o Safari/iOS dá zoom automático ao focar o campo (e não
+  volta de forma confiável ao desfocar), o que aparece pro usuário como
+  "a tela muda de tamanho sozinha" durante o uso no celular.
+*/
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 @layer base {
   html,
   body,
