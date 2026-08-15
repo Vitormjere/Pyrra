@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Search, ShieldPlus, Trash2, UserCog } from 'lucide-react'
+import Avatar from '../../../components/Avatar'
 import EmptyState from '../../../components/EmptyState'
 import Segmented from '../../../components/Segmented'
 import Skeleton from '../../../components/Skeleton'
@@ -24,17 +25,6 @@ function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleDateString('pt-BR')
 }
 
-function Avatar({ name }: { name: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-hi text-sm font-semibold text-slate-300 ring-1 ring-line"
-    >
-      {name.charAt(0).toUpperCase()}
-    </span>
-  )
-}
-
 function UserRow({
   user,
   busy,
@@ -48,7 +38,7 @@ function UserRow({
 
   return (
     <li className="flex items-center gap-3 px-4 py-3">
-      <Avatar name={user.name} />
+      <Avatar name={user.name} imageUrl={user.profilePictureUrl} />
       <div className="min-w-0 flex-1">
         <p className="flex flex-wrap items-center gap-1.5 truncate font-medium text-ink">
           {user.name}
