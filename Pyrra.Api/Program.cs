@@ -97,9 +97,19 @@ var authSegments        = authRateLimitConfig.GetValue("SegmentsPerWindow", 4);
 
 // chave de particionamento: IP real do cliente — depende do ForwardedHeaders configurado
 // mais abaixo pra funcionar atrás do proxy reverso do Azure App Service (senão todo mundo
-// cairia na mesma partição, o IP interno do proxy)
-static string AuthRateLimitPartitionKey(HttpContext httpContext) =>
+// cairia na mesma partição, o IP interno do proxy). Reaproveitada pela política geral abaixo.
+static string RateLimitPartitionKey(HttpContext httpContext) =>
     httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+// Política geral, aplicada a toda a API por padrão (GlobalLimiter roda em cima de qualquer
+// política por endpoint, não no lugar dela — login/registro continuam com a cota mais
+// apertada deles além dessa). 150 req/min por IP: folgada pro uso normal de uma pessoa
+// (navegar entre telas, abrir o dia, registrar treino/refeição/gasto) que fica na casa de
+// poucas requisições por segundo em rajada, mas barra scraping/abuso automatizado óbvio.
+var generalRateLimitConfig = builder.Configuration.GetSection("RateLimiting:General");
+var generalPermitLimit     = generalRateLimitConfig.GetValue("PermitLimit", 150);
+var generalWindowSeconds   = generalRateLimitConfig.GetValue("WindowSeconds", 60);
+var generalSegments        = generalRateLimitConfig.GetValue("SegmentsPerWindow", 6);
 
 builder.Services.AddRateLimiter(options => {
     options.OnRejected = async (context, cancellationToken) => {
@@ -118,9 +128,19 @@ builder.Services.AddRateLimiter(options => {
             cancellationToken);
     };
 
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+        RateLimitPartition.GetSlidingWindowLimiter(
+            partitionKey: RateLimitPartitionKey(httpContext),
+            factory: _ => new SlidingWindowRateLimiterOptions {
+                PermitLimit       = generalPermitLimit,
+                Window            = TimeSpan.FromSeconds(generalWindowSeconds),
+                SegmentsPerWindow = generalSegments,
+                QueueLimit        = 0
+            }));
+
     options.AddPolicy("AuthLogin", httpContext =>
         RateLimitPartition.GetSlidingWindowLimiter(
-            partitionKey: AuthRateLimitPartitionKey(httpContext),
+            partitionKey: RateLimitPartitionKey(httpContext),
             factory: _ => new SlidingWindowRateLimiterOptions {
                 PermitLimit       = authPermitLimit,
                 Window            = TimeSpan.FromSeconds(authWindowSeconds),
@@ -130,7 +150,7 @@ builder.Services.AddRateLimiter(options => {
 
     options.AddPolicy("AuthRegister", httpContext =>
         RateLimitPartition.GetSlidingWindowLimiter(
-            partitionKey: AuthRateLimitPartitionKey(httpContext),
+            partitionKey: RateLimitPartitionKey(httpContext),
             factory: _ => new SlidingWindowRateLimiterOptions {
                 PermitLimit       = authPermitLimit,
                 Window            = TimeSpan.FromSeconds(authWindowSeconds),
