@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
@@ -21,25 +22,37 @@ namespace Pyrra.Application.Tests.Auth {
             public string GenerateToken(User user) => $"fake-token-{user.Id}";
         }
 
+        // por padrão sempre passa — só o teste que quer o caminho de robô/token inválido pisa em ShouldPass
+        private sealed class FakeCaptchaVerificationService : ICaptchaVerificationService {
+            public bool ShouldPass { get; set; } = true;
+            public int  VerifyCallCount { get; private set; }
+
+            public Task<bool> VerifyAsync(string token, CancellationToken cancellationToken = default) {
+                VerifyCallCount++;
+                return Task.FromResult(ShouldPass);
+            }
+        }
+
         private User MakeUser(Guid id, string email, string password) {
             var user = new User { Id = id, Name = "Alice", Email = email, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) };
             user.PasswordHash = Hasher.HashPassword(user, password);
             return user;
         }
 
-        private static (AuthService service, FakeUserRepository users, FakeClock clock) Build(params User[] users) {
-            var repo  = new FakeUserRepository(users);
-            var clock = new FakeClock();
+        private static (AuthService service, FakeUserRepository users, FakeClock clock, FakeCaptchaVerificationService captcha) Build(params User[] users) {
+            var repo    = new FakeUserRepository(users);
+            var clock   = new FakeClock();
+            var captcha = new FakeCaptchaVerificationService();
             var jwtOptions = Options.Create(new JwtSettings { Key = "test", Issuer = "test", Audience = "test", ExpirationMinutes = 60 });
-            var service = new AuthService(repo, Hasher, new FakeTokenService(), clock, jwtOptions);
-            return (service, repo, clock);
+            var service = new AuthService(repo, Hasher, new FakeTokenService(), captcha, clock, jwtOptions);
+            return (service, repo, clock, captcha);
         }
 
         [Fact]
         public async Task LoginAsync_SenhaCorreta_ZeraContadorDeTentativas() {
             var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
             alice.FailedLoginAttempts = 2;
-            var (service, users, _) = Build(alice);
+            var (service, users, _, _) = Build(alice);
 
             await service.LoginAsync("alice@x.com", "SenhaForte123");
 
@@ -51,7 +64,7 @@ namespace Pyrra.Application.Tests.Auth {
         [Fact]
         public async Task LoginAsync_SenhaErrada_IncrementaContador() {
             var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
-            var (service, users, _) = Build(alice);
+            var (service, users, _, _) = Build(alice);
 
             await Assert.ThrowsAsync<InvalidCredentialsException>(
                 () => service.LoginAsync("alice@x.com", "SenhaErrada"));
@@ -62,7 +75,7 @@ namespace Pyrra.Application.Tests.Auth {
         [Fact]
         public async Task LoginAsync_TerceiraTentativaErradaSeguida_BloqueiaAConta() {
             var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
-            var (service, users, clock) = Build(alice);
+            var (service, users, clock, _) = Build(alice);
 
             await Assert.ThrowsAsync<InvalidCredentialsException>(() => service.LoginAsync("alice@x.com", "SenhaErrada"));
             await Assert.ThrowsAsync<InvalidCredentialsException>(() => service.LoginAsync("alice@x.com", "SenhaErrada"));
@@ -78,7 +91,7 @@ namespace Pyrra.Application.Tests.Auth {
         public async Task LoginAsync_ContaBloqueada_RecusaMesmoComSenhaCorreta() {
             var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
             alice.LockedUntil = new DateTime(2026, 7, 27, 12, 10, 0, DateTimeKind.Utc); // FakeClock começa às 12:00
-            var (service, _, _) = Build(alice);
+            var (service, _, _, _) = Build(alice);
 
             await Assert.ThrowsAsync<AccountLockedException>(
                 () => service.LoginAsync("alice@x.com", "SenhaForte123"));
@@ -88,7 +101,7 @@ namespace Pyrra.Application.Tests.Auth {
         public async Task LoginAsync_ContaBloqueada_MensagemInformaMinutosRestantes() {
             var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
             alice.LockedUntil = new DateTime(2026, 7, 27, 12, 10, 0, DateTimeKind.Utc); // 10 min à frente do FakeClock
-            var (service, _, _) = Build(alice);
+            var (service, _, _, _) = Build(alice);
 
             var ex = await Assert.ThrowsAsync<AccountLockedException>(
                 () => service.LoginAsync("alice@x.com", "SenhaForte123"));
@@ -99,7 +112,7 @@ namespace Pyrra.Application.Tests.Auth {
         [Fact]
         public async Task LoginAsync_ApósBloqueioExpirar_VoltaAAceitarLoginCorreto() {
             var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
-            var (service, users, clock) = Build(alice);
+            var (service, users, clock, _) = Build(alice);
             alice.LockedUntil = clock.UtcNow.AddMinutes(-1); // já expirado
 
             var result = await service.LoginAsync("alice@x.com", "SenhaForte123");
@@ -113,7 +126,7 @@ namespace Pyrra.Application.Tests.Auth {
         [Fact]
         public async Task LoginAsync_ApósBloqueioExpirar_SenhaErradaVoltaAContarDoZero() {
             var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
-            var (service, users, clock) = Build(alice);
+            var (service, users, clock, _) = Build(alice);
             alice.LockedUntil = clock.UtcNow.AddMinutes(-1); // já expirado
 
             await Assert.ThrowsAsync<InvalidCredentialsException>(
@@ -124,10 +137,44 @@ namespace Pyrra.Application.Tests.Auth {
 
         [Fact]
         public async Task LoginAsync_EmailInexistente_NaoRastreiaTentativas() {
-            var (service, _, _) = Build();
+            var (service, _, _, _) = Build();
 
             await Assert.ThrowsAsync<InvalidCredentialsException>(
                 () => service.LoginAsync("nao.existe@x.com", "QualquerSenha123"));
+        }
+
+        // ---- registro / CAPTCHA ----
+
+        [Fact]
+        public async Task RegisterAsync_CaptchaValido_CriaConta() {
+            var (service, users, _, captcha) = Build();
+
+            var result = await service.RegisterAsync("nova@x.com", "SenhaForte123", "Nova", "token-valido");
+
+            Assert.Equal(1, captcha.VerifyCallCount);
+            Assert.Single(users.Users, u => u.Id == result.UserId);
+        }
+
+        [Fact]
+        public async Task RegisterAsync_CaptchaInvalido_LancaENaoCriaConta() {
+            var (service, users, _, captcha) = Build();
+            captcha.ShouldPass = false;
+
+            await Assert.ThrowsAsync<CaptchaVerificationFailedException>(
+                () => service.RegisterAsync("nova@x.com", "SenhaForte123", "Nova", "token-invalido"));
+
+            Assert.Empty(users.Users);
+        }
+
+        [Fact]
+        public async Task RegisterAsync_CaptchaInvalido_ChecaAntesDaSenhaFraca() {
+            // CAPTCHA barato pra rejeitar bot antes de qualquer outra validação — mesmo com
+            // senha claramente fraca, é a exceção de CAPTCHA que deve sair primeiro
+            var (service, _, _, captcha) = Build();
+            captcha.ShouldPass = false;
+
+            await Assert.ThrowsAsync<CaptchaVerificationFailedException>(
+                () => service.RegisterAsync("nova@x.com", "curta", "Nova", "token-invalido"));
         }
     }
 }

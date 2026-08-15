@@ -57,4 +57,5 @@ export interface RegisterRequest {
   email: string
   password: string
   name: string
+  captchaToken: string
 }

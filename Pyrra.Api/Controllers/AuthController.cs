@@ -26,11 +26,13 @@ namespace Pyrra.Api.Controllers {
         [HttpPost("register")]
         public async Task<ActionResult<AuthResponse>> Register(RegisterRequest request, CancellationToken cancellationToken) {
             try {
-                var result = await _authService.RegisterAsync(request.Email, request.Password, request.Name, cancellationToken);
+                var result = await _authService.RegisterAsync(request.Email, request.Password, request.Name, request.CaptchaToken, cancellationToken);
                 return Ok(ToResponse(result));
             } catch (EmailAlreadyRegisteredException ex) {
                 return Conflict(new { message = ex.Message });
             } catch (WeakPasswordException ex) {
+                return BadRequest(new { message = ex.Message });
+            } catch (CaptchaVerificationFailedException ex) {
                 return BadRequest(new { message = ex.Message });
             }
         }

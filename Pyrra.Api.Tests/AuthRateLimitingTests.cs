@@ -26,7 +26,9 @@ namespace Pyrra.Api.Tests {
             client.PostAsJsonAsync("/api/auth/login", new { email, password });
 
         private static Task<HttpResponseMessage> PostRegister(HttpClient client, string email, string password = "SenhaValida123", string name = "Teste") =>
-            client.PostAsJsonAsync("/api/auth/register", new { email, password, name });
+            // captchaToken: qualquer valor não vazio serve — a factory troca a verificação real
+            // por AlwaysPassCaptchaVerificationService pros testes deste arquivo
+            client.PostAsJsonAsync("/api/auth/register", new { email, password, name, captchaToken = "test-token" });
 
         [Fact]
         public async Task Login_DentroDoLimite_NuncaRetorna429() {

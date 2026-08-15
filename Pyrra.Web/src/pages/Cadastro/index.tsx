@@ -1,10 +1,16 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import HCaptcha from '@hcaptcha/react-hcaptcha'
 import { Check, Circle } from 'lucide-react'
 import PasswordInput from '../../components/PasswordInput'
 import { useAuth } from '../../hooks/useAuth'
 import { getApiErrorMessage } from '../../services/apiError'
+
+// site key é pública (vai pro HTML, qualquer um vê no devtools), mas mesmo assim não fica
+// commitada — vem de Pyrra.Web/.env.local (gitignorado) em dev e de uma env var do Vercel em
+// produção, mesma lógica de "nunca no repo" usada pro resto das chaves do projeto
+const HCAPTCHA_SITE_KEY = import.meta.env.VITE_HCAPTCHA_SITE_KEY ?? ''
 
 // lista viva de requisitos — o backend exige 8 caracteres + maiúscula + número; o caractere
 // especial é regra só do frontend (mais estrita, não conflitante)
@@ -23,6 +29,7 @@ interface FieldErrors {
   email?: string
   password?: string
   confirmPassword?: string
+  captcha?: string
 }
 
 function validate(
@@ -30,6 +37,7 @@ function validate(
   email: string,
   password: string,
   confirmPassword: string,
+  captchaToken: string | null,
 ): FieldErrors {
   const errors: FieldErrors = {}
 
@@ -52,6 +60,10 @@ function validate(
     errors.confirmPassword = 'As senhas não coincidem.'
   }
 
+  if (!captchaToken) {
+    errors.captcha = 'Confirme que você não é um robô.'
+  }
+
   return errors
 }
 
@@ -66,9 +78,11 @@ export function Cadastro() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const captchaRef = useRef<HCaptcha>(null)
 
   // some com os erros assim que o usuário começa a corrigir, mesmo comportamento do Login
   function clearErrors(field: keyof FieldErrors) {
@@ -89,7 +103,7 @@ export function Cadastro() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    const validation = validate(name, email, password, confirmPassword)
+    const validation = validate(name, email, password, confirmPassword, captchaToken)
     setFieldErrors(validation)
     setError(null)
 
@@ -102,7 +116,7 @@ export function Cadastro() {
 
     try {
       // register() já salva o token e carrega o usuário — o cadastro entra logado direto
-      await register(name.trim(), email.trim(), password)
+      await register(name.trim(), email.trim(), password, captchaToken as string)
       navigate('/hoje', { replace: true })
     } catch (err) {
       setError(
@@ -112,6 +126,9 @@ export function Cadastro() {
           'Não foi possível criar sua conta. Tente novamente.',
         ),
       )
+      // token do hCaptcha só serve uma vez — falhou por qualquer motivo, precisa resolver de novo
+      captchaRef.current?.resetCaptcha()
+      setCaptchaToken(null)
     } finally {
       setSubmitting(false)
     }
@@ -245,6 +262,22 @@ export function Cadastro() {
             />
             {fieldErrors.confirmPassword && (
               <p className="text-sm text-red-300">{fieldErrors.confirmPassword}</p>
+            )}
+          </div>
+
+          <div className="flex flex-col items-center gap-1.5">
+            <HCaptcha
+              ref={captchaRef}
+              sitekey={HCAPTCHA_SITE_KEY}
+              onVerify={(token) => {
+                setCaptchaToken(token)
+                clearErrors('captcha')
+              }}
+              onExpire={() => setCaptchaToken(null)}
+              onError={() => setCaptchaToken(null)}
+            />
+            {fieldErrors.captcha && (
+              <p className="text-sm text-red-300">{fieldErrors.captcha}</p>
             )}
           </div>
 

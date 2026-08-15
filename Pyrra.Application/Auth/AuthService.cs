@@ -16,26 +16,34 @@ namespace Pyrra.Application.Auth {
         private const int MaxFailedLoginAttempts = 3;
         private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
 
-        private readonly IUserRepository       _userRepository;
-        private readonly IPasswordHasher<User> _passwordHasher;
-        private readonly ITokenService         _tokenService;
-        private readonly IClockService         _clock;
-        private readonly JwtSettings           _jwtSettings;
+        private readonly IUserRepository            _userRepository;
+        private readonly IPasswordHasher<User>      _passwordHasher;
+        private readonly ITokenService              _tokenService;
+        private readonly ICaptchaVerificationService _captchaVerification;
+        private readonly IClockService              _clock;
+        private readonly JwtSettings                _jwtSettings;
 
         public AuthService(
-            IUserRepository       userRepository,
-            IPasswordHasher<User> passwordHasher,
-            ITokenService         tokenService,
-            IClockService         clock,
-            IOptions<JwtSettings> jwtOptions) {
-            _userRepository = userRepository;
-            _passwordHasher = passwordHasher;
-            _tokenService   = tokenService;
-            _clock          = clock;
-            _jwtSettings    = jwtOptions.Value;
+            IUserRepository              userRepository,
+            IPasswordHasher<User>        passwordHasher,
+            ITokenService                tokenService,
+            ICaptchaVerificationService  captchaVerification,
+            IClockService                clock,
+            IOptions<JwtSettings>        jwtOptions) {
+            _userRepository      = userRepository;
+            _passwordHasher      = passwordHasher;
+            _tokenService        = tokenService;
+            _captchaVerification = captchaVerification;
+            _clock               = clock;
+            _jwtSettings         = jwtOptions.Value;
         }
 
-        public async Task<AuthResult> RegisterAsync(string email, string password, string name, CancellationToken cancellationToken = default) {
+        public async Task<AuthResult> RegisterAsync(string email, string password, string name, string captchaToken, CancellationToken cancellationToken = default) {
+            // CAPTCHA primeiro — barato pra rejeitar bot antes de qualquer trabalho a mais
+            if (!await _captchaVerification.VerifyAsync(captchaToken, cancellationToken)) {
+                throw new CaptchaVerificationFailedException();
+            }
+
             PasswordPolicy.Validate(password);
 
             var normalizedEmail = email.Trim().ToLowerInvariant();

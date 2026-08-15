@@ -8,7 +8,7 @@ export interface AuthContextValue {
   loading: boolean
   login: (email: string, password: string) => Promise<void>
   // já deixa o usuário autenticado, não precisa logar de novo depois de cadastrar
-  register: (name: string, email: string, password: string) => Promise<void>
+  register: (name: string, email: string, password: string, captchaToken: string) => Promise<void>
   // recarrega o usuário do servidor, usado após editar preferências
   refreshUser: () => Promise<void>
   // substitui o usuário do contexto por uma versão já conhecida, sem precisar de um GET a mais

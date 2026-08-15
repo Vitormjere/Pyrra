@@ -160,6 +160,7 @@ builder.Services.AddRateLimiter(options => {
 });
 
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
+builder.Services.Configure<CaptchaSettings>(builder.Configuration.GetSection("Captcha"));
 
 var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>()
     ?? throw new InvalidOperationException("Seção 'Jwt' não encontrada em appsettings.json.");
@@ -200,6 +201,13 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ITokenService, JwtTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
+
+// CAPTCHA no cadastro — hCaptcha: token conferido no siteverify antes de criar a conta
+builder.Services.AddHttpClient("HCaptchaClient", client => {
+    client.BaseAddress = new Uri("https://hcaptcha.com/");
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
+builder.Services.AddScoped<ICaptchaVerificationService, HCaptchaVerificationService>();
 
 builder.Services.AddScoped<IDailyFocusRepository, DailyFocusRepository>();
 builder.Services.AddScoped<IDailyFocusService, DailyFocusService>();

@@ -1,8 +1,12 @@
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Pyrra.Application.Auth;
 using Pyrra.Infrastructure.Data;
 
 namespace Pyrra.Api.Tests {
@@ -40,7 +44,17 @@ namespace Pyrra.Api.Tests {
             builder.ConfigureServices(services => {
                 services.AddDbContext<PyrraDbContext>(options =>
                     options.UseInMemoryDatabase("AuthRateLimitTests"));
+
+                // troca a verificação real do hCaptcha (rede, precisa de secret key) por uma
+                // que sempre aprova — os testes daqui não avaliam CAPTCHA, só rate limit/lockout
+                services.RemoveAll<ICaptchaVerificationService>();
+                services.AddScoped<ICaptchaVerificationService, AlwaysPassCaptchaVerificationService>();
             });
         }
+    }
+
+    internal sealed class AlwaysPassCaptchaVerificationService : ICaptchaVerificationService {
+        public Task<bool> VerifyAsync(string token, CancellationToken cancellationToken = default) =>
+            Task.FromResult(true);
     }
 }
