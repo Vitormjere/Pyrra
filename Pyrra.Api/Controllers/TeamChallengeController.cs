@@ -82,6 +82,7 @@ namespace Pyrra.Api.Controllers {
         }
 
         [HttpPost("{challengeId:guid}/submissoes")]
+        [RequestSizeLimit(3 * 1024 * 1024 + 1024)]
         public async Task<ActionResult<ChallengeSubmissionResponse>> SubmitProof(Guid teamId, Guid challengeId, IFormFile file, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
                 return Unauthorized();
@@ -205,6 +206,7 @@ namespace Pyrra.Api.Controllers {
 
         // envia a prova de um desafio do catálogo vinculado ao torneio — quantity só é exigida quando o desafio tem meta configurada, senão é ignorada
         [HttpPost("torneios/{tournamentId:guid}/catalogo/{challengeId:guid}/submissoes")]
+        [RequestSizeLimit(3 * 1024 * 1024 + 1024)]
         public async Task<ActionResult<ChallengeSubmissionResponse>> SubmitTournamentCatalogChallengeProof(
             Guid teamId, Guid tournamentId, Guid challengeId, IFormFile file, [FromForm] decimal? quantity, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
@@ -231,6 +233,7 @@ namespace Pyrra.Api.Controllers {
 
         // envia a prova de um desafio próprio do torneio — mesma regra de quantity acima
         [HttpPost("torneios/{tournamentId:guid}/proprios/{challengeId:guid}/submissoes")]
+        [RequestSizeLimit(3 * 1024 * 1024 + 1024)]
         public async Task<ActionResult<ChallengeSubmissionResponse>> SubmitTournamentOwnChallengeProof(
             Guid teamId, Guid tournamentId, Guid challengeId, IFormFile file, [FromForm] decimal? quantity, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {

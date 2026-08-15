@@ -180,6 +180,7 @@ namespace Pyrra.Api.Controllers {
         }
 
         [HttpPost("{id:guid}/banner")]
+        [RequestSizeLimit(3 * 1024 * 1024 + 1024)]
         public async Task<ActionResult<TournamentSummaryResponse>> SetBannerImage(Guid id, IFormFile file, CancellationToken cancellationToken) {
             if (!TryGetUserId(out var userId)) {
                 return Unauthorized();
