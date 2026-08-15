@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Pyrra.Api.Dtos.Auth;
@@ -42,6 +43,11 @@ namespace Pyrra.Api.Controllers {
                 return Ok(ToResponse(result));
             } catch (InvalidCredentialsException ex) {
                 return Unauthorized(new { message = ex.Message });
+            } catch (AccountLockedException ex) {
+                // 423 (não 401/429) pra não colidir com o mapeamento de 401 do frontend nem
+                // se misturar com o rate limit por IP — é um bloqueio de conta, coisa diferente
+                Response.Headers.RetryAfter = ex.RetryAfterSeconds.ToString();
+                return StatusCode(StatusCodes.Status423Locked, new { message = ex.Message });
             }
         }
 

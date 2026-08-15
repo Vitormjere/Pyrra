@@ -38,6 +38,15 @@ namespace Pyrra.Domain.Users {
 
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
+
+        // tentativas de login falhas SEGUIDAS pra essa conta (qualquer IP) — reseta a 0 em
+        // todo login bem-sucedido; ao atingir o limite, LockedUntil é setado e o contador
+        // volta a 0 (a contagem seguinte, após o bloqueio expirar, começa do zero de novo)
+        public int FailedLoginAttempts { get; set; }
+
+        // nulo enquanto a conta não está bloqueada; login (mesmo com senha certa) é recusado
+        // enquanto LockedUntil > agora
+        public DateTime? LockedUntil { get; set; }
     }
 
     public enum CommunicationTone {
