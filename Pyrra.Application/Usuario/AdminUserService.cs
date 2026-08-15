@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Identity;
+using Pyrra.Application.Common;
 using Pyrra.Application.Common.Exceptions;
 using Pyrra.Application.Common.Interfaces;
 using Pyrra.Domain.Users;
@@ -39,9 +40,7 @@ namespace Pyrra.Application.Usuario {
                 throw new InvalidAccountException("Informe um nome.");
             }
 
-            if (password.Length < 8) {
-                throw new WeakPasswordException();
-            }
+            PasswordPolicy.Validate(password);
 
             var normalizedEmail = email.Trim().ToLowerInvariant();
             if (await _userRepository.GetByEmailAsync(normalizedEmail, cancellationToken) is not null) {

@@ -277,7 +277,7 @@ export function AdminContas() {
               type="password"
               value={newPassword}
               onChange={(event) => setNewPassword(event.target.value)}
-              placeholder="Mínimo 8 caracteres"
+              placeholder="Mín. 8 caracteres, 1 maiúscula e 1 número"
               autoComplete="new-password"
               className={inputClasses}
             />

@@ -6,7 +6,8 @@ import PasswordInput from '../../components/PasswordInput'
 import { useAuth } from '../../hooks/useAuth'
 import { getApiErrorMessage } from '../../services/apiError'
 
-// lista viva de requisitos — o backend só exige 8 caracteres, o resto é regra só do frontend (mais estrita, não conflitante)
+// lista viva de requisitos — o backend exige 8 caracteres + maiúscula + número; o caractere
+// especial é regra só do frontend (mais estrita, não conflitante)
 const PASSWORD_RULES: readonly { label: string; test: (value: string) => boolean }[] = [
   { label: 'Pelo menos 8 caracteres', test: (v) => v.length >= 8 },
   { label: 'Uma letra maiúscula', test: (v) => /[A-Z]/.test(v) },

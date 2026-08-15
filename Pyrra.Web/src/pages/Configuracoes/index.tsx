@@ -416,7 +416,7 @@ function PasswordSection() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const newPasswordValid = newPassword.length >= 8
+  const newPasswordValid = newPassword.length >= 8 && /[A-Z]/.test(newPassword) && /[0-9]/.test(newPassword)
   // confirmação é só client-side, mesmo critério do Cadastro
   const confirmMatches = confirmPassword.length > 0 && confirmPassword === newPassword
   const canSubmit = currentPassword.length > 0 && newPasswordValid && confirmMatches
@@ -482,7 +482,7 @@ function PasswordSection() {
           onChange={(event) => setNewPassword(event.target.value)}
           autoComplete="new-password"
         />
-        <p className="text-xs text-slate-500">Mínimo de 8 caracteres.</p>
+        <p className="text-xs text-slate-500">Mínimo de 8 caracteres, com 1 letra maiúscula e 1 número.</p>
       </div>
 
       <div className="flex flex-col gap-1.5">

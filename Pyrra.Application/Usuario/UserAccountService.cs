@@ -4,6 +4,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Identity;
+using Pyrra.Application.Common;
 using Pyrra.Application.Common.Exceptions;
 using Pyrra.Application.Common.Interfaces;
 using Pyrra.Domain.Users;
@@ -77,9 +78,7 @@ namespace Pyrra.Application.Usuario {
         }
 
         public async Task ChangePasswordAsync(Guid userId, string currentPassword, string newPassword, CancellationToken cancellationToken = default) {
-            if (string.IsNullOrEmpty(newPassword) || newPassword.Length < 8) {
-                throw new WeakPasswordException();
-            }
+            PasswordPolicy.Validate(newPassword);
 
             var user = await GetOwnedUserAsync(userId, cancellationToken);
             VerifyPassword(user, currentPassword);

@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
+using Pyrra.Application.Common;
 using Pyrra.Application.Common.Exceptions;
 using Pyrra.Application.Common.Interfaces;
 using Pyrra.Domain.Users;
@@ -26,9 +27,7 @@ namespace Pyrra.Application.Auth {
         }
 
         public async Task<AuthResult> RegisterAsync(string email, string password, string name, CancellationToken cancellationToken = default) {
-            if (password.Length < 8) {
-                throw new WeakPasswordException();
-            }
+            PasswordPolicy.Validate(password);
 
             var normalizedEmail = email.Trim().ToLowerInvariant();
 
