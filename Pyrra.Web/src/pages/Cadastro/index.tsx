@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import HCaptcha from '@hcaptcha/react-hcaptcha'
 import { Check, Circle } from 'lucide-react'
+import GoogleLoginButton from '../../components/GoogleLoginButton'
 import PasswordInput from '../../components/PasswordInput'
 import { useAuth } from '../../hooks/useAuth'
 import { getApiErrorMessage } from '../../services/apiError'
@@ -312,6 +313,16 @@ export function Cadastro() {
             </p>
           )}
         </form>
+
+        <div className="my-5 flex items-center gap-3" aria-hidden="true">
+          <span className="h-px flex-1 bg-line" />
+          <span className="text-xs font-medium text-slate-500">ou</span>
+          <span className="h-px flex-1 bg-line" />
+        </div>
+
+        <div className="flex justify-center">
+          <GoogleLoginButton onError={setError} />
+        </div>
 
         <p className="mt-8 text-center text-sm text-slate-400">
           Já tem conta?{' '}

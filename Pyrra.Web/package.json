@@ -12,6 +12,7 @@
   "dependencies": {
     "@hcaptcha/react-hcaptcha": "^2.1.0",
     "@microsoft/signalr": "^10.0.0",
+    "@react-oauth/google": "^0.13.5",
     "axios": "^1.18.1",
     "html2canvas-pro": "^2.3.3",
     "lucide-react": "^1.25.0",

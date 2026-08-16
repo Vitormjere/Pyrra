@@ -1,3 +1,4 @@
+import { GoogleOAuthProvider } from '@react-oauth/google'
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
 import RequireAdmin from './components/RequireAdmin'
@@ -43,12 +44,17 @@ import Torneios from './pages/Torneios'
 import Treino from './pages/Treino'
 import Zelo from './pages/Zelo'
 
+// site ID é público (vai pro HTML), mas mesmo assim não fica commitado — mesma lógica da
+// VITE_HCAPTCHA_SITE_KEY: Pyrra.Web/.env.local em dev, variável de ambiente do Vercel em produção
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? ''
+
 // AuthProvider fica dentro do BrowserRouter pra poder usar hooks do router (useNavigate, useLocation) no futuro
 function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <Routes>
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <BrowserRouter>
+        <AuthProvider>
+          <Routes>
           {/* Públicas: as únicas alcançáveis sem sessão. */}
           <Route path="/login" element={<Login />} />
           <Route path="/cadastro" element={<Cadastro />} />
@@ -150,9 +156,10 @@ function App() {
               devolve ao login quem não tem sessão. */}
           <Route path="/" element={<Navigate to="/hoje" replace />} />
           <Route path="*" element={<Navigate to="/hoje" replace />} />
-        </Routes>
-      </AuthProvider>
-    </BrowserRouter>
+          </Routes>
+        </AuthProvider>
+      </BrowserRouter>
+    </GoogleOAuthProvider>
   )
 }
 
