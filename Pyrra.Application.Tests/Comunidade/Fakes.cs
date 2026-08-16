@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Pyrra.Application.Common.Exceptions;
 using Pyrra.Application.Common.Interfaces;
+using Pyrra.Application.Notificacoes.Email;
 using Pyrra.Domain.Comunidade;
 using Pyrra.Domain.Users;
 
@@ -15,6 +16,35 @@ namespace Pyrra.Application.Tests.Comunidade {
         public DateTime UtcNow { get; set; } = new(2026, 7, 27, 12, 0, 0, DateTimeKind.Utc);
         public DateOnly TodayIn(string timezoneId) => DateOnly.FromDateTime(UtcNow);
         public DateOnly ToLocalDate(DateTime utc, string timezoneId) => DateOnly.FromDateTime(utc);
+    }
+
+    // só conta chamadas — os testes que se importam com o conteúdo do e-mail ficam em
+    // EmailNotificationServiceTests; o resto só precisa saber que foi (ou não) chamado
+    internal sealed class FakeEmailNotificationService : IEmailNotificationService {
+        public int EmailConfirmationCount { get; private set; }
+        public int PasswordResetCount { get; private set; }
+        public int TeamInviteAcceptedCount { get; private set; }
+        public int AchievementUnlockedCount { get; private set; }
+
+        public Task SendEmailConfirmationAsync(User user, string token, CancellationToken cancellationToken = default) {
+            EmailConfirmationCount++;
+            return Task.CompletedTask;
+        }
+
+        public Task SendPasswordResetAsync(User user, string token, CancellationToken cancellationToken = default) {
+            PasswordResetCount++;
+            return Task.CompletedTask;
+        }
+
+        public Task SendTeamInviteAcceptedAsync(User inviter, string accepterName, string teamName, CancellationToken cancellationToken = default) {
+            TeamInviteAcceptedCount++;
+            return Task.CompletedTask;
+        }
+
+        public Task SendAchievementUnlockedAsync(User user, string achievementName, int xp, CancellationToken cancellationToken = default) {
+            AchievementUnlockedCount++;
+            return Task.CompletedTask;
+        }
     }
 
     // só conta chamadas e devolve uma URL fake, pra testar tipo/tamanho/prioridade sem Blob Storage real
@@ -75,6 +105,12 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         public Task<User?> GetByInviteTokenAsync(string inviteToken, CancellationToken cancellationToken = default) =>
             Task.FromResult(Active.FirstOrDefault(u => u.InviteToken == inviteToken));
+
+        public Task<User?> GetByEmailConfirmationTokenAsync(string token, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Active.FirstOrDefault(u => u.EmailConfirmationToken == token));
+
+        public Task<User?> GetByPasswordResetTokenAsync(string token, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Active.FirstOrDefault(u => u.PasswordResetToken == token));
 
         public Task<IReadOnlyList<User>> SearchAsync(string term, Guid excludeUserId, CancellationToken cancellationToken = default) {
             var normalized = term.Trim().TrimStart('@').ToLowerInvariant();

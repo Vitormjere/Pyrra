@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Pyrra.Application.Common.Interfaces;
+using Pyrra.Application.Notificacoes.Email;
 using Pyrra.Domain.Achievements;
 
 namespace Pyrra.Application.Achievements {
@@ -12,6 +13,7 @@ namespace Pyrra.Application.Achievements {
         private readonly IUserAchievementRepository _userAchievementRepository;
         private readonly IChallengeSubmissionRepository _submissionRepository;
         private readonly IUserRepository            _userRepository;
+        private readonly IEmailNotificationService  _emailNotificationService;
         private readonly IClockService              _clock;
 
         public AchievementCheckerService(
@@ -19,11 +21,13 @@ namespace Pyrra.Application.Achievements {
             IUserAchievementRepository userAchievementRepository,
             IChallengeSubmissionRepository submissionRepository,
             IUserRepository             userRepository,
+            IEmailNotificationService   emailNotificationService,
             IClockService               clock) {
             _achievementRepository     = achievementRepository;
             _userAchievementRepository = userAchievementRepository;
             _submissionRepository      = submissionRepository;
             _userRepository            = userRepository;
+            _emailNotificationService  = emailNotificationService;
             _clock                     = clock;
         }
 
@@ -69,6 +73,8 @@ namespace Pyrra.Application.Achievements {
 
                 user.Xp   += achievement.Xp;
                 unlockedAny = true;
+
+                await _emailNotificationService.SendAchievementUnlockedAsync(user, achievement.Name, achievement.Xp, cancellationToken);
             }
 
             if (unlockedAny) {

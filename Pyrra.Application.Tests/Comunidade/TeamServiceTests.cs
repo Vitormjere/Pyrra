@@ -21,8 +21,8 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         private static (TeamService service, FakeTeamRepository teams, FakeTeamMemberRepository members,
             FakeTeamInviteRepository invites, FakeFriendshipRepository friendships,
-            FakeTeamBannerStorageService bannerStorage, FakeClock clock)
-            // tournamentTeams/tournaments são opcionais, default vazio 
+            FakeTeamBannerStorageService bannerStorage, FakeClock clock, FakeEmailNotificationService email)
+            // tournamentTeams/tournaments são opcionais, default vazio
             Build(FakeTournamentTeamRepository? tournamentTeams = null, FakeTournamentRepository? tournaments = null) {
             var users = new FakeUserRepository(
                 MakeUser(Alice, "Alice", "alice"),
@@ -35,11 +35,12 @@ namespace Pyrra.Application.Tests.Comunidade {
             var invites       = new FakeTeamInviteRepository();
             var bannerStorage = new FakeTeamBannerStorageService();
             var clock         = new FakeClock();
+            var email         = new FakeEmailNotificationService();
             var service       = new TeamService(
                 teams, members, invites, friendships, users, bannerStorage, clock,
                 tournamentTeams ?? new FakeTournamentTeamRepository(), tournaments ?? new FakeTournamentRepository(),
-                new AdminAuthorizationService(users));
-            return (service, teams, members, invites, friendships, bannerStorage, clock);
+                new AdminAuthorizationService(users), email);
+            return (service, teams, members, invites, friendships, bannerStorage, clock, email);
         }
 
         private static void MakeFriends(FakeFriendshipRepository friendships, Guid a, Guid b, FakeClock clock) {
@@ -53,7 +54,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task CreateTeam_ComLimitePositivo_Cria() {
-            var (service, teams, _, _, _, _, clock) = Build();
+            var (service, teams, _, _, _, _, clock, _) = Build();
 
             var summary = await service.CreateAsync(Alice, "Guerreiros", "Time de teste", 5);
 
@@ -70,7 +71,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task CreateTeam_ComLimiteZeroOuNegativo_Lanca() {
-            var (service, teams, _, _, _, _, _) = Build();
+            var (service, teams, _, _, _, _, _, _) = Build();
 
             await Assert.ThrowsAsync<InvalidTeamException>(() => service.CreateAsync(Alice, "Time", null, 0));
             await Assert.ThrowsAsync<InvalidTeamException>(() => service.CreateAsync(Alice, "Time", null, -1));
@@ -81,7 +82,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task CreateTeam_SemVisibilidadeInformada_PadraoPrivado() {
-            var (service, _, _, _, _, _, _) = Build();
+            var (service, _, _, _, _, _, _, _) = Build();
 
             var summary = await service.CreateAsync(Alice, "Time", null, 5);
 
@@ -91,7 +92,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task CreateTeam_ComVisibilidadePublica_AparecemExplorar() {
-            var (service, _, _, _, _, _, _) = Build();
+            var (service, _, _, _, _, _, _, _) = Build();
 
             var summary = await service.CreateAsync(Alice, "Time Público", null, 5, TeamVisibility.Publico, TeamBannerTheme.Azul);
 
@@ -106,7 +107,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task GetPublicTeams_RetornaSoOsPublicos() {
-            var (service, _, _, _, _, _, _) = Build();
+            var (service, _, _, _, _, _, _, _) = Build();
             await service.CreateAsync(Alice, "Privado", null, 5);
             var pub = await service.CreateAsync(Alice, "Público", null, 5, TeamVisibility.Publico);
 
@@ -117,7 +118,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task JoinViaLink_TimePublico_FuncionaIgualPrivado() {
-            var (service, teams, members, _, _, _, _) = Build();
+            var (service, teams, members, _, _, _, _, _) = Build();
             var team = await service.CreateAsync(Alice, "Público", null, 5, TeamVisibility.Publico);
 
             var result = await service.JoinViaLinkAsync(Bob, teams.Teams.Single().InviteToken);
@@ -128,7 +129,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task JoinViaLink_TimePublicoCheio_RetornaTeamFull() {
-            var (service, teams, members, _, _, _, _) = Build();
+            var (service, teams, members, _, _, _, _, _) = Build();
             var team = await service.CreateAsync(Alice, "Público", null, 1, TeamVisibility.Publico);
 
             var result = await service.JoinViaLinkAsync(Bob, teams.Teams.Single().InviteToken);
@@ -139,7 +140,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task SetVisibility_Dono_Altera() {
-            var (service, teams, _, _, _, _, _) = Build();
+            var (service, teams, _, _, _, _, _, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
 
             await service.SetVisibilityAsync(Alice, team.Id, TeamVisibility.Publico);
@@ -150,7 +151,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task SetVisibility_NaoDono_LancaNotFound() {
-            var (service, teams, _, _, _, _, _) = Build();
+            var (service, teams, _, _, _, _, _, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
             await service.JoinViaLinkAsync(Bob, teams.Teams.Single().InviteToken);
 
@@ -163,7 +164,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task SetBannerTheme_Dono_Altera() {
-            var (service, teams, _, _, _, _, _) = Build();
+            var (service, teams, _, _, _, _, _, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
 
             var summary = await service.SetBannerThemeAsync(Alice, team.Id, TeamBannerTheme.Roxo);
@@ -174,7 +175,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task SetBannerTheme_NaoDono_LancaNotFound() {
-            var (service, teams, _, _, _, _, _) = Build();
+            var (service, teams, _, _, _, _, _, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
             await service.JoinViaLinkAsync(Bob, teams.Teams.Single().InviteToken);
 
@@ -184,7 +185,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task SetBannerImage_Dono_SalvaUrl_SobrepoeCor() {
-            var (service, teams, _, _, _, bannerStorage, _) = Build();
+            var (service, teams, _, _, _, bannerStorage, _, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
             using var content = new MemoryStream(new byte[] { 1, 2, 3 });
 
@@ -198,7 +199,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task SetBannerImage_FormatoInvalido_Lanca() {
-            var (service, _, _, _, _, bannerStorage, _) = Build();
+            var (service, _, _, _, _, bannerStorage, _, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
             using var content = new MemoryStream(new byte[] { 1, 2, 3 });
 
@@ -209,7 +210,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task SetBannerImage_MuitoGrande_Lanca() {
-            var (service, _, _, _, _, bannerStorage, _) = Build();
+            var (service, _, _, _, _, bannerStorage, _, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
             using var content = new MemoryStream(new byte[] { 1, 2, 3 });
             const long tooLarge = 3 * 1024 * 1024 + 1;
@@ -221,7 +222,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task SetBannerImage_NaoDono_LancaNotFound() {
-            var (service, teams, _, _, _, _, _) = Build();
+            var (service, teams, _, _, _, _, _, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
             await service.JoinViaLinkAsync(Bob, teams.Teams.Single().InviteToken);
             using var content = new MemoryStream(new byte[] { 1, 2, 3 });
@@ -232,7 +233,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task RemoveBannerImage_ComImagem_LimpaUrlEChamaStorage() {
-            var (service, teams, _, _, _, bannerStorage, _) = Build();
+            var (service, teams, _, _, _, bannerStorage, _, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
             using var content = new MemoryStream(new byte[] { 1, 2, 3 });
             await service.SetBannerImageAsync(Alice, team.Id, content, "image/png", content.Length);
@@ -246,7 +247,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task RemoveBannerImage_SemImagem_NaoChamaStorage() {
-            var (service, _, _, _, _, bannerStorage, _) = Build();
+            var (service, _, _, _, _, bannerStorage, _, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
 
             var summary = await service.RemoveBannerImageAsync(Alice, team.Id);
@@ -259,7 +260,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task InviteFriend_DonoConvidaAmigoConfirmado_CriaPedidoPendente() {
-            var (service, _, _, invites, friendships, _, clock) = Build();
+            var (service, _, _, invites, friendships, _, clock, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
             MakeFriends(friendships, Alice, Bob, clock);
 
@@ -277,7 +278,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task InviteFriend_NaoDono_LancaNotFound() {
-            var (service, _, members, _, friendships, _, clock) = Build();
+            var (service, _, members, _, friendships, _, clock, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
             MakeFriends(friendships, Bob, Carol, clock);
             members.Members.Add(new TeamMember { Id = Guid.NewGuid(), TeamId = team.Id, UserId = Bob, JoinedAt = clock.UtcNow });
@@ -288,7 +289,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task InviteFriend_NaoEhAmigoConfirmado_Lanca() {
-            var (service, _, _, _, _, _, _) = Build();
+            var (service, _, _, _, _, _, _, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
 
             await Assert.ThrowsAsync<InvalidTeamException>(() => service.InviteFriendAsync(Alice, team.Id, Dave));
@@ -296,7 +297,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task InviteFriend_JaEhMembro_Lanca() {
-            var (service, _, members, _, friendships, _, clock) = Build();
+            var (service, _, members, _, friendships, _, clock, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
             MakeFriends(friendships, Alice, Bob, clock);
             members.Members.Add(new TeamMember { Id = Guid.NewGuid(), TeamId = team.Id, UserId = Bob, JoinedAt = clock.UtcNow });
@@ -306,7 +307,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task InviteFriend_ConviteRecusadoAnteriormente_ReaproveitaLinhaComoPendente() {
-            var (service, _, _, invites, friendships, _, clock) = Build();
+            var (service, _, _, invites, friendships, _, clock, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
             MakeFriends(friendships, Alice, Bob, clock);
 
@@ -323,7 +324,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task AcceptTeamInvite_QuandoPendente_AdicionaComoMembro() {
-            var (service, _, members, _, friendships, _, clock) = Build();
+            var (service, _, members, _, friendships, _, clock, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
             MakeFriends(friendships, Alice, Bob, clock);
             await service.InviteFriendAsync(Alice, team.Id, Bob);
@@ -337,8 +338,21 @@ namespace Pyrra.Application.Tests.Comunidade {
         }
 
         [Fact]
+        public async Task AcceptTeamInvite_QuandoPendente_AvisaQuemConvidouPorEmail() {
+            var (service, _, _, _, friendships, _, clock, email) = Build();
+            var team = await service.CreateAsync(Alice, "Time", null, 5);
+            MakeFriends(friendships, Alice, Bob, clock);
+            await service.InviteFriendAsync(Alice, team.Id, Bob);
+            var invite = (await service.GetPendingReceivedInvitesAsync(Bob)).Single();
+
+            await service.AcceptInviteAsync(Bob, invite.InviteId);
+
+            Assert.Equal(1, email.TeamInviteAcceptedCount);
+        }
+
+        [Fact]
         public async Task AcceptTeamInvite_TimeCheio_Lanca() {
-            var (service, _, members, _, friendships, _, clock) = Build();
+            var (service, _, members, _, friendships, _, clock, _) = Build();
             // limite 1: só o dono já ocupa a vaga inteira
             var team = await service.CreateAsync(Alice, "Time", null, 1);
             MakeFriends(friendships, Alice, Bob, clock);
@@ -351,7 +365,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task AcceptTeamInvite_NaoDestinatario_LancaNotFound() {
-            var (service, _, _, _, friendships, _, clock) = Build();
+            var (service, _, _, _, friendships, _, clock, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
             MakeFriends(friendships, Alice, Bob, clock);
             await service.InviteFriendAsync(Alice, team.Id, Bob);
@@ -362,7 +376,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task AcceptTeamInvite_JaRespondido_Lanca() {
-            var (service, _, _, _, friendships, _, clock) = Build();
+            var (service, _, _, _, friendships, _, clock, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
             MakeFriends(friendships, Alice, Bob, clock);
             await service.InviteFriendAsync(Alice, team.Id, Bob);
@@ -374,7 +388,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task DeclineTeamInvite_QuandoPendente_MarcaRecusado() {
-            var (service, _, members, invites, friendships, _, clock) = Build();
+            var (service, _, members, invites, friendships, _, clock, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
             MakeFriends(friendships, Alice, Bob, clock);
             await service.InviteFriendAsync(Alice, team.Id, Bob);
@@ -390,7 +404,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task JoinViaLink_TokenValido_AdicionaComoMembro_RetornaJoined() {
-            var (service, teams, members, _, _, _, _) = Build();
+            var (service, teams, members, _, _, _, _, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
             var token = teams.Teams.Single().InviteToken;
 
@@ -402,7 +416,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task JoinViaLink_JaEhMembro_RetornaAlreadyMember_SemDuplicar() {
-            var (service, teams, members, _, _, _, _) = Build();
+            var (service, teams, members, _, _, _, _, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
             var token = teams.Teams.Single().InviteToken;
             await service.JoinViaLinkAsync(Bob, token);
@@ -415,7 +429,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task JoinViaLink_TimeCheio_RetornaTeamFull_SemAdicionar() {
-            var (service, teams, members, _, _, _, _) = Build();
+            var (service, teams, members, _, _, _, _, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 1);
             var token = teams.Teams.Single().InviteToken;
 
@@ -427,7 +441,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task JoinViaLink_DonoAbreProprioLink_RetornaOwnLink() {
-            var (service, teams, _, _, _, _, _) = Build();
+            var (service, teams, _, _, _, _, _, _) = Build();
             await service.CreateAsync(Alice, "Time", null, 5);
             var token = teams.Teams.Single().InviteToken;
 
@@ -438,7 +452,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task JoinViaLink_TokenInvalido_LancaNotFound() {
-            var (service, _, _, _, _, _, _) = Build();
+            var (service, _, _, _, _, _, _, _) = Build();
 
             await Assert.ThrowsAsync<NotFoundException>(() => service.JoinViaLinkAsync(Bob, "inexistente"));
         }
@@ -447,7 +461,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task Leave_MembroComum_Remove() {
-            var (service, teams, members, _, _, _, _) = Build();
+            var (service, teams, members, _, _, _, _, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
             await service.JoinViaLinkAsync(Bob, teams.Teams.Single().InviteToken);
 
@@ -458,7 +472,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task Leave_Dono_Lanca() {
-            var (service, _, _, _, _, _, _) = Build();
+            var (service, _, _, _, _, _, _, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
 
             await Assert.ThrowsAsync<InvalidTeamException>(() => service.LeaveAsync(Alice, team.Id));
@@ -466,7 +480,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task Leave_NaoMembro_LancaNotFound() {
-            var (service, _, _, _, _, _, _) = Build();
+            var (service, _, _, _, _, _, _, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
 
             await Assert.ThrowsAsync<NotFoundException>(() => service.LeaveAsync(Bob, team.Id));
@@ -476,7 +490,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task RemoveMember_Dono_RemoveMembro() {
-            var (service, teams, members, _, _, _, _) = Build();
+            var (service, teams, members, _, _, _, _, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
             await service.JoinViaLinkAsync(Bob, teams.Teams.Single().InviteToken);
 
@@ -487,7 +501,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task RemoveMember_NaoDono_LancaNotFound() {
-            var (service, teams, _, _, _, _, _) = Build();
+            var (service, teams, _, _, _, _, _, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
             await service.JoinViaLinkAsync(Bob, teams.Teams.Single().InviteToken);
             await service.JoinViaLinkAsync(Carol, teams.Teams.Single().InviteToken);
@@ -497,7 +511,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task RemoveMember_AlvoNaoEhMembro_LancaNotFound() {
-            var (service, _, _, _, _, _, _) = Build();
+            var (service, _, _, _, _, _, _, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
 
             await Assert.ThrowsAsync<NotFoundException>(() => service.RemoveMemberAsync(Alice, team.Id, Bob));
@@ -507,7 +521,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task DeleteTeam_Dono_RemoveTimeEMembrosEConvites() {
-            var (service, teams, members, invites, friendships, _, clock) = Build();
+            var (service, teams, members, invites, friendships, _, clock, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
             await service.JoinViaLinkAsync(Bob, teams.Teams.Single().InviteToken);
             MakeFriends(friendships, Alice, Carol, clock);
@@ -522,7 +536,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task DeleteTeam_NaoDono_LancaNotFound() {
-            var (service, teams, _, _, _, _, _) = Build();
+            var (service, teams, _, _, _, _, _, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
             await service.JoinViaLinkAsync(Bob, teams.Teams.Single().InviteToken);
 
@@ -534,7 +548,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task TransferOwnership_ParaMembroExistente_AtualizaOwnerId_ExDonoViraMembro() {
-            var (service, teams, members, _, _, _, _) = Build();
+            var (service, teams, members, _, _, _, _, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
             await service.JoinViaLinkAsync(Bob, teams.Teams.Single().InviteToken);
 
@@ -547,7 +561,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task TransferOwnership_ParaNaoMembro_Lanca() {
-            var (service, _, _, _, _, _, _) = Build();
+            var (service, _, _, _, _, _, _, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
 
             await Assert.ThrowsAsync<InvalidTeamException>(() => service.TransferOwnershipAsync(Alice, team.Id, Bob));
@@ -555,7 +569,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task TransferOwnership_NaoDono_LancaNotFound() {
-            var (service, teams, _, _, _, _, _) = Build();
+            var (service, teams, _, _, _, _, _, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
             await service.JoinViaLinkAsync(Bob, teams.Teams.Single().InviteToken);
             await service.JoinViaLinkAsync(Carol, teams.Teams.Single().InviteToken);
@@ -565,7 +579,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task TransferOwnership_DepoisDaTransferencia_ExDonoConsegueSair() {
-            var (service, teams, _, _, _, _, _) = Build();
+            var (service, teams, _, _, _, _, _, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
             await service.JoinViaLinkAsync(Bob, teams.Teams.Single().InviteToken);
 
@@ -580,7 +594,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task GetMyTeams_RetornaTimesOndeEDonoOuMembro() {
-            var (service, teams, _, _, _, _, _) = Build();
+            var (service, teams, _, _, _, _, _, _) = Build();
             var owned = await service.CreateAsync(Alice, "Time da Alice", null, 5);
             var joined = await service.CreateAsync(Bob, "Time do Bob", null, 5);
             await service.JoinViaLinkAsync(Alice, teams.Teams.Single(t => t.Id == joined.Id).InviteToken);
@@ -594,7 +608,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task GetDetails_NaoRelacionado_LancaNotFound() {
-            var (service, _, _, _, _, _, _) = Build();
+            var (service, _, _, _, _, _, _, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
 
             await Assert.ThrowsAsync<NotFoundException>(() => service.GetDetailsAsync(Bob, team.Id));
@@ -617,7 +631,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task GetDetails_MembroOuDono_RetornaDetalhes() {
-            var (service, teams, _, _, _, _, _) = Build();
+            var (service, teams, _, _, _, _, _, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
             await service.JoinViaLinkAsync(Bob, teams.Teams.Single().InviteToken);
 
@@ -648,7 +662,7 @@ namespace Pyrra.Application.Tests.Comunidade {
             var service       = new TeamService(
                 teams, members, invites, friendships, users, bannerStorage, clock,
                 new FakeTournamentTeamRepository(), new FakeTournamentRepository(),
-                new AdminAuthorizationService(users));
+                new AdminAuthorizationService(users), new FakeEmailNotificationService());
             return (service, teams, users);
         }
 
@@ -719,7 +733,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task GetAllTeams_ComoNaoAdmin_Lanca() {
-            var (service, _, _, _, _, _, _) = Build();
+            var (service, _, _, _, _, _, _, _) = Build();
 
             await Assert.ThrowsAsync<ForbiddenException>(() => service.GetAllTeamsAsync(Alice));
         }
@@ -743,7 +757,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task GetDetails_SemEntradaEmTorneio_ActiveTournamentsVazio() {
-            var (service, _, _, _, _, _, _) = Build();
+            var (service, _, _, _, _, _, _, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
 
             var details = await service.GetDetailsAsync(Alice, team.Id);
@@ -755,7 +769,7 @@ namespace Pyrra.Application.Tests.Comunidade {
         public async Task GetDetails_ComEntradaPendenteNoTorneio_RetornaActiveTournamentPendente() {
             var tournamentTeams = new FakeTournamentTeamRepository();
             var tournaments = new FakeTournamentRepository();
-            var (service, _, _, _, _, _, _) = Build(tournamentTeams, tournaments);
+            var (service, _, _, _, _, _, _, _) = Build(tournamentTeams, tournaments);
             var team = await service.CreateAsync(Alice, "Time", null, 5);
 
             var tournament = new Tournament { Id = Guid.NewGuid(), Name = "Torneio X", OwnerId = Carol, InviteToken = "tok" };
@@ -776,7 +790,7 @@ namespace Pyrra.Application.Tests.Comunidade {
         public async Task GetDetails_ComEntradaAprovadaNoTorneio_RetornaActiveTournamentAprovado() {
             var tournamentTeams = new FakeTournamentTeamRepository();
             var tournaments = new FakeTournamentRepository();
-            var (service, _, _, _, _, _, _) = Build(tournamentTeams, tournaments);
+            var (service, _, _, _, _, _, _, _) = Build(tournamentTeams, tournaments);
             var team = await service.CreateAsync(Alice, "Time", null, 5);
 
             var tournament = new Tournament { Id = Guid.NewGuid(), Name = "Torneio Y", OwnerId = Carol, InviteToken = "tok2" };
@@ -795,7 +809,7 @@ namespace Pyrra.Application.Tests.Comunidade {
         public async Task GetDetails_ComEntradaRecusadaNoTorneio_ActiveTournamentsVazio() {
             var tournamentTeams = new FakeTournamentTeamRepository();
             var tournaments = new FakeTournamentRepository();
-            var (service, _, _, _, _, _, _) = Build(tournamentTeams, tournaments);
+            var (service, _, _, _, _, _, _, _) = Build(tournamentTeams, tournaments);
             var team = await service.CreateAsync(Alice, "Time", null, 5);
 
             var tournament = new Tournament { Id = Guid.NewGuid(), Name = "Torneio Z", OwnerId = Carol, InviteToken = "tok3" };
@@ -813,7 +827,7 @@ namespace Pyrra.Application.Tests.Comunidade {
         public async Task GetDetails_ComVariasEntradasAtivas_RetornaTodasAsActiveTournaments() {
             var tournamentTeams = new FakeTournamentTeamRepository();
             var tournaments = new FakeTournamentRepository();
-            var (service, _, _, _, _, _, _) = Build(tournamentTeams, tournaments);
+            var (service, _, _, _, _, _, _, _) = Build(tournamentTeams, tournaments);
             var team = await service.CreateAsync(Alice, "Time", null, 5);
 
             var tournamentA = new Tournament { Id = Guid.NewGuid(), Name = "Torneio A", OwnerId = Carol, InviteToken = "tokA" };
@@ -838,7 +852,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task GetMyEligibleForTournament_SemTimes_RetornaVazio() {
-            var (service, _, _, _, _, _, _) = Build();
+            var (service, _, _, _, _, _, _, _) = Build();
 
             var eligible = await service.GetMyEligibleForTournamentAsync(Alice);
 
@@ -847,7 +861,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task GetMyEligibleForTournament_TimeSemEntradaAtiva_Inclui() {
-            var (service, _, _, _, _, _, _) = Build();
+            var (service, _, _, _, _, _, _, _) = Build();
             var team = await service.CreateAsync(Alice, "Time", null, 5);
 
             var eligible = await service.GetMyEligibleForTournamentAsync(Alice);
@@ -860,7 +874,7 @@ namespace Pyrra.Application.Tests.Comunidade {
         public async Task GetMyEligibleForTournament_TimeComUmaEntradaPendente_AindaInclui() {
             var tournamentTeams = new FakeTournamentTeamRepository();
             var tournaments = new FakeTournamentRepository();
-            var (service, _, _, _, _, _, _) = Build(tournamentTeams, tournaments);
+            var (service, _, _, _, _, _, _, _) = Build(tournamentTeams, tournaments);
             var team = await service.CreateAsync(Alice, "Time", null, 5);
 
             var tournament = new Tournament { Id = Guid.NewGuid(), Name = "Torneio", OwnerId = Carol, InviteToken = "tok" };
@@ -878,7 +892,7 @@ namespace Pyrra.Application.Tests.Comunidade {
         public async Task GetMyEligibleForTournament_TimeComUmaEntradaAprovada_AindaInclui() {
             var tournamentTeams = new FakeTournamentTeamRepository();
             var tournaments = new FakeTournamentRepository();
-            var (service, _, _, _, _, _, _) = Build(tournamentTeams, tournaments);
+            var (service, _, _, _, _, _, _, _) = Build(tournamentTeams, tournaments);
             var team = await service.CreateAsync(Alice, "Time", null, 5);
 
             var tournament = new Tournament { Id = Guid.NewGuid(), Name = "Torneio", OwnerId = Carol, InviteToken = "tok" };
@@ -896,7 +910,7 @@ namespace Pyrra.Application.Tests.Comunidade {
         public async Task GetMyEligibleForTournament_TimeNoLimiteDeCincoEntradasAtivas_Exclui() {
             var tournamentTeams = new FakeTournamentTeamRepository();
             var tournaments = new FakeTournamentRepository();
-            var (service, _, _, _, _, _, _) = Build(tournamentTeams, tournaments);
+            var (service, _, _, _, _, _, _, _) = Build(tournamentTeams, tournaments);
             var team = await service.CreateAsync(Alice, "Time", null, 5);
 
             for (var i = 0; i < TournamentTeam.MaxTournamentsPerTeam; i++) {
@@ -916,7 +930,7 @@ namespace Pyrra.Application.Tests.Comunidade {
         public async Task GetMyEligibleForTournament_TimeComEntradaRecusada_Inclui() {
             var tournamentTeams = new FakeTournamentTeamRepository();
             var tournaments = new FakeTournamentRepository();
-            var (service, _, _, _, _, _, _) = Build(tournamentTeams, tournaments);
+            var (service, _, _, _, _, _, _, _) = Build(tournamentTeams, tournaments);
             var team = await service.CreateAsync(Alice, "Time", null, 5);
 
             var tournament = new Tournament { Id = Guid.NewGuid(), Name = "Torneio", OwnerId = Carol, InviteToken = "tok" };
@@ -932,7 +946,7 @@ namespace Pyrra.Application.Tests.Comunidade {
 
         [Fact]
         public async Task GetMyEligibleForTournament_TimeOndeSoMembro_Exclui() {
-            var (service, teams, _, _, _, _, _) = Build();
+            var (service, teams, _, _, _, _, _, _) = Build();
             var team = await service.CreateAsync(Alice, "Time da Alice", null, 5);
             await service.JoinViaLinkAsync(Bob, teams.Teams.Single().InviteToken);
 
@@ -945,7 +959,7 @@ namespace Pyrra.Application.Tests.Comunidade {
         public async Task GetMyEligibleForTournament_VariosTimes_RetornaSoOsLivresOrdenadosPorNome() {
             var tournamentTeams = new FakeTournamentTeamRepository();
             var tournaments = new FakeTournamentRepository();
-            var (service, _, _, _, _, _, _) = Build(tournamentTeams, tournaments);
+            var (service, _, _, _, _, _, _, _) = Build(tournamentTeams, tournaments);
             var livre1 = await service.CreateAsync(Alice, "Zebra", null, 5);
             var ocupado = await service.CreateAsync(Alice, "Abelha", null, 5);
             var livre2 = await service.CreateAsync(Alice, "Meio", null, 5);

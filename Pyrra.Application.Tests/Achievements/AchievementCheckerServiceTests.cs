@@ -15,16 +15,17 @@ namespace Pyrra.Application.Tests.Achievements {
 
         private static (AchievementCheckerService service, FakeAchievementRepository achievements,
             FakeUserAchievementRepository userAchievements, FakeChallengeSubmissionRepository submissions,
-            FakeUserRepository users, FakeClock clock)
+            FakeUserRepository users, FakeClock clock, FakeEmailNotificationService email)
             Build() {
             var achievements     = new FakeAchievementRepository();
             var userAchievements = new FakeUserAchievementRepository();
             var submissions      = new FakeChallengeSubmissionRepository();
             var users            = new FakeUserRepository(new User { Id = UserId, Name = "User", Email = "user@x.com" });
             var clock            = new FakeClock();
+            var email            = new FakeEmailNotificationService();
 
-            var service = new AchievementCheckerService(achievements, userAchievements, submissions, users, clock);
-            return (service, achievements, userAchievements, submissions, users, clock);
+            var service = new AchievementCheckerService(achievements, userAchievements, submissions, users, email, clock);
+            return (service, achievements, userAchievements, submissions, users, clock, email);
         }
 
         private static Achievement MakeAchievement(AchievementType type, int milestone, int xp = 10) => new() {
@@ -39,7 +40,7 @@ namespace Pyrra.Application.Tests.Achievements {
 
         [Fact]
         public async Task CheckStreakMilestonesAsync_MarcoBatido_DesbloqueiaEDaXp() {
-            var (service, achievements, userAchievements, _, users, _) = Build();
+            var (service, achievements, userAchievements, _, users, _, _) = Build();
             var achievement = MakeAchievement(AchievementType.Streak, 10, xp: 25);
             achievements.Achievements.Add(achievement);
 
@@ -51,8 +52,18 @@ namespace Pyrra.Application.Tests.Achievements {
         }
 
         [Fact]
+        public async Task CheckStreakMilestonesAsync_MarcoBatido_MandaEmailDeConquista() {
+            var (service, achievements, _, _, _, _, email) = Build();
+            achievements.Achievements.Add(MakeAchievement(AchievementType.Streak, 10, xp: 25));
+
+            await service.CheckStreakMilestonesAsync(UserId, new[] { 10 });
+
+            Assert.Equal(1, email.AchievementUnlockedCount);
+        }
+
+        [Fact]
         public async Task CheckStreakMilestonesAsync_MarcoNaoCadastrado_NaoDesbloqueiaNada() {
-            var (service, achievements, userAchievements, _, _, _) = Build();
+            var (service, achievements, userAchievements, _, _, _, _) = Build();
             achievements.Achievements.Add(MakeAchievement(AchievementType.Streak, 10));
 
             await service.CheckStreakMilestonesAsync(UserId, new[] { 5 });
@@ -62,7 +73,7 @@ namespace Pyrra.Application.Tests.Achievements {
 
         [Fact]
         public async Task CheckStreakMilestonesAsync_JaDesbloqueada_NaoDuplicaNemSomaXpDeNovo() {
-            var (service, achievements, userAchievements, _, users, clock) = Build();
+            var (service, achievements, userAchievements, _, users, clock, _) = Build();
             var achievement = MakeAchievement(AchievementType.Streak, 10, xp: 25);
             achievements.Achievements.Add(achievement);
             userAchievements.Unlocked.Add(new UserAchievement {
@@ -77,7 +88,7 @@ namespace Pyrra.Application.Tests.Achievements {
 
         [Fact]
         public async Task CheckChallengeCompletedAsync_TotalAprovadoBateMarco_Desbloqueia() {
-            var (service, achievements, userAchievements, submissions, users, _) = Build();
+            var (service, achievements, userAchievements, submissions, users, _, _) = Build();
             achievements.Achievements.Add(MakeAchievement(AchievementType.DesafioCompleto, 1, xp: 15));
             submissions.Submissions.Add(MakeApprovedSubmission());
 
@@ -89,7 +100,7 @@ namespace Pyrra.Application.Tests.Achievements {
 
         [Fact]
         public async Task CheckChallengeCompletedAsync_TotalNaoBateMarco_NaoDesbloqueia() {
-            var (service, achievements, userAchievements, submissions, _, _) = Build();
+            var (service, achievements, userAchievements, submissions, _, _, _) = Build();
             achievements.Achievements.Add(MakeAchievement(AchievementType.DesafioCompleto, 10));
             submissions.Submissions.Add(MakeApprovedSubmission());
 

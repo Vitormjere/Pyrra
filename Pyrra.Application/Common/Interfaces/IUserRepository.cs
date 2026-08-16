@@ -19,6 +19,9 @@ namespace Pyrra.Application.Common.Interfaces {
 
         Task<User?> GetByInviteTokenAsync(string inviteToken, CancellationToken cancellationToken = default);
 
+        Task<User?> GetByEmailConfirmationTokenAsync(string token, CancellationToken cancellationToken = default);
+        Task<User?> GetByPasswordResetTokenAsync(string token, CancellationToken cancellationToken = default);
+
         Task<IReadOnlyList<User>> SearchAsync(string term, Guid excludeUserId, CancellationToken cancellationToken = default);
 
         Task<IReadOnlyList<User>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default);

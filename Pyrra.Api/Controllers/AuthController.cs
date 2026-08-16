@@ -66,6 +66,37 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
+        [HttpPost("confirmar-email")]
+        public async Task<IActionResult> ConfirmEmail(ConfirmEmailRequest request, CancellationToken cancellationToken) {
+            try {
+                await _authService.ConfirmEmailAsync(request.Token, cancellationToken);
+                return NoContent();
+            } catch (InvalidEmailConfirmationTokenException ex) {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        // sempre 200 com a mesma mensagem, exista ou não o e-mail — só assim a resposta não vaza
+        // se um e-mail está cadastrado ou não (checagem em AuthService.RequestPasswordResetAsync)
+        [EnableRateLimiting("AuthPasswordReset")]
+        [HttpPost("esqueci-senha")]
+        public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request, CancellationToken cancellationToken) {
+            await _authService.RequestPasswordResetAsync(request.Email, cancellationToken);
+            return Ok(new { message = "Se esse e-mail estiver cadastrado, enviamos um link pra redefinir a senha." });
+        }
+
+        [HttpPost("redefinir-senha")]
+        public async Task<IActionResult> ResetPassword(ResetPasswordRequest request, CancellationToken cancellationToken) {
+            try {
+                await _authService.ResetPasswordAsync(request.Token, request.NewPassword, cancellationToken);
+                return NoContent();
+            } catch (InvalidPasswordResetTokenException ex) {
+                return BadRequest(new { message = ex.Message });
+            } catch (WeakPasswordException ex) {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
         [Authorize]
         [HttpGet("me")]
         public async Task<ActionResult<UserResponse>> Me(CancellationToken cancellationToken) {

@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Pyrra.Application.Common.Exceptions;
 using Pyrra.Application.Common.Interfaces;
+using Pyrra.Application.Notificacoes.Email;
 using Pyrra.Domain.Comunidade;
 using Pyrra.Domain.Users;
 
@@ -27,6 +28,7 @@ namespace Pyrra.Application.Comunidade {
         private readonly ITournamentTeamRepository  _tournamentTeamRepository;
         private readonly ITournamentRepository      _tournamentRepository;
         private readonly IAdminAuthorizationService _adminAuth;
+        private readonly IEmailNotificationService  _emailNotificationService;
 
         public TeamService(
             ITeamRepository            teamRepository,
@@ -38,11 +40,13 @@ namespace Pyrra.Application.Comunidade {
             IClockService              clock,
             ITournamentTeamRepository  tournamentTeamRepository,
             ITournamentRepository      tournamentRepository,
-            IAdminAuthorizationService adminAuth) {
+            IAdminAuthorizationService adminAuth,
+            IEmailNotificationService  emailNotificationService) {
             _teamRepository           = teamRepository;
             _teamMemberRepository     = teamMemberRepository;
             _teamInviteRepository     = teamInviteRepository;
             _friendshipRepository     = friendshipRepository;
+            _emailNotificationService = emailNotificationService;
             _userRepository           = userRepository;
             _bannerStorage            = bannerStorage;
             _clock                    = clock;
@@ -311,6 +315,14 @@ namespace Pyrra.Application.Comunidade {
             invite.Status      = TeamInviteStatus.Aceito;
             invite.RespondedAt = _clock.UtcNow;
             await _teamInviteRepository.UpdateAsync(invite, cancellationToken);
+
+            // avisa quem convidou — nunca deve impedir a entrada no time se o e-mail falhar
+            // (IEmailSender já loga e não lança, mas o lookup do usuário é local mesmo assim)
+            var inviter  = await _userRepository.GetByIdAsync(invite.InviterId, cancellationToken);
+            var accepter = await _userRepository.GetByIdAsync(userId, cancellationToken);
+            if (inviter is not null && accepter is not null) {
+                await _emailNotificationService.SendTeamInviteAcceptedAsync(inviter, accepter.Name, team.Name, cancellationToken);
+            }
         }
 
         public async Task DeclineInviteAsync(Guid userId, Guid inviteId, CancellationToken cancellationToken = default) {

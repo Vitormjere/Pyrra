@@ -7,6 +7,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Pyrra.Application.Auth;
+using Pyrra.Application.Notificacoes.Email;
+using Pyrra.Domain.Users;
 using Pyrra.Infrastructure.Data;
 
 namespace Pyrra.Api.Tests {
@@ -54,6 +56,11 @@ namespace Pyrra.Api.Tests {
                 // /api/auth/google chamaria a API de verdade do Google
                 services.RemoveAll<IGoogleTokenVerifier>();
                 services.AddScoped<IGoogleTokenVerifier, FakeGoogleTokenVerifier>();
+
+                // idem pro envio de e-mail — sem isso, todo teste de registro tentaria chamar a
+                // API de verdade da Resend (sem chave, então falharia/demoraria à toa)
+                services.RemoveAll<IEmailNotificationService>();
+                services.AddScoped<IEmailNotificationService, NoOpEmailNotificationService>();
             });
         }
     }
@@ -70,5 +77,14 @@ namespace Pyrra.Api.Tests {
             Task.FromResult(string.IsNullOrWhiteSpace(idToken)
                 ? null
                 : new GoogleUserInfo($"google-sub-{idToken}", $"{idToken}@google-test.local", EmailVerified: true, "Teste Google"));
+    }
+
+    // não faz nada — o conteúdo dos e-mails é coberto pelos testes unitários de
+    // EmailNotificationService/AuthServiceTests, aqui só não pode sair batendo na Resend de verdade
+    internal sealed class NoOpEmailNotificationService : IEmailNotificationService {
+        public Task SendEmailConfirmationAsync(User user, string token, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task SendPasswordResetAsync(User user, string token, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task SendTeamInviteAcceptedAsync(User inviter, string accepterName, string teamName, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task SendAchievementUnlockedAsync(User user, string achievementName, int xp, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 }

@@ -59,6 +59,22 @@ namespace Pyrra.Domain.Users {
         // nulo enquanto a conta não está bloqueada; login (mesmo com senha certa) é recusado
         // enquanto LockedUntil > agora
         public DateTime? LockedUntil { get; set; }
+
+        // true por padrão (contas existentes antes dessa coluna existir "ganham" o confirmado,
+        // já estavam em uso) — RegisterAsync começa contas novas por e-mail/senha em false
+        // explicitamente; contas por Google nascem true (o Google já verificou o e-mail).
+        // Não bloqueia uso do app por enquanto, só fica registrado.
+        public bool EmailConfirmed { get; set; } = true;
+
+        // nulo fora de uma janela de confirmação pendente — gerado em RegisterAsync e reenviado
+        // sob pedido, consumido (e limpo) ao confirmar. Expira em 24h.
+        public string?   EmailConfirmationToken { get; set; }
+        public DateTime? EmailConfirmationTokenExpiresAt { get; set; }
+
+        // mesmo raciocínio do par acima, pro fluxo de "esqueci minha senha" — expira em 1h
+        // (mais curto de propósito: é o token que, se vazado, dá acesso total à conta)
+        public string?   PasswordResetToken { get; set; }
+        public DateTime? PasswordResetTokenExpiresAt { get; set; }
     }
 
     public enum CommunicationTone {

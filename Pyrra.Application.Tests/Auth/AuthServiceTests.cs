@@ -49,21 +49,22 @@ namespace Pyrra.Application.Tests.Auth {
             return user;
         }
 
-        private static (AuthService service, FakeUserRepository users, FakeClock clock, FakeCaptchaVerificationService captcha, FakeGoogleTokenVerifier google) Build(params User[] users) {
+        private static (AuthService service, FakeUserRepository users, FakeClock clock, FakeCaptchaVerificationService captcha, FakeGoogleTokenVerifier google, FakeEmailNotificationService email) Build(params User[] users) {
             var repo    = new FakeUserRepository(users);
             var clock   = new FakeClock();
             var captcha = new FakeCaptchaVerificationService();
             var google  = new FakeGoogleTokenVerifier();
+            var email   = new FakeEmailNotificationService();
             var jwtOptions = Options.Create(new JwtSettings { Key = "test", Issuer = "test", Audience = "test", ExpirationMinutes = 60 });
-            var service = new AuthService(repo, Hasher, new FakeTokenService(), captcha, google, clock, jwtOptions);
-            return (service, repo, clock, captcha, google);
+            var service = new AuthService(repo, Hasher, new FakeTokenService(), captcha, google, email, clock, jwtOptions);
+            return (service, repo, clock, captcha, google, email);
         }
 
         [Fact]
         public async Task LoginAsync_SenhaCorreta_ZeraContadorDeTentativas() {
             var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
             alice.FailedLoginAttempts = 2;
-            var (service, users, _, _, _) = Build(alice);
+            var (service, users, _, _, _, _) = Build(alice);
 
             await service.LoginAsync("alice@x.com", "SenhaForte123");
 
@@ -75,7 +76,7 @@ namespace Pyrra.Application.Tests.Auth {
         [Fact]
         public async Task LoginAsync_SenhaErrada_IncrementaContador() {
             var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
-            var (service, users, _, _, _) = Build(alice);
+            var (service, users, _, _, _, _) = Build(alice);
 
             await Assert.ThrowsAsync<InvalidCredentialsException>(
                 () => service.LoginAsync("alice@x.com", "SenhaErrada"));
@@ -86,7 +87,7 @@ namespace Pyrra.Application.Tests.Auth {
         [Fact]
         public async Task LoginAsync_TerceiraTentativaErradaSeguida_BloqueiaAConta() {
             var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
-            var (service, users, clock, _, _) = Build(alice);
+            var (service, users, clock, _, _, _) = Build(alice);
 
             await Assert.ThrowsAsync<InvalidCredentialsException>(() => service.LoginAsync("alice@x.com", "SenhaErrada"));
             await Assert.ThrowsAsync<InvalidCredentialsException>(() => service.LoginAsync("alice@x.com", "SenhaErrada"));
@@ -102,7 +103,7 @@ namespace Pyrra.Application.Tests.Auth {
         public async Task LoginAsync_ContaBloqueada_RecusaMesmoComSenhaCorreta() {
             var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
             alice.LockedUntil = new DateTime(2026, 7, 27, 12, 10, 0, DateTimeKind.Utc); // FakeClock começa às 12:00
-            var (service, _, _, _, _) = Build(alice);
+            var (service, _, _, _, _, _) = Build(alice);
 
             await Assert.ThrowsAsync<AccountLockedException>(
                 () => service.LoginAsync("alice@x.com", "SenhaForte123"));
@@ -112,7 +113,7 @@ namespace Pyrra.Application.Tests.Auth {
         public async Task LoginAsync_ContaBloqueada_MensagemInformaMinutosRestantes() {
             var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
             alice.LockedUntil = new DateTime(2026, 7, 27, 12, 10, 0, DateTimeKind.Utc); // 10 min à frente do FakeClock
-            var (service, _, _, _, _) = Build(alice);
+            var (service, _, _, _, _, _) = Build(alice);
 
             var ex = await Assert.ThrowsAsync<AccountLockedException>(
                 () => service.LoginAsync("alice@x.com", "SenhaForte123"));
@@ -123,7 +124,7 @@ namespace Pyrra.Application.Tests.Auth {
         [Fact]
         public async Task LoginAsync_ApósBloqueioExpirar_VoltaAAceitarLoginCorreto() {
             var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
-            var (service, users, clock, _, _) = Build(alice);
+            var (service, users, clock, _, _, _) = Build(alice);
             alice.LockedUntil = clock.UtcNow.AddMinutes(-1); // já expirado
 
             var result = await service.LoginAsync("alice@x.com", "SenhaForte123");
@@ -137,7 +138,7 @@ namespace Pyrra.Application.Tests.Auth {
         [Fact]
         public async Task LoginAsync_ApósBloqueioExpirar_SenhaErradaVoltaAContarDoZero() {
             var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
-            var (service, users, clock, _, _) = Build(alice);
+            var (service, users, clock, _, _, _) = Build(alice);
             alice.LockedUntil = clock.UtcNow.AddMinutes(-1); // já expirado
 
             await Assert.ThrowsAsync<InvalidCredentialsException>(
@@ -148,7 +149,7 @@ namespace Pyrra.Application.Tests.Auth {
 
         [Fact]
         public async Task LoginAsync_EmailInexistente_NaoRastreiaTentativas() {
-            var (service, _, _, _, _) = Build();
+            var (service, _, _, _, _, _) = Build();
 
             await Assert.ThrowsAsync<InvalidCredentialsException>(
                 () => service.LoginAsync("nao.existe@x.com", "QualquerSenha123"));
@@ -158,7 +159,7 @@ namespace Pyrra.Application.Tests.Auth {
 
         [Fact]
         public async Task RegisterAsync_CaptchaValido_CriaConta() {
-            var (service, users, _, captcha, _) = Build();
+            var (service, users, _, captcha, _, _) = Build();
 
             var result = await service.RegisterAsync("nova@x.com", "SenhaForte123", "Nova", "token-valido");
 
@@ -168,7 +169,7 @@ namespace Pyrra.Application.Tests.Auth {
 
         [Fact]
         public async Task RegisterAsync_CaptchaInvalido_LancaENaoCriaConta() {
-            var (service, users, _, captcha, _) = Build();
+            var (service, users, _, captcha, _, _) = Build();
             captcha.ShouldPass = false;
 
             await Assert.ThrowsAsync<CaptchaVerificationFailedException>(
@@ -181,18 +182,152 @@ namespace Pyrra.Application.Tests.Auth {
         public async Task RegisterAsync_CaptchaInvalido_ChecaAntesDaSenhaFraca() {
             // CAPTCHA barato pra rejeitar bot antes de qualquer outra validação — mesmo com
             // senha claramente fraca, é a exceção de CAPTCHA que deve sair primeiro
-            var (service, _, _, captcha, _) = Build();
+            var (service, _, _, captcha, _, _) = Build();
             captcha.ShouldPass = false;
 
             await Assert.ThrowsAsync<CaptchaVerificationFailedException>(
                 () => service.RegisterAsync("nova@x.com", "curta", "Nova", "token-invalido"));
         }
 
+        [Fact]
+        public async Task RegisterAsync_ComeçaSemEmailConfirmado_EMandaEmailDeConfirmacao() {
+            var (service, users, _, _, _, email) = Build();
+
+            var result = await service.RegisterAsync("nova@x.com", "SenhaForte123", "Nova", "token-valido");
+
+            var stored = users.Users.Single(u => u.Id == result.UserId);
+            Assert.False(stored.EmailConfirmed);
+            Assert.False(string.IsNullOrEmpty(stored.EmailConfirmationToken));
+            Assert.NotNull(stored.EmailConfirmationTokenExpiresAt);
+            Assert.Equal(1, email.EmailConfirmationCount);
+        }
+
+        // ---- confirmação de e-mail ----
+
+        [Fact]
+        public async Task ConfirmEmailAsync_TokenValido_Confirma() {
+            var (service, users, _, _, _, _) = Build();
+            var result = await service.RegisterAsync("nova@x.com", "SenhaForte123", "Nova", "token-valido");
+            var token  = users.Users.Single(u => u.Id == result.UserId).EmailConfirmationToken!;
+
+            await service.ConfirmEmailAsync(token);
+
+            var stored = users.Users.Single(u => u.Id == result.UserId);
+            Assert.True(stored.EmailConfirmed);
+            Assert.Null(stored.EmailConfirmationToken);
+            Assert.Null(stored.EmailConfirmationTokenExpiresAt);
+        }
+
+        [Fact]
+        public async Task ConfirmEmailAsync_TokenInexistente_Lanca() {
+            var (service, _, _, _, _, _) = Build();
+
+            await Assert.ThrowsAsync<InvalidEmailConfirmationTokenException>(
+                () => service.ConfirmEmailAsync("token-que-nao-existe"));
+        }
+
+        [Fact]
+        public async Task ConfirmEmailAsync_TokenExpirado_Lanca() {
+            var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
+            var (service, _, clock, _, _, _) = Build(alice);
+            alice.EmailConfirmationToken          = "token-expirado";
+            alice.EmailConfirmationTokenExpiresAt = clock.UtcNow.AddSeconds(-1);
+
+            await Assert.ThrowsAsync<InvalidEmailConfirmationTokenException>(
+                () => service.ConfirmEmailAsync("token-expirado"));
+        }
+
+        // ---- esqueci minha senha ----
+
+        [Fact]
+        public async Task RequestPasswordResetAsync_EmailExistente_GeraTokenEMandaEmail() {
+            var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
+            var (service, users, _, _, _, email) = Build(alice);
+
+            await service.RequestPasswordResetAsync("alice@x.com");
+
+            var stored = users.Users.Single(u => u.Id == Alice);
+            Assert.False(string.IsNullOrEmpty(stored.PasswordResetToken));
+            Assert.NotNull(stored.PasswordResetTokenExpiresAt);
+            Assert.Equal(1, email.PasswordResetCount);
+        }
+
+        [Fact]
+        public async Task RequestPasswordResetAsync_EmailInexistente_NaoLancaENaoMandaEmail() {
+            var (service, _, _, _, _, email) = Build();
+
+            // não lança — quem chama devolve a mesma resposta genérica não importa o resultado
+            await service.RequestPasswordResetAsync("nao.existe@x.com");
+
+            Assert.Equal(0, email.PasswordResetCount);
+        }
+
+        [Fact]
+        public async Task ResetPasswordAsync_TokenValido_TrocaSenhaELimpaToken() {
+            var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
+            var (service, users, _, _, _, _) = Build(alice);
+            await service.RequestPasswordResetAsync("alice@x.com");
+            var token = users.Users.Single(u => u.Id == Alice).PasswordResetToken!;
+
+            await service.ResetPasswordAsync(token, "NovaSenhaForte456");
+
+            var stored = users.Users.Single(u => u.Id == Alice);
+            Assert.Null(stored.PasswordResetToken);
+            Assert.Null(stored.PasswordResetTokenExpiresAt);
+            Assert.Equal(PasswordVerificationResult.Success, Hasher.VerifyHashedPassword(stored, stored.PasswordHash!, "NovaSenhaForte456"));
+        }
+
+        [Fact]
+        public async Task ResetPasswordAsync_LimpaLockoutPendente() {
+            var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
+            var (service, users, clock, _, _, _) = Build(alice);
+            await service.RequestPasswordResetAsync("alice@x.com");
+            var token = users.Users.Single(u => u.Id == Alice).PasswordResetToken!;
+            alice.FailedLoginAttempts = 2;
+            alice.LockedUntil         = clock.UtcNow.AddMinutes(10);
+
+            await service.ResetPasswordAsync(token, "NovaSenhaForte456");
+
+            var stored = users.Users.Single(u => u.Id == Alice);
+            Assert.Equal(0, stored.FailedLoginAttempts);
+            Assert.Null(stored.LockedUntil);
+        }
+
+        [Fact]
+        public async Task ResetPasswordAsync_TokenInexistente_Lanca() {
+            var (service, _, _, _, _, _) = Build();
+
+            await Assert.ThrowsAsync<InvalidPasswordResetTokenException>(
+                () => service.ResetPasswordAsync("token-que-nao-existe", "NovaSenhaForte456"));
+        }
+
+        [Fact]
+        public async Task ResetPasswordAsync_TokenExpirado_Lanca() {
+            var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
+            var (service, _, clock, _, _, _) = Build(alice);
+            alice.PasswordResetToken          = "token-expirado";
+            alice.PasswordResetTokenExpiresAt = clock.UtcNow.AddSeconds(-1);
+
+            await Assert.ThrowsAsync<InvalidPasswordResetTokenException>(
+                () => service.ResetPasswordAsync("token-expirado", "NovaSenhaForte456"));
+        }
+
+        [Fact]
+        public async Task ResetPasswordAsync_SenhaFraca_Lanca() {
+            var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
+            var (service, users, _, _, _, _) = Build(alice);
+            await service.RequestPasswordResetAsync("alice@x.com");
+            var token = users.Users.Single(u => u.Id == Alice).PasswordResetToken!;
+
+            await Assert.ThrowsAsync<WeakPasswordException>(
+                () => service.ResetPasswordAsync(token, "curta"));
+        }
+
         // ---- login com Google ----
 
         [Fact]
         public async Task LoginWithGoogleAsync_ContaNova_Cria() {
-            var (service, users, _, _, _) = Build();
+            var (service, users, _, _, _, _) = Build();
 
             var result = await service.LoginWithGoogleAsync("token-qualquer");
 
@@ -205,7 +340,7 @@ namespace Pyrra.Application.Tests.Auth {
         [Fact]
         public async Task LoginWithGoogleAsync_EmailJaExistentePorSenha_VinculaSemDuplicar() {
             var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
-            var (service, users, _, _, _) = Build(alice);
+            var (service, users, _, _, _, _) = Build(alice);
 
             var result = await service.LoginWithGoogleAsync("token-qualquer");
 
@@ -220,7 +355,7 @@ namespace Pyrra.Application.Tests.Auth {
         public async Task LoginWithGoogleAsync_GoogleIdJaVinculado_SoLogaSemDuplicar() {
             var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
             alice.GoogleId = "google-sub-alice";
-            var (service, users, _, _, _) = Build(alice);
+            var (service, users, _, _, _, _) = Build(alice);
 
             var result = await service.LoginWithGoogleAsync("token-qualquer");
 
@@ -230,7 +365,7 @@ namespace Pyrra.Application.Tests.Auth {
 
         [Fact]
         public async Task LoginWithGoogleAsync_TokenInvalido_Lanca() {
-            var (service, users, _, _, _) = Build();
+            var (service, users, _, _, _, _) = Build();
 
             await Assert.ThrowsAsync<GoogleAuthFailedException>(
                 () => service.LoginWithGoogleAsync("token-invalido"));
@@ -240,7 +375,7 @@ namespace Pyrra.Application.Tests.Auth {
 
         [Fact]
         public async Task LoginWithGoogleAsync_EmailNaoVerificadoPeloGoogle_Lanca() {
-            var (service, users, _, _, google) = Build();
+            var (service, users, _, _, google, _) = Build();
             google.NextResult = new GoogleUserInfo("google-sub-bob", "bob@x.com", EmailVerified: false, "Bob");
 
             await Assert.ThrowsAsync<GoogleAuthFailedException>(
@@ -257,7 +392,7 @@ namespace Pyrra.Application.Tests.Auth {
             alice.GoogleId = "google-sub-alice";
             alice.LockedUntil = new DateTime(2026, 7, 27, 12, 10, 0, DateTimeKind.Utc); // FakeClock começa às 12:00
             alice.FailedLoginAttempts = 2;
-            var (service, users, _, _, _) = Build(alice);
+            var (service, users, _, _, _, _) = Build(alice);
 
             var result = await service.LoginWithGoogleAsync("token-qualquer");
 

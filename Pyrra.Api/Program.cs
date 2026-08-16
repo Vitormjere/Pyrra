@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
@@ -18,6 +19,7 @@ using Pyrra.Application.Desafios;
 using Pyrra.Application.Financas;
 using Pyrra.Application.Focos;
 using Pyrra.Application.Notificacoes;
+using Pyrra.Application.Notificacoes.Email;
 using Pyrra.Application.Nutricao;
 using Pyrra.Application.Planejamento;
 using Pyrra.Application.Usuario;
@@ -31,6 +33,7 @@ using Pyrra.Api.Hubs;
 using Pyrra.Infrastructure.Auth;
 using Pyrra.Infrastructure.Common;
 using Pyrra.Infrastructure.Data;
+using Pyrra.Infrastructure.Notificacoes;
 using Pyrra.Infrastructure.Repositories;
 using Pyrra.Infrastructure.Storage;
 using Pyrra.Infrastructure.Zelo;
@@ -157,11 +160,26 @@ builder.Services.AddRateLimiter(options => {
                 SegmentsPerWindow = authSegments,
                 QueueLimit        = 0
             }));
+
+    // "esqueci minha senha" é outro alvo natural de abuso (spam de e-mail pra vítimas, ou
+    // tentativa de descobrir contas por enumeração de resposta/tempo) — mesma proteção de
+    // login/registro (mesmos números), só que cota própria, separada das outras duas
+    options.AddPolicy("AuthPasswordReset", httpContext =>
+        RateLimitPartition.GetSlidingWindowLimiter(
+            partitionKey: RateLimitPartitionKey(httpContext),
+            factory: _ => new SlidingWindowRateLimiterOptions {
+                PermitLimit       = authPermitLimit,
+                Window            = TimeSpan.FromSeconds(authWindowSeconds),
+                SegmentsPerWindow = authSegments,
+                QueueLimit        = 0
+            }));
 });
 
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
 builder.Services.Configure<CaptchaSettings>(builder.Configuration.GetSection("Captcha"));
 builder.Services.Configure<GoogleAuthSettings>(builder.Configuration.GetSection("GoogleAuth"));
+builder.Services.Configure<ResendSettings>(builder.Configuration.GetSection("Resend"));
+builder.Services.Configure<FrontendSettings>(builder.Configuration.GetSection("Frontend"));
 
 var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>()
     ?? throw new InvalidOperationException("Seção 'Jwt' não encontrada em appsettings.json.");
@@ -213,6 +231,17 @@ builder.Services.AddScoped<ICaptchaVerificationService, HCaptchaVerificationServ
 // Login com Google — só verificação de ID token (sem client secret: o SDK confere a
 // assinatura contra as chaves públicas do Google, não troca código por token)
 builder.Services.AddScoped<IGoogleTokenVerifier, GoogleTokenVerifier>();
+
+// E-mails transacionais (confirmação, redefinição de senha) e de notificação (convite de
+// time aceito, conquista desbloqueada) via Resend — Authorization fixo no client porque a
+// chave não muda por requisição, mesmo raciocínio do header fixo do AnthropicClient abaixo
+builder.Services.AddHttpClient("ResendClient", client => {
+    client.BaseAddress = new Uri("https://api.resend.com/");
+    client.Timeout = TimeSpan.FromSeconds(15);
+    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", builder.Configuration["Resend:ApiKey"] ?? string.Empty);
+});
+builder.Services.AddScoped<IEmailSender, ResendEmailSender>();
+builder.Services.AddScoped<IEmailNotificationService, EmailNotificationService>();
 
 builder.Services.AddScoped<IDailyFocusRepository, DailyFocusRepository>();
 builder.Services.AddScoped<IDailyFocusService, DailyFocusService>();

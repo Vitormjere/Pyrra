@@ -41,6 +41,12 @@ namespace Pyrra.Infrastructure.Repositories {
         public Task<User?> GetByInviteTokenAsync(string inviteToken, CancellationToken cancellationToken = default) =>
             ActiveUsers.FirstOrDefaultAsync(u => u.InviteToken == inviteToken, cancellationToken);
 
+        public Task<User?> GetByEmailConfirmationTokenAsync(string token, CancellationToken cancellationToken = default) =>
+            ActiveUsers.FirstOrDefaultAsync(u => u.EmailConfirmationToken == token, cancellationToken);
+
+        public Task<User?> GetByPasswordResetTokenAsync(string token, CancellationToken cancellationToken = default) =>
+            ActiveUsers.FirstOrDefaultAsync(u => u.PasswordResetToken == token, cancellationToken);
+
         public async Task<IReadOnlyList<User>> SearchAsync(string term, Guid excludeUserId, CancellationToken cancellationToken = default) {
             var normalized = term.Trim().TrimStart('@').ToLowerInvariant();
             if (normalized.Length == 0) {
