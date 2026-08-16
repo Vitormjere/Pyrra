@@ -20,6 +20,9 @@ namespace Pyrra.Application.Usuario {
         // atualiza a visibilidade do perfil
         Task<User> UpdateProfileVisibilityAsync(Guid userId, ProfileVisibility visibility, CancellationToken cancellationToken = default);
 
+        // cor de destaque do app (botões, links, gráficos etc. — ver AccentColor)
+        Task<User> UpdateAccentColorAsync(Guid userId, AccentColor color, CancellationToken cancellationToken = default);
+
         // desativa a conta sem remover os dados
         Task DeleteAccountAsync(Guid userId, string currentPassword, CancellationToken cancellationToken = default);
 

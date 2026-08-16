@@ -178,6 +178,19 @@ namespace Pyrra.Application.Tests.Usuario {
             Assert.Equal(clock.UtcNow, users.Users.Single(u => u.Id == Alice).UpdatedAt);
         }
 
+        // ---- cor de destaque ----
+
+        [Fact]
+        public async Task UpdateAccentColorAsync_Atualiza() {
+            var alice = MakeUser(Alice, "alice@x.com", "SenhaForte123");
+            var (service, users, clock, _) = Build(alice);
+
+            var updated = await service.UpdateAccentColorAsync(Alice, AccentColor.Roxo);
+
+            Assert.Equal(AccentColor.Roxo, updated.AccentColor);
+            Assert.Equal(clock.UtcNow, users.Users.Single(u => u.Id == Alice).UpdatedAt);
+        }
+
         // ---- exclusão de conta ----
 
         [Fact]

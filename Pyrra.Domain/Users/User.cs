@@ -20,6 +20,10 @@ namespace Pyrra.Domain.Users {
         public TimeOnly EveningNotificationTime { get; set; }
         public UserPlan Plan { get; set; } = UserPlan.Free;
 
+        // cor de destaque escolhida pelo usuário (botões, links, ícones ativos, gráficos, splash,
+        // badges — tudo que hoje usa --color-brand-green no frontend). Verde é o padrão/valor atual.
+        public AccentColor AccentColor { get; set; } = AccentColor.Verde;
+
         // total acumulado, recompensa por conquistas desbloqueadas
         public int Xp { get; set; }
 
@@ -63,5 +67,17 @@ namespace Pyrra.Domain.Users {
     public enum ProfileVisibility {
         Publico,
         SomenteAmigos
+    }
+
+    // Verde primeiro (= 0) de propósito: é o valor padrão de contas novas e existentes depois da
+    // migration, sem precisar de HasDefaultValue explícito no EF.
+    public enum AccentColor {
+        Verde,
+        Azul,
+        Rosa,
+        Roxo,
+        Vermelho,
+        Laranja,
+        Amarelo
     }
 }

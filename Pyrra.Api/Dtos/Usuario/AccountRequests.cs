@@ -15,4 +15,6 @@ namespace Pyrra.Api.Dtos.Usuario {
 
     // nullable só pra dar pro [Required] validar
     public record UpdateProfileVisibilityRequest([Required] ProfileVisibility? Visibility);
+
+    public record UpdateAccentColorRequest([Required] AccentColor? Color);
 }

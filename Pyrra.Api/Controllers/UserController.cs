@@ -153,6 +153,16 @@ namespace Pyrra.Api.Controllers {
             return Ok(UserResponse.FromEntity(user));
         }
 
+        [HttpPatch("cor")]
+        public async Task<ActionResult<UserResponse>> UpdateAccentColor(UpdateAccentColorRequest request, CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            var user = await _accountService.UpdateAccentColorAsync(userId, request.Color!.Value, cancellationToken);
+            return Ok(UserResponse.FromEntity(user));
+        }
+
         // perfil público de terceiro por username — única rota daqui em que o alvo vem da URL, não do token; o token só identifica quem pede, pra regra de visibilidade
         [HttpGet("{username}/perfil")]
         public async Task<ActionResult<PublicProfileResponse>> GetPublicProfile(string username, CancellationToken cancellationToken) {

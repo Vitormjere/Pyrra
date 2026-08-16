@@ -15,6 +15,7 @@ namespace Pyrra.Api.Dtos.Auth {
         string   EveningNotificationTime,
         string   Plan,
         string   ProfileVisibility,
+        string   AccentColor,
         bool     OnboardingCompleted,
         DateTime CreatedAt,
         bool     IsAdmin) {
@@ -30,6 +31,7 @@ namespace Pyrra.Api.Dtos.Auth {
                 user.EveningNotificationTime.ToString("HH:mm"),
                 user.Plan.ToString(),
                 user.ProfileVisibility.ToString(),
+                user.AccentColor.ToString(),
                 user.OnboardingCompletedAt is not null,
                 user.CreatedAt,
                 user.IsAdmin);
