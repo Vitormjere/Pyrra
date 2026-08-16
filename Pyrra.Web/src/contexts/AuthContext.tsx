@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import * as authService from '../services/authService'
 import { clearToken, getToken, setToken } from '../services/tokenStorage'
 import type { AuthResponse, UserResponse } from '../types/auth'
+import { applyAccentColor } from '../utils/accentColors'
 import { AuthContext } from './auth-context'
 
 // contexto e hook ficam em arquivos separados pra não quebrar o fast refresh
@@ -39,6 +40,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       active = false
     }
   }, [])
+
+  // aplica a cor de destaque assim que o usuário é conhecido (login, cadastro, restauração de
+  // sessão, refreshUser, applyUser — todos passam por setUser) e volta pro verde padrão no
+  // logout/deslogado, pra telas públicas (login, cadastro) não ficarem com a cor de uma sessão
+  // anterior
+  useEffect(() => {
+    applyAccentColor(user?.accentColor ?? 'Verde')
+  }, [user])
 
   // login e cadastro caem aqui pra buscar o usuário completo via /auth/me em vez do AuthResponse enxuto
   const startSession = useCallback(async (auth: AuthResponse) => {

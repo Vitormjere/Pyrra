@@ -13,6 +13,10 @@ export type UserPlan = 'Free' | 'Premium'
 // amigos confirmados — pedido pendente não conta.
 export type ProfileVisibility = 'Publico' | 'SomenteAmigos'
 
+// Cor de destaque do app (botões, links, ícones ativos, gráficos, splash, badges). Verde é o
+// padrão/valor histórico — ver utils/accentColors.ts pros hex de cada uma.
+export type AccentColor = 'Verde' | 'Azul' | 'Rosa' | 'Roxo' | 'Vermelho' | 'Laranja' | 'Amarelo'
+
 // POST /api/auth/login e POST /api/auth/register
 export interface AuthResponse {
   userId: string
@@ -41,6 +45,7 @@ export interface UserResponse {
   eveningNotificationTime: string
   plan: UserPlan
   profileVisibility: ProfileVisibility
+  accentColor: AccentColor
   /** true depois que o usuário concluiu ou pulou o onboarding de primeiro acesso. */
   onboardingCompleted: boolean
   createdAt: string

@@ -1,5 +1,5 @@
 import api from './api'
-import type { CommunicationTone, ProfileVisibility, UserResponse } from '../types/auth'
+import type { AccentColor, CommunicationTone, ProfileVisibility, UserResponse } from '../types/auth'
 import type { PublicProfile } from '../types/profile'
 
 export interface UsernameAvailability {
@@ -110,6 +110,12 @@ export async function updateProfileVisibility(
   const { data } = await api.patch<UserResponse>('/api/usuario/privacidade', {
     visibility,
   })
+  return data
+}
+
+// cor de destaque do app inteiro (botões, links, gráficos etc.)
+export async function updateAccentColor(color: AccentColor): Promise<UserResponse> {
+  const { data } = await api.patch<UserResponse>('/api/usuario/cor', { color })
   return data
 }
 

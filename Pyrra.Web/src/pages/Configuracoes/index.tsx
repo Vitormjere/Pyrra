@@ -15,6 +15,7 @@ import {
   deleteAccount,
   removeProfilePicture,
   setUsername as setUsernameApi,
+  updateAccentColor,
   updateName,
   updatePreferences,
   updateProfileVisibility,
@@ -22,8 +23,9 @@ import {
   uploadProfilePicture,
 } from '../../services/userService'
 import { getApiErrorMessage } from '../../services/apiError'
+import { ACCENT_COLOR_HEX, ACCENT_COLOR_LABELS, ACCENT_COLOR_OPTIONS, applyAccentColor } from '../../utils/accentColors'
 import { TIMEZONE_OPTIONS } from '../../utils/timezones'
-import type { CommunicationTone, ProfileVisibility } from '../../types/auth'
+import type { AccentColor, CommunicationTone, ProfileVisibility } from '../../types/auth'
 
 // Mesma regra do backend (UserAccountService.SetProfilePictureAsync) — só pra dar feedback
 // antes de enviar; o backend segue sendo a validação de verdade.
@@ -133,6 +135,10 @@ export function Configuracoes() {
       />
       <PrivacySection
         visibility={user.profileVisibility}
+        onSaved={refreshUser}
+      />
+      <AccentColorSection
+        color={user.accentColor}
         onSaved={refreshUser}
       />
 
@@ -842,6 +848,75 @@ function PrivacySection({
 
       {saving && <p className="text-center text-xs text-slate-500">Salvando…</p>}
       {saved && <p role="status" className="text-center text-xs text-brand-green">Privacidade atualizada.</p>}
+      {error && <p role="alert" className="text-center text-xs text-red-300">{error}</p>}
+    </section>
+  )
+}
+
+// --- Cor do app ---
+
+// Mesmo raciocínio da Privacidade (sem modo leitura/edição, salva no clique) e mesmo padrão
+// visual do seletor de banner de time (círculos clicáveis, check na opção ativa) — só que aqui
+// a cor é aplicada na hora via applyAccentColor, antes mesmo da resposta do servidor chegar,
+// pra não ter nenhum instante sem feedback visual do clique.
+function AccentColorSection({
+  color: initialColor,
+  onSaved,
+}: {
+  color: AccentColor
+  onSaved: () => Promise<void>
+}) {
+  const [color, setColor] = useState(initialColor)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleChange(next: AccentColor) {
+    if (next === color || saving) return
+
+    const previous = color
+    setColor(next)
+    applyAccentColor(next)
+    setSaving(true)
+    setError(null)
+
+    try {
+      await updateAccentColor(next)
+      await onSaved()
+    } catch (err) {
+      setColor(previous)
+      applyAccentColor(previous)
+      setError(getApiErrorMessage(err, {}, 'Não foi possível salvar a cor.'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <section className={cardClasses}>
+      <SectionHeader>Cor do app</SectionHeader>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {ACCENT_COLOR_OPTIONS.map((option) => (
+          <button
+            key={option}
+            type="button"
+            aria-label={ACCENT_COLOR_LABELS[option]}
+            aria-pressed={color === option}
+            disabled={saving}
+            onClick={() => handleChange(option)}
+            style={{ backgroundColor: ACCENT_COLOR_HEX[option] }}
+            className={[
+              'flex size-9 shrink-0 items-center justify-center rounded-full ring-2 transition disabled:opacity-50',
+              color === option ? 'ring-ink' : 'ring-transparent',
+            ].join(' ')}
+          >
+            {color === option && <Check size={16} className="text-brand-dark" />}
+          </button>
+        ))}
+      </div>
+      <p className="text-xs text-slate-500">{ACCENT_COLOR_LABELS[color]}</p>
+
+      {saving && <p className="text-center text-xs text-slate-500">Salvando…</p>}
       {error && <p role="alert" className="text-center text-xs text-red-300">{error}</p>}
     </section>
   )

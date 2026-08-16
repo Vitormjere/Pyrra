@@ -95,23 +95,23 @@
 }
 
 /*
-  Brilho do verde. Utilities nomeadas em vez de valores arbitrários espalhados:
-  o raio e a opacidade do glow são decisão de identidade, e mudá-los deve ser
-  uma edição só.
+  Brilho do verde — na verdade da cor de destaque escolhida, ver comentário acima. Utilities
+  nomeadas em vez de valores arbitrários espalhados: o raio e a opacidade do glow são decisão de
+  identidade, e mudá-los deve ser uma edição só.
 
   drop-shadow (e não box-shadow) no anel e nos ícones porque eles são SVG — o
   box-shadow seguiria a caixa retangular do elemento, não o traço desenhado.
 */
 @utility glow-ring {
-  filter: drop-shadow(0 0 8px rgb(2 245 161 / 0.75));
+  filter: drop-shadow(0 0 8px rgb(var(--brand-green-rgb) / 0.75));
 }
 
 @utility glow-icon {
-  filter: drop-shadow(0 0 7px rgb(2 245 161 / 0.7));
+  filter: drop-shadow(0 0 7px rgb(var(--brand-green-rgb) / 0.7));
 }
 
 @utility glow-text {
-  text-shadow: 0 0 13px rgb(2 245 161 / 0.62);
+  text-shadow: 0 0 13px rgb(var(--brand-green-rgb) / 0.62);
 }
 
 /* Glow branco, mais fraco que o verde de propósito: ele agora cobre bastante
@@ -189,9 +189,14 @@
   /* App é dark-only por enquanto: o fundo escuro e o texto claro vivem no body,
      e nenhuma tela precisa repetir isso. color-scheme: dark faz o navegador
      acompanhar — scrollbar, autofill e controles nativos saem escuros também,
-     que é o detalhe que denuncia um dark mode meia-boca. */
+     que é o detalhe que denuncia um dark mode meia-boca.
+
+     --brand-green-rgb: componentes R G B de --color-brand-green (não dá pra derivar isso de um
+     hex em CSS puro), usado pelos utilities de glow acima pra montar um rgb(... / alpha).
+     applyAccentColor (utils/accentColors.ts) sobrescreve as duas variáveis juntas. */
   html {
     color-scheme: dark;
+    --brand-green-rgb: 2 245 161;
   }
 
   /* O padrão herdado fica um degrau abaixo do ink: quem precisa de destaque

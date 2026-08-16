@@ -56,8 +56,8 @@ export function BalanceChart({ history, days }: BalanceChartProps) {
                   pelo fill da Area abaixo. */}
               <defs>
                 <linearGradient id="balanceGlow" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#02F5A1" stopOpacity={0.4} />
-                  <stop offset="100%" stopColor="#02F5A1" stopOpacity={0} />
+                  <stop offset="0%" stopColor="var(--color-brand-green)" stopOpacity={0.4} />
+                  <stop offset="100%" stopColor="var(--color-brand-green)" stopOpacity={0} />
                 </linearGradient>
               </defs>
 
@@ -111,15 +111,15 @@ export function BalanceChart({ history, days }: BalanceChartProps) {
               <Line
                 type="monotone"
                 dataKey="balance"
-                stroke="#02F5A1"
+                stroke="var(--color-brand-green)"
                 strokeWidth={2}
                 // glow inline porque o recharts renderiza a linha no próprio SVG, fora do alcance de classe do contêiner
                 style={{
-                  filter: 'drop-shadow(0 0 6px rgb(2 245 161 / 0.55))',
+                  filter: 'drop-shadow(0 0 6px rgb(var(--brand-green-rgb) / 0.55))',
                 }}
                 // sem bolinha por ponto — com 30 pontos vira poluição visual, só o ponto do cursor aparece
                 dot={false}
-                activeDot={{ r: 4, fill: '#02F5A1' }}
+                activeDot={{ r: 4, fill: 'var(--color-brand-green)' }}
               />
             </ComposedChart>
           </ResponsiveContainer>
