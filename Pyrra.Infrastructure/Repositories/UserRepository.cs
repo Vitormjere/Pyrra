@@ -28,6 +28,9 @@ namespace Pyrra.Infrastructure.Repositories {
         public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
             ActiveUsers.FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
 
+        public Task<User?> GetByGoogleIdAsync(string googleId, CancellationToken cancellationToken = default) =>
+            ActiveUsers.FirstOrDefaultAsync(u => u.GoogleId == googleId, cancellationToken);
+
         public Task<User?> GetByUsernameAsync(string username, CancellationToken cancellationToken = default) =>
             ActiveUsers.FirstOrDefaultAsync(u => u.Username == username, cancellationToken);
 
@@ -74,6 +77,10 @@ namespace Pyrra.Infrastructure.Repositories {
                 throw new UsernameAlreadyTakenException(user.Username ?? string.Empty);
             } catch (DbUpdateException ex) when (IsUniqueViolation(ex, "IX_Users_Email")) {
                 throw new EmailAlreadyRegisteredException(user.Email);
+            } catch (DbUpdateException ex) when (IsUniqueViolation(ex, "IX_Users_GoogleId")) {
+                // corrida rara: duas requisições tentando vincular a mesma conta Google ao mesmo
+                // tempo — não tem um "já existe" específico pra isso, é só pedir pra repetir
+                throw new GoogleAuthFailedException();
             }
         }
 
@@ -85,6 +92,8 @@ namespace Pyrra.Infrastructure.Repositories {
                 throw new UsernameAlreadyTakenException(user.Username ?? string.Empty);
             } catch (DbUpdateException ex) when (IsUniqueViolation(ex, "IX_Users_Email")) {
                 throw new EmailAlreadyRegisteredException(user.Email);
+            } catch (DbUpdateException ex) when (IsUniqueViolation(ex, "IX_Users_GoogleId")) {
+                throw new GoogleAuthFailedException();
             }
         }
 

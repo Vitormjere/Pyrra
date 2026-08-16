@@ -9,6 +9,9 @@ namespace Pyrra.Application.Common.Interfaces {
         Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default);
         Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
+        // "sub" do token do Google — ver User.GoogleId
+        Task<User?> GetByGoogleIdAsync(string googleId, CancellationToken cancellationToken = default);
+
         Task<User?> GetByUsernameAsync(string username, CancellationToken cancellationToken = default);
 
         // inclui contas excluídas — username e email de conta excluída ficam reservados de propósito (ver DeletedAt em User), então checagem de disponibilidade precisa enxergar essas linhas mesmo que o resto da aplicação as ignore

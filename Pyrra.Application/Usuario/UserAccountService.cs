@@ -173,6 +173,11 @@ namespace Pyrra.Application.Usuario {
         }
 
         private void VerifyPassword(User user, string currentPassword) {
+            // conta só-Google: não tem hash pra verificar contra nada, então qualquer senha é "errada"
+            if (user.PasswordHash is null) {
+                throw new IncorrectPasswordException();
+            }
+
             var result = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, currentPassword ?? string.Empty);
             if (result == PasswordVerificationResult.Failed) {
                 throw new IncorrectPasswordException();

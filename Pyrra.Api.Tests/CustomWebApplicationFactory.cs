@@ -49,6 +49,11 @@ namespace Pyrra.Api.Tests {
                 // que sempre aprova — os testes daqui não avaliam CAPTCHA, só rate limit/lockout
                 services.RemoveAll<ICaptchaVerificationService>();
                 services.AddScoped<ICaptchaVerificationService, AlwaysPassCaptchaVerificationService>();
+
+                // mesma lógica pro login com Google — sem isso, qualquer teste que bata em
+                // /api/auth/google chamaria a API de verdade do Google
+                services.RemoveAll<IGoogleTokenVerifier>();
+                services.AddScoped<IGoogleTokenVerifier, FakeGoogleTokenVerifier>();
             });
         }
     }
@@ -56,5 +61,14 @@ namespace Pyrra.Api.Tests {
     internal sealed class AlwaysPassCaptchaVerificationService : ICaptchaVerificationService {
         public Task<bool> VerifyAsync(string token, CancellationToken cancellationToken = default) =>
             Task.FromResult(true);
+    }
+
+    // qualquer token não vazio devolve um usuário Google válido — testes de integração daqui
+    // não cobrem o SDK do Google em si (isso é coberto pelos testes unitários de AuthService)
+    internal sealed class FakeGoogleTokenVerifier : IGoogleTokenVerifier {
+        public Task<GoogleUserInfo?> VerifyAsync(string idToken, CancellationToken cancellationToken = default) =>
+            Task.FromResult(string.IsNullOrWhiteSpace(idToken)
+                ? null
+                : new GoogleUserInfo($"google-sub-{idToken}", $"{idToken}@google-test.local", EmailVerified: true, "Teste Google"));
     }
 }

@@ -63,6 +63,9 @@ namespace Pyrra.Application.Tests.Comunidade {
         public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
             Task.FromResult(Active.FirstOrDefault(u => u.Id == id));
 
+        public Task<User?> GetByGoogleIdAsync(string googleId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Active.FirstOrDefault(u => u.GoogleId == googleId));
+
         public Task<User?> GetByUsernameAsync(string username, CancellationToken cancellationToken = default) =>
             Task.FromResult(Active.FirstOrDefault(u => u.Username == username));
 

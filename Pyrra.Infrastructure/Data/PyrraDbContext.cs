@@ -88,6 +88,16 @@ namespace Pyrra.Infrastructure.Data {
                 .IsUnique()
                 .HasFilter("[InviteToken] IS NOT NULL");
 
+            // "sub" do Google é numérico e bem mais curto que isso na prática, 64 só dá folga
+            modelBuilder.Entity<User>()
+                .Property(u => u.GoogleId)
+                .HasMaxLength(64);
+
+            modelBuilder.Entity<User>()
+                .HasIndex(u => u.GoogleId)
+                .IsUnique()
+                .HasFilter("[GoogleId] IS NOT NULL");
+
             // rótulo curto de tela ("beber agua") 
             modelBuilder.Entity<DailyFocus>()
                 .Property(f => f.Name)

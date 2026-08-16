@@ -16,24 +16,27 @@ namespace Pyrra.Application.Auth {
         private const int MaxFailedLoginAttempts = 3;
         private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
 
-        private readonly IUserRepository            _userRepository;
-        private readonly IPasswordHasher<User>      _passwordHasher;
-        private readonly ITokenService              _tokenService;
-        private readonly ICaptchaVerificationService _captchaVerification;
-        private readonly IClockService              _clock;
-        private readonly JwtSettings                _jwtSettings;
+        private readonly IUserRepository             _userRepository;
+        private readonly IPasswordHasher<User>       _passwordHasher;
+        private readonly ITokenService               _tokenService;
+        private readonly ICaptchaVerificationService  _captchaVerification;
+        private readonly IGoogleTokenVerifier         _googleTokenVerifier;
+        private readonly IClockService                _clock;
+        private readonly JwtSettings                  _jwtSettings;
 
         public AuthService(
             IUserRepository              userRepository,
             IPasswordHasher<User>        passwordHasher,
             ITokenService                tokenService,
             ICaptchaVerificationService  captchaVerification,
+            IGoogleTokenVerifier         googleTokenVerifier,
             IClockService                clock,
             IOptions<JwtSettings>        jwtOptions) {
             _userRepository      = userRepository;
             _passwordHasher      = passwordHasher;
             _tokenService        = tokenService;
             _captchaVerification = captchaVerification;
+            _googleTokenVerifier = googleTokenVerifier;
             _clock               = clock;
             _jwtSettings         = jwtOptions.Value;
         }
@@ -83,6 +86,12 @@ namespace Pyrra.Application.Auth {
                 throw new AccountLockedException(lockedUntil, now);
             }
 
+            // conta só-Google (nunca teve senha própria) — sem hash pra verificar, sempre falha,
+            // mas sem contar como tentativa: não é o dono errando a senha, é a senha nem existir
+            if (user.PasswordHash is null) {
+                throw new InvalidCredentialsException();
+            }
+
             var verificationResult = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, password);
             if (verificationResult == PasswordVerificationResult.Failed) {
                 user.FailedLoginAttempts++;
@@ -108,6 +117,62 @@ namespace Pyrra.Application.Auth {
             }
 
             return BuildAuthResult(user);
+        }
+
+        public async Task<AuthResult> LoginWithGoogleAsync(string idToken, CancellationToken cancellationToken = default) {
+            var googleUser = await _googleTokenVerifier.VerifyAsync(idToken, cancellationToken);
+            // e-mail não confirmado do lado do Google não serve como prova de identidade —
+            // recusar aqui evita alguém logar com um e-mail que não é realmente dono
+            if (googleUser is null || !googleUser.EmailVerified) {
+                throw new GoogleAuthFailedException();
+            }
+
+            var now = _clock.UtcNow;
+
+            var byGoogleId = await _userRepository.GetByGoogleIdAsync(googleUser.Sub, cancellationToken);
+            if (byGoogleId is not null) {
+                await ClearLockoutIfAnyAsync(byGoogleId, now, cancellationToken);
+                return BuildAuthResult(byGoogleId);
+            }
+
+            var normalizedEmail = googleUser.Email.Trim().ToLowerInvariant();
+            var byEmail = await _userRepository.GetByEmailAsync(normalizedEmail, cancellationToken);
+            if (byEmail is not null) {
+                // vincula: conta já existia (criada por e-mail/senha), não duplica — mesmo e-mail,
+                // já verificado pelo Google, é prova suficiente de que é a mesma pessoa
+                byEmail.GoogleId  = googleUser.Sub;
+                byEmail.UpdatedAt = now;
+                await _userRepository.UpdateAsync(byEmail, cancellationToken);
+                await ClearLockoutIfAnyAsync(byEmail, now, cancellationToken);
+                return BuildAuthResult(byEmail);
+            }
+
+            var user = new User {
+                Id        = Guid.NewGuid(),
+                Email     = normalizedEmail,
+                Name      = googleUser.Name,
+                GoogleId  = googleUser.Sub,
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+            await _userRepository.AddAsync(user, cancellationToken);
+
+            return BuildAuthResult(user);
+        }
+
+        // um login com Google bem-sucedido é prova de identidade tão boa quanto a senha certa —
+        // limpa qualquer bloqueio/tentativas pendentes da mesma forma que LoginAsync faz.
+        // LockedUntil nunca é checado aqui: o lockout existe pra brute-force de SENHA, que essa
+        // rota nem usa.
+        private async Task ClearLockoutIfAnyAsync(User user, DateTime now, CancellationToken cancellationToken) {
+            if (user.FailedLoginAttempts == 0 && user.LockedUntil is null) {
+                return;
+            }
+
+            user.FailedLoginAttempts = 0;
+            user.LockedUntil         = null;
+            user.UpdatedAt           = now;
+            await _userRepository.UpdateAsync(user, cancellationToken);
         }
 
         private AuthResult BuildAuthResult(User user) {

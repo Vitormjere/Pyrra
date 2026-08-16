@@ -161,6 +161,7 @@ builder.Services.AddRateLimiter(options => {
 
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
 builder.Services.Configure<CaptchaSettings>(builder.Configuration.GetSection("Captcha"));
+builder.Services.Configure<GoogleAuthSettings>(builder.Configuration.GetSection("GoogleAuth"));
 
 var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>()
     ?? throw new InvalidOperationException("Seção 'Jwt' não encontrada em appsettings.json.");
@@ -208,6 +209,10 @@ builder.Services.AddHttpClient("HCaptchaClient", client => {
     client.Timeout = TimeSpan.FromSeconds(10);
 });
 builder.Services.AddScoped<ICaptchaVerificationService, HCaptchaVerificationService>();
+
+// Login com Google — só verificação de ID token (sem client secret: o SDK confere a
+// assinatura contra as chaves públicas do Google, não troca código por token)
+builder.Services.AddScoped<IGoogleTokenVerifier, GoogleTokenVerifier>();
 
 builder.Services.AddScoped<IDailyFocusRepository, DailyFocusRepository>();
 builder.Services.AddScoped<IDailyFocusService, DailyFocusService>();

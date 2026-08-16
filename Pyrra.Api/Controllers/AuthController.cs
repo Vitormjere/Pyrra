@@ -53,6 +53,19 @@ namespace Pyrra.Api.Controllers {
             }
         }
 
+        // mesma política de rate limit do login por senha — é outra forma de entrar, merece a
+        // mesma proteção contra abuso (mesmo que aqui o "ataque" seja só martelar tokens inválidos)
+        [EnableRateLimiting("AuthLogin")]
+        [HttpPost("google")]
+        public async Task<ActionResult<AuthResponse>> GoogleLogin(GoogleLoginRequest request, CancellationToken cancellationToken) {
+            try {
+                var result = await _authService.LoginWithGoogleAsync(request.IdToken, cancellationToken);
+                return Ok(ToResponse(result));
+            } catch (GoogleAuthFailedException ex) {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
         [Authorize]
         [HttpGet("me")]
         public async Task<ActionResult<UserResponse>> Me(CancellationToken cancellationToken) {

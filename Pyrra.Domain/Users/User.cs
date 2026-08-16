@@ -4,8 +4,16 @@ namespace Pyrra.Domain.Users {
     public class User {
         public Guid Id { get; set; }
         public string Email { get; set; } = string.Empty;
-        public string PasswordHash { get; set; } = string.Empty;
+
+        // nulo pra conta criada só via Google (sem senha própria) — LoginAsync recusa login por
+        // senha nesse caso em vez de tentar verificar contra hash nenhum
+        public string? PasswordHash { get; set; }
+
         public string Name { get; set; } = string.Empty;
+
+        // "sub" do token do Google — nulo até a conta ser criada ou vinculada via login com
+        // Google (ver AuthService.LoginWithGoogleAsync). Único quando presente.
+        public string? GoogleId { get; set; }
 
         // nulo até o usuário escolher um (contas antigas, principalmente)
         public string? Username { get; set; }
