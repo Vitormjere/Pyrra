@@ -76,12 +76,20 @@ export function Login() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label
-              htmlFor="password"
-              className="text-sm font-medium text-slate-300"
-            >
-              Senha
-            </label>
+            <div className="flex items-center justify-between">
+              <label
+                htmlFor="password"
+                className="text-sm font-medium text-slate-300"
+              >
+                Senha
+              </label>
+              <Link
+                to="/esqueci-senha"
+                className="text-xs font-medium text-slate-400 transition hover:text-brand-green"
+              >
+                Esqueceu a senha?
+              </Link>
+            </div>
             <PasswordInput
               id="password"
               value={password}

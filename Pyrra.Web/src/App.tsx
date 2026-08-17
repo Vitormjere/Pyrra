@@ -19,11 +19,13 @@ import AdminSolicitacoes from './pages/Admin/Solicitacoes'
 import Amigos from './pages/Amigos'
 import Cadastro from './pages/Cadastro'
 import Configuracoes from './pages/Configuracoes'
+import ConfirmarEmail from './pages/ConfirmarEmail'
 import Convite from './pages/Convite'
 import ConviteTime from './pages/ConviteTime'
 import ConviteTorneio from './pages/ConviteTorneio'
 import Diario from './pages/Diario'
 import EscolherUsername from './pages/EscolherUsername'
+import EsqueciSenha from './pages/EsqueciSenha'
 import Financas from './pages/Financas'
 import Hoje from './pages/Hoje'
 import Login from './pages/Login'
@@ -31,6 +33,7 @@ import Nutricao from './pages/Nutricao'
 import Onboarding from './pages/Onboarding'
 import Perfil from './pages/Perfil'
 import PerfilPublico from './pages/PerfilPublico'
+import RedefinirSenha from './pages/RedefinirSenha'
 import Suporte from './pages/Suporte'
 import Tarefas from './pages/Tarefas'
 import Termos from './pages/Termos'
@@ -59,6 +62,9 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/cadastro" element={<Cadastro />} />
           <Route path="/termos" element={<Termos />} />
+          <Route path="/esqueci-senha" element={<EsqueciSenha />} />
+          <Route path="/redefinir-senha" element={<RedefinirSenha />} />
+          <Route path="/confirmar-email" element={<ConfirmarEmail />} />
 
           {/* Convite é público de propósito: quem abre deslogado precisa chegar aqui para o token
               ser guardado antes do redirect ao login. Logado, envia o pedido na hora. */}

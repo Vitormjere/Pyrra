@@ -28,3 +28,17 @@ export async function me(): Promise<UserResponse> {
   const { data } = await api.get<UserResponse>('/api/auth/me')
   return data
 }
+
+export async function confirmEmail(token: string): Promise<void> {
+  await api.post('/api/auth/confirmar-email', { token })
+}
+
+// sempre resolve com sucesso — a API responde 200 com a mesma mensagem genérica exista ou não
+// o e-mail, de propósito (evita descobrir contas cadastradas por essa via)
+export async function forgotPassword(email: string): Promise<void> {
+  await api.post('/api/auth/esqueci-senha', { email })
+}
+
+export async function resetPassword(token: string, newPassword: string): Promise<void> {
+  await api.post('/api/auth/redefinir-senha', { token, newPassword })
+}
