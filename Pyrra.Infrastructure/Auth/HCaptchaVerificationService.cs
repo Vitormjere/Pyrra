@@ -57,7 +57,18 @@ namespace Pyrra.Infrastructure.Auth {
             try {
                 var json = await response.Content.ReadAsStringAsync(cancellationToken);
                 using var doc = JsonDocument.Parse(json);
-                return doc.RootElement.TryGetProperty("success", out var success) && success.GetBoolean();
+                var success = doc.RootElement.TryGetProperty("success", out var successProp) && successProp.GetBoolean();
+
+                // 200 com success:false é resposta normal do hCaptcha (não erro de rede/HTTP),
+                // então cai fora do catch acima — sem logar aqui, "por que" a verificação falhou
+                // fica invisível (só se sabe que falhou, não a causa: token expirado, secret/site
+                // key incompatíveis, token repetido etc.)
+                if (!success) {
+                    var errorCodes = doc.RootElement.TryGetProperty("error-codes", out var codes) ? codes.ToString() : "(nenhum)";
+                    _logger.LogWarning("hCaptcha recusou o token — error-codes: {ErrorCodes}", errorCodes);
+                }
+
+                return success;
             } catch (Exception ex) {
                 _logger.LogError(ex, "Não foi possível ler a resposta do hCaptcha.");
                 return false;
