@@ -1,0 +1,16 @@
+{
+  "name": "Pyrra",
+  "short_name": "Pyrra",
+  "description": "Pyrra é o app que organiza sua rotina: hábitos com streak, treino e nutrição, tarefas, finanças e um assistente de IA (Zelo) que monta seus planos automaticamente.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#05090A",
+  "theme_color": "#02F5A1",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
