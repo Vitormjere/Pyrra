@@ -29,6 +29,7 @@ import EsqueciSenha from './pages/EsqueciSenha'
 import Financas from './pages/Financas'
 import Hoje from './pages/Hoje'
 import Login from './pages/Login'
+import NotFound from './pages/NotFound'
 import Nutricao from './pages/Nutricao'
 import Onboarding from './pages/Onboarding'
 import Perfil from './pages/Perfil'
@@ -158,10 +159,9 @@ function App() {
             </Route>
           </Route>
 
-          {/* "/" e rotas desconhecidas caem em /hoje, que por ser protegida
-              devolve ao login quem não tem sessão. */}
+          {/* "/" cai em /hoje, que por ser protegida devolve ao login quem não tem sessão. */}
           <Route path="/" element={<Navigate to="/hoje" replace />} />
-          <Route path="*" element={<Navigate to="/hoje" replace />} />
+          <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
       </BrowserRouter>
