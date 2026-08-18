@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://pyrra.com.br/sitemap.xml
+Sitemap: https://www.pyrra.com.br/sitemap.xml
