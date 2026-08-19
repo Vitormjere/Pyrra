@@ -1,4 +1,5 @@
 import { GoogleOAuthProvider } from '@react-oauth/google'
+import { Suspense, lazy } from 'react'
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
 import RequireAdmin from './components/RequireAdmin'
@@ -29,7 +30,6 @@ import EsqueciSenha from './pages/EsqueciSenha'
 import Financas from './pages/Financas'
 import Hoje from './pages/Hoje'
 import Login from './pages/Login'
-import NotFound from './pages/NotFound'
 import Nutricao from './pages/Nutricao'
 import Onboarding from './pages/Onboarding'
 import Perfil from './pages/Perfil'
@@ -47,6 +47,10 @@ import TorneioDetalhe from './pages/Torneios/Detalhe'
 import Torneios from './pages/Torneios'
 import Treino from './pages/Treino'
 import Zelo from './pages/Zelo'
+
+// Lazy: a página traz Three.js (cena 3D só dela), então isolar num chunk à parte evita
+// que quem nunca cai numa 404 baixe esse peso no bundle principal.
+const NotFound = lazy(() => import('./pages/NotFound'))
 
 // site ID é público (vai pro HTML), mas mesmo assim não fica commitado — mesma lógica da
 // VITE_HCAPTCHA_SITE_KEY: Pyrra.Web/.env.local em dev, variável de ambiente do Vercel em produção
@@ -161,7 +165,14 @@ function App() {
 
           {/* "/" cai em /hoje, que por ser protegida devolve ao login quem não tem sessão. */}
           <Route path="/" element={<Navigate to="/hoje" replace />} />
-          <Route path="*" element={<NotFound />} />
+          <Route
+            path="*"
+            element={
+              <Suspense fallback={null}>
+                <NotFound />
+              </Suspense>
+            }
+          />
           </Routes>
         </AuthProvider>
       </BrowserRouter>

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
+import NotFoundScene from './Scene'
 
 // pública, fora do guard de sessão — é o catch-all de qualquer URL desconhecida, então precisa
 // funcionar tanto para quem está logado quanto para quem não está
@@ -9,6 +10,10 @@ export function NotFound() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center px-4 py-12">
+      <div className="h-56 w-56 sm:h-64 sm:w-64">
+        <NotFoundScene />
+      </div>
+
       <div className="w-full max-w-sm text-center">
         <p className="font-display text-6xl font-semibold tracking-tight text-brand-green">
           404
