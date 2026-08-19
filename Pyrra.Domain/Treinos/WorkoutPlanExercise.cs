@@ -1,14 +1,15 @@
 using System;
-using Pyrra.Domain.Common;
 
 namespace Pyrra.Domain.Treinos {
-    // exercício previsto pra um dia da semana 
+    // exercício previsto pra um dia — vinculado ao WorkoutPlanDay por FK (não mais por DayOfWeek
+    // duplicado), então trocar um treino de dia de semana é só um update no WorkoutPlanDay: os
+    // exercícios acompanham automaticamente, sem precisar realocar linha nenhuma
     public class WorkoutPlanExercise {
         public Guid Id { get; set; }
         public Guid UserId { get; set; }
-        public WeekDay DayOfWeek { get; set; }
+        public Guid WorkoutPlanDayId { get; set; }
 
-        // modalidade, reaproveitando o enum do WorkoutLog 
+        // modalidade, reaproveitando o enum do WorkoutLog
         public WorkoutType Type { get; set; }
 
         // em Academia é o exercício ("Supino reto"), em Corrida é a descrição curta do treino ("5km leve", "tiros 6x400m")

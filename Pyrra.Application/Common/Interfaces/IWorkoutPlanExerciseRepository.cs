@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Pyrra.Domain.Common;
 using Pyrra.Domain.Treinos;
 
 namespace Pyrra.Application.Common.Interfaces {
@@ -10,7 +9,7 @@ namespace Pyrra.Application.Common.Interfaces {
         // exercícios do usuário na ordem de exibição
         Task<IReadOnlyList<WorkoutPlanExercise>> GetByUserAsync(Guid userId, CancellationToken cancellationToken = default);
 
-        Task<IReadOnlyList<WorkoutPlanExercise>> GetByUserAndDayAsync(Guid userId, WeekDay dayOfWeek, CancellationToken cancellationToken = default);
+        Task<IReadOnlyList<WorkoutPlanExercise>> GetByWorkoutPlanDayIdAsync(Guid workoutPlanDayId, CancellationToken cancellationToken = default);
 
         Task<WorkoutPlanExercise?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
         Task AddAsync(WorkoutPlanExercise exercise, CancellationToken cancellationToken = default);
@@ -22,8 +21,8 @@ namespace Pyrra.Application.Common.Interfaces {
         // deixa vazios (os "órfãos" que a sobrescrita não pode deixar).
         Task ReplaceAllForUserAsync(Guid userId, IReadOnlyList<WorkoutPlanExercise> exercises, CancellationToken cancellationToken = default);
 
-        // mesma ideia, mas escopada a UM dia — usada pela edição pontual do Zelo via chat livre, que
-        // não pode mexer em dias que o usuário não pediu pra trocar
-        Task ReplaceForDayAsync(Guid userId, WeekDay dayOfWeek, IReadOnlyList<WorkoutPlanExercise> exercises, CancellationToken cancellationToken = default);
+        // mesma ideia, mas escopada a UM dia (por WorkoutPlanDayId) — usada pela edição pontual do
+        // Zelo via chat livre, que não pode mexer em dias que o usuário não pediu pra trocar
+        Task ReplaceForDayAsync(Guid userId, Guid workoutPlanDayId, IReadOnlyList<WorkoutPlanExercise> exercises, CancellationToken cancellationToken = default);
     }
 }

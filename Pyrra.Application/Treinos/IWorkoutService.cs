@@ -31,6 +31,10 @@ namespace Pyrra.Application.Treinos {
         // salva o plano mantendo os dias não enviados
         Task<IReadOnlyList<WorkoutPlanDay>> SavePlanAsync(Guid userId, IReadOnlyList<WorkoutPlanDay> days, CancellationToken cancellationToken = default);
 
+        // troca dois dias de lugar — atualiza só o DayOfWeek de cada um, os exercícios (ligados por
+        // FK) acompanham automaticamente, sem realocar nenhuma linha de exercício
+        Task SwapPlanDaysAsync(Guid userId, WeekDay dayA, WeekDay dayB, CancellationToken cancellationToken = default);
+
         // retorna o plano com temas e exercícios
         Task<IReadOnlyList<WorkoutPlanDayWithExercises>> GetPlanWithExercisesAsync(Guid userId, CancellationToken cancellationToken = default);
 

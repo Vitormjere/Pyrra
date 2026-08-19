@@ -5,7 +5,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Pyrra.Application.Common.Interfaces;
-using Pyrra.Domain.Common;
 using Pyrra.Domain.Treinos;
 using Pyrra.Infrastructure.Data;
 
@@ -20,13 +19,13 @@ namespace Pyrra.Infrastructure.Repositories {
         public async Task<IReadOnlyList<WorkoutPlanExercise>> GetByUserAsync(Guid userId, CancellationToken cancellationToken = default) =>
             await _context.WorkoutPlanExercises
                 .Where(e => e.UserId == userId)
-                .OrderBy(e => e.DayOfWeek)
+                .OrderBy(e => e.WorkoutPlanDayId)
                 .ThenBy(e => e.Order)
                 .ToListAsync(cancellationToken);
 
-        public async Task<IReadOnlyList<WorkoutPlanExercise>> GetByUserAndDayAsync(Guid userId, WeekDay dayOfWeek, CancellationToken cancellationToken = default) =>
+        public async Task<IReadOnlyList<WorkoutPlanExercise>> GetByWorkoutPlanDayIdAsync(Guid workoutPlanDayId, CancellationToken cancellationToken = default) =>
             await _context.WorkoutPlanExercises
-                .Where(e => e.UserId == userId && e.DayOfWeek == dayOfWeek)
+                .Where(e => e.WorkoutPlanDayId == workoutPlanDayId)
                 .OrderBy(e => e.Order)
                 .ToListAsync(cancellationToken);
 
@@ -56,10 +55,10 @@ namespace Pyrra.Infrastructure.Repositories {
             await _context.SaveChangesAsync(cancellationToken);
         }
 
-        // mesmo padrão de ReplaceAllForUserAsync, só que filtrado por dia — os outros 6 dias não são tocados
-        public async Task ReplaceForDayAsync(Guid userId, WeekDay dayOfWeek, IReadOnlyList<WorkoutPlanExercise> exercises, CancellationToken cancellationToken = default) {
+        // mesmo padrão de ReplaceAllForUserAsync, só que filtrado por dia — os outros dias não são tocados
+        public async Task ReplaceForDayAsync(Guid userId, Guid workoutPlanDayId, IReadOnlyList<WorkoutPlanExercise> exercises, CancellationToken cancellationToken = default) {
             var existing = await _context.WorkoutPlanExercises
-                .Where(e => e.UserId == userId && e.DayOfWeek == dayOfWeek)
+                .Where(e => e.UserId == userId && e.WorkoutPlanDayId == workoutPlanDayId)
                 .ToListAsync(cancellationToken);
 
             _context.WorkoutPlanExercises.RemoveRange(existing);

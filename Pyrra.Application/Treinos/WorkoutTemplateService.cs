@@ -49,7 +49,10 @@ namespace Pyrra.Application.Treinos {
                 })
                 .ToList();
 
-            await _planDayRepository.UpsertManyAsync(userId, days, cancellationToken);
+            // UpsertMany devolve as linhas persistidas (com Id real) na mesma ordem — é o que permite
+            // montar o WorkoutPlanDayId de cada exercício abaixo sem uma segunda consulta.
+            var persistedDays = await _planDayRepository.UpsertManyAsync(userId, days, cancellationToken);
+            var dayIdByDayOfWeek = persistedDays.ToDictionary(d => d.DayOfWeek, d => d.Id);
 
             // Exercícios: cópia 1:1, todos como Academia (o catálogo é só de musculação). O Order
             // vem do template, preservando a sequência dentro do dia. ReplaceAll apaga os
@@ -59,14 +62,14 @@ namespace Pyrra.Application.Treinos {
                 .SelectMany(day => day.Exercises
                     .OrderBy(e => e.Order)
                     .Select(e => new WorkoutPlanExercise {
-                        Id           = Guid.NewGuid(),
-                        UserId       = userId,
-                        DayOfWeek    = day.DayOfWeek,
-                        Type         = WorkoutType.Academia,
-                        ExerciseName = e.ExerciseName,
-                        Sets         = e.Sets,
-                        Reps         = e.Reps,
-                        Order        = e.Order
+                        Id               = Guid.NewGuid(),
+                        UserId           = userId,
+                        WorkoutPlanDayId = dayIdByDayOfWeek[day.DayOfWeek],
+                        Type             = WorkoutType.Academia,
+                        ExerciseName     = e.ExerciseName,
+                        Sets             = e.Sets,
+                        Reps             = e.Reps,
+                        Order            = e.Order
                     }))
                 .ToList();
 

@@ -60,21 +60,25 @@ namespace Pyrra.Application.Tests.Treinos {
         [Fact]
         public async Task ApplyAsync_CopiaExerciciosDoTemplateParaOPlanoDoUsuario() {
             var template = SampleTemplate();
-            var (service, _, exRepo) = BuildService(template);
+            var (service, dayRepo, exRepo) = BuildService(template);
 
             await service.ApplyAsync(UserId, template.Id);
 
             // Três exercícios no total (2 na Segunda, 1 na Quarta); os dias de descanso não geram nada.
             Assert.Equal(3, exRepo.Exercises.Count);
 
-            var segunda = exRepo.Exercises.Where(e => e.DayOfWeek == WeekDay.Segunda).OrderBy(e => e.Order).ToList();
+            var segundaId = dayRepo.Days.Single(d => d.UserId == UserId && d.DayOfWeek == WeekDay.Segunda).Id;
+            var quartaId  = dayRepo.Days.Single(d => d.UserId == UserId && d.DayOfWeek == WeekDay.Quarta).Id;
+            var tercaId   = dayRepo.Days.Single(d => d.UserId == UserId && d.DayOfWeek == WeekDay.Terca).Id;
+
+            var segunda = exRepo.Exercises.Where(e => e.WorkoutPlanDayId == segundaId).OrderBy(e => e.Order).ToList();
             Assert.Equal(new[] { "Supino reto", "Tríceps corda" }, segunda.Select(e => e.ExerciseName));
             Assert.Equal(4, segunda[0].Sets);
             Assert.Equal(10, segunda[0].Reps);
             Assert.Equal(new[] { 0, 1 }, segunda.Select(e => e.Order));
 
-            Assert.Single(exRepo.Exercises, e => e.DayOfWeek == WeekDay.Quarta);
-            Assert.DoesNotContain(exRepo.Exercises, e => e.DayOfWeek == WeekDay.Terca);
+            Assert.Single(exRepo.Exercises, e => e.WorkoutPlanDayId == quartaId);
+            Assert.DoesNotContain(exRepo.Exercises, e => e.WorkoutPlanDayId == tercaId);
         }
 
         [Fact]
@@ -116,19 +120,23 @@ namespace Pyrra.Application.Tests.Treinos {
 
             // Semana anterior: exercícios em dias que o novo template não preenche (Sexta) e um dia
             // que ele transforma em descanso (Quinta). Nenhum pode sobrar depois da aplicação.
+            var sextaDay   = new WorkoutPlanDay { Id = Guid.NewGuid(), UserId = UserId, DayOfWeek = WeekDay.Sexta, Label = "Peito antigo" };
+            var quintaDay  = new WorkoutPlanDay { Id = Guid.NewGuid(), UserId = UserId, DayOfWeek = WeekDay.Quinta, Label = null };
+            var segundaDay = new WorkoutPlanDay { Id = Guid.NewGuid(), UserId = UserId, DayOfWeek = WeekDay.Segunda, Label = null };
+            dayRepo.Days.AddRange(new[] { sextaDay, quintaDay, segundaDay });
+
             exRepo.Exercises.AddRange(new[] {
-                new WorkoutPlanExercise { Id = Guid.NewGuid(), UserId = UserId, DayOfWeek = WeekDay.Sexta, Type = WorkoutType.Academia, ExerciseName = "Antigo Sexta", Sets = 3, Reps = 10, Order = 0 },
-                new WorkoutPlanExercise { Id = Guid.NewGuid(), UserId = UserId, DayOfWeek = WeekDay.Quinta, Type = WorkoutType.Academia, ExerciseName = "Antigo Quinta", Sets = 3, Reps = 10, Order = 0 },
-                new WorkoutPlanExercise { Id = Guid.NewGuid(), UserId = UserId, DayOfWeek = WeekDay.Segunda, Type = WorkoutType.Academia, ExerciseName = "Antigo Segunda", Sets = 3, Reps = 10, Order = 0 },
+                new WorkoutPlanExercise { Id = Guid.NewGuid(), UserId = UserId, WorkoutPlanDayId = sextaDay.Id, Type = WorkoutType.Academia, ExerciseName = "Antigo Sexta", Sets = 3, Reps = 10, Order = 0 },
+                new WorkoutPlanExercise { Id = Guid.NewGuid(), UserId = UserId, WorkoutPlanDayId = quintaDay.Id, Type = WorkoutType.Academia, ExerciseName = "Antigo Quinta", Sets = 3, Reps = 10, Order = 0 },
+                new WorkoutPlanExercise { Id = Guid.NewGuid(), UserId = UserId, WorkoutPlanDayId = segundaDay.Id, Type = WorkoutType.Academia, ExerciseName = "Antigo Segunda", Sets = 3, Reps = 10, Order = 0 },
             });
-            dayRepo.Days.Add(new WorkoutPlanDay { Id = Guid.NewGuid(), UserId = UserId, DayOfWeek = WeekDay.Sexta, Label = "Peito antigo" });
 
             await service.ApplyAsync(UserId, template.Id);
 
             // Nada do plano anterior sobrevive: nem os exercícios órfãos, nem o antigo da Segunda.
             Assert.DoesNotContain(exRepo.Exercises, e => e.ExerciseName.StartsWith("Antigo"));
-            Assert.DoesNotContain(exRepo.Exercises, e => e.DayOfWeek == WeekDay.Sexta);
-            Assert.DoesNotContain(exRepo.Exercises, e => e.DayOfWeek == WeekDay.Quinta);
+            Assert.DoesNotContain(exRepo.Exercises, e => e.WorkoutPlanDayId == sextaDay.Id);
+            Assert.DoesNotContain(exRepo.Exercises, e => e.WorkoutPlanDayId == quintaDay.Id);
             Assert.Equal(3, exRepo.Exercises.Count);
         }
 
@@ -150,8 +158,9 @@ namespace Pyrra.Application.Tests.Treinos {
             var (service, dayRepo, exRepo) = BuildService(custom);
 
             // Plano já montado à mão: aplicar o "Personalizado" não pode apagá-lo.
-            exRepo.Exercises.Add(new WorkoutPlanExercise { Id = Guid.NewGuid(), UserId = UserId, DayOfWeek = WeekDay.Segunda, Type = WorkoutType.Academia, ExerciseName = "Meu exercício", Sets = 3, Reps = 10, Order = 0 });
-            dayRepo.Days.Add(new WorkoutPlanDay { Id = Guid.NewGuid(), UserId = UserId, DayOfWeek = WeekDay.Segunda, Label = "Meu dia" });
+            var segundaDay = new WorkoutPlanDay { Id = Guid.NewGuid(), UserId = UserId, DayOfWeek = WeekDay.Segunda, Label = "Meu dia" };
+            dayRepo.Days.Add(segundaDay);
+            exRepo.Exercises.Add(new WorkoutPlanExercise { Id = Guid.NewGuid(), UserId = UserId, WorkoutPlanDayId = segundaDay.Id, Type = WorkoutType.Academia, ExerciseName = "Meu exercício", Sets = 3, Reps = 10, Order = 0 });
 
             await service.ApplyAsync(UserId, custom.Id);
 
@@ -175,7 +184,9 @@ namespace Pyrra.Application.Tests.Treinos {
             var (service, dayRepo, exRepo) = BuildService(template);
 
             var outroUser = Guid.Parse("99999999-9999-9999-9999-999999999999");
-            exRepo.Exercises.Add(new WorkoutPlanExercise { Id = Guid.NewGuid(), UserId = outroUser, DayOfWeek = WeekDay.Segunda, Type = WorkoutType.Academia, ExerciseName = "De outro", Sets = 3, Reps = 10, Order = 0 });
+            var outroDay  = new WorkoutPlanDay { Id = Guid.NewGuid(), UserId = outroUser, DayOfWeek = WeekDay.Segunda, Label = null };
+            dayRepo.Days.Add(outroDay);
+            exRepo.Exercises.Add(new WorkoutPlanExercise { Id = Guid.NewGuid(), UserId = outroUser, WorkoutPlanDayId = outroDay.Id, Type = WorkoutType.Academia, ExerciseName = "De outro", Sets = 3, Reps = 10, Order = 0 });
 
             await service.ApplyAsync(UserId, template.Id);
 

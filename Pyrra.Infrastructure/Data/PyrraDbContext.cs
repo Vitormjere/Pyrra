@@ -215,13 +215,23 @@ namespace Pyrra.Infrastructure.Data {
                 .Property(d => d.Label)
                 .HasMaxLength(200);
 
-            // não é único, um dia tem vários exercícios planejados
+            // consultado por usuário inteiro (semana toda) em GetByUserAsync/ReplaceAllForUserAsync
             modelBuilder.Entity<WorkoutPlanExercise>()
-                .HasIndex(e => new { e.UserId, e.DayOfWeek });
+                .HasIndex(e => e.UserId);
 
             modelBuilder.Entity<WorkoutPlanExercise>()
                 .Property(e => e.ExerciseName)
                 .HasMaxLength(200);
+
+            // FK real pro dia (mesmo padrão do WorkoutTemplateDay/WorkoutTemplateExercise abaixo):
+            // trocar dois dias de lugar é só um update de WorkoutPlanDay.DayOfWeek, os exercícios
+            // linkados por WorkoutPlanDayId acompanham sem precisar realocar linha nenhuma. Cascade
+            // porque um exercício nunca deveria sobreviver ao dia que o contém.
+            modelBuilder.Entity<WorkoutPlanDay>()
+                .HasMany(d => d.Exercises)
+                .WithOne()
+                .HasForeignKey(e => e.WorkoutPlanDayId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             // não é único, uma refeição planejada tem vários itens
             modelBuilder.Entity<NutritionPlanItem>()

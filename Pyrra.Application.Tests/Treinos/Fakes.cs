@@ -19,21 +19,52 @@ namespace Pyrra.Application.Tests.Treinos {
             Task.FromResult<IReadOnlyList<WorkoutPlanDay>>(
                 Days.Where(d => d.UserId == userId).OrderBy(d => d.DayOfWeek).ToList());
 
-        public Task UpsertManyAsync(Guid userId, IReadOnlyList<WorkoutPlanDay> days, CancellationToken cancellationToken = default) {
+        public Task<IReadOnlyList<WorkoutPlanDay>> UpsertManyAsync(Guid userId, IReadOnlyList<WorkoutPlanDay> days, CancellationToken cancellationToken = default) {
+            var result = new List<WorkoutPlanDay>(days.Count);
             foreach (var day in days) {
                 var current = Days.FirstOrDefault(d => d.UserId == userId && d.DayOfWeek == day.DayOfWeek);
                 if (current is not null) {
                     current.Label = day.Label;
+                    result.Add(current);
                 } else {
-                    Days.Add(new WorkoutPlanDay {
+                    var created = new WorkoutPlanDay {
                         Id        = Guid.NewGuid(),
                         UserId    = userId,
                         DayOfWeek = day.DayOfWeek,
                         Label     = day.Label
-                    });
+                    };
+                    Days.Add(created);
+                    result.Add(created);
                 }
             }
-            return Task.CompletedTask;
+            return Task.FromResult<IReadOnlyList<WorkoutPlanDay>>(result);
+        }
+
+        public Task<WorkoutPlanDay> GetOrCreateAsync(Guid userId, WeekDay dayOfWeek, CancellationToken cancellationToken = default) {
+            var existing = Days.FirstOrDefault(d => d.UserId == userId && d.DayOfWeek == dayOfWeek);
+            if (existing is not null) return Task.FromResult(existing);
+
+            var created = new WorkoutPlanDay { Id = Guid.NewGuid(), UserId = userId, DayOfWeek = dayOfWeek, Label = null };
+            Days.Add(created);
+            return Task.FromResult(created);
+        }
+
+        public Task<IReadOnlyList<WorkoutPlanDay>> SwapDaysAsync(Guid userId, WeekDay dayA, WeekDay dayB, CancellationToken cancellationToken = default) {
+            if (dayA == dayB) {
+                return Task.FromResult<IReadOnlyList<WorkoutPlanDay>>(
+                    Days.Where(d => d.UserId == userId && d.DayOfWeek == dayA).ToList());
+            }
+
+            var rowA = Days.FirstOrDefault(d => d.UserId == userId && d.DayOfWeek == dayA);
+            var rowB = Days.FirstOrDefault(d => d.UserId == userId && d.DayOfWeek == dayB);
+
+            if (rowA is not null) rowA.DayOfWeek = dayB;
+            if (rowB is not null) rowB.DayOfWeek = dayA;
+
+            var affected = new List<WorkoutPlanDay>();
+            if (rowA is not null) affected.Add(rowA);
+            if (rowB is not null) affected.Add(rowB);
+            return Task.FromResult<IReadOnlyList<WorkoutPlanDay>>(affected);
         }
     }
 
@@ -42,11 +73,11 @@ namespace Pyrra.Application.Tests.Treinos {
 
         public Task<IReadOnlyList<WorkoutPlanExercise>> GetByUserAsync(Guid userId, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<WorkoutPlanExercise>>(
-                Exercises.Where(e => e.UserId == userId).OrderBy(e => e.DayOfWeek).ThenBy(e => e.Order).ToList());
+                Exercises.Where(e => e.UserId == userId).OrderBy(e => e.WorkoutPlanDayId).ThenBy(e => e.Order).ToList());
 
-        public Task<IReadOnlyList<WorkoutPlanExercise>> GetByUserAndDayAsync(Guid userId, WeekDay dayOfWeek, CancellationToken cancellationToken = default) =>
+        public Task<IReadOnlyList<WorkoutPlanExercise>> GetByWorkoutPlanDayIdAsync(Guid workoutPlanDayId, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<WorkoutPlanExercise>>(
-                Exercises.Where(e => e.UserId == userId && e.DayOfWeek == dayOfWeek).OrderBy(e => e.Order).ToList());
+                Exercises.Where(e => e.WorkoutPlanDayId == workoutPlanDayId).OrderBy(e => e.Order).ToList());
 
         public Task<WorkoutPlanExercise?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
             Task.FromResult(Exercises.FirstOrDefault(e => e.Id == id));
@@ -67,8 +98,8 @@ namespace Pyrra.Application.Tests.Treinos {
             return Task.CompletedTask;
         }
 
-        public Task ReplaceForDayAsync(Guid userId, WeekDay dayOfWeek, IReadOnlyList<WorkoutPlanExercise> exercises, CancellationToken cancellationToken = default) {
-            Exercises.RemoveAll(e => e.UserId == userId && e.DayOfWeek == dayOfWeek);
+        public Task ReplaceForDayAsync(Guid userId, Guid workoutPlanDayId, IReadOnlyList<WorkoutPlanExercise> exercises, CancellationToken cancellationToken = default) {
+            Exercises.RemoveAll(e => e.UserId == userId && e.WorkoutPlanDayId == workoutPlanDayId);
             Exercises.AddRange(exercises);
             return Task.CompletedTask;
         }

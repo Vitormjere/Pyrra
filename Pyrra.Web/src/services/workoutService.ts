@@ -65,6 +65,19 @@ export async function saveWorkoutPlan(
   return data
 }
 
+// troca dois dias de lugar — o backend só atualiza o WorkoutPlanDay.DayOfWeek de cada um, os
+// exercícios (ligados por FK) acompanham sozinhos, sem precisar reenviar nada deles
+export async function swapWorkoutPlanDays(
+  diaOrigem: WeekDay,
+  diaDestino: WeekDay,
+): Promise<WorkoutPlanDayResponse[]> {
+  const { data } = await api.post<WorkoutPlanDayResponse[]>(
+    '/api/treinos/plano/trocar-dias',
+    { diaOrigem, diaDestino },
+  )
+  return data
+}
+
 // sets/reps são ignorados pelo backend quando type é Corrida
 export async function addPlanExercise(
   day: WeekDay,

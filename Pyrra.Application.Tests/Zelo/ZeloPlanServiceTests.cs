@@ -274,8 +274,12 @@ namespace Pyrra.Application.Tests.Zelo {
             await AnswerAllAsync(service, start.SessionId, "Condicionamento físico", "Nenhuma", "Dieta mais econômica", "Academia completa", "4-5 dias");
 
             // plano anterior do usuário, deve sumir depois de aplicar
+            var domingoDay = new Pyrra.Domain.Treinos.WorkoutPlanDay {
+                Id = Guid.NewGuid(), UserId = UserId, DayOfWeek = Pyrra.Domain.Common.WeekDay.Domingo, Label = null
+            };
+            workoutDays.Days.Add(domingoDay);
             workoutExercises.Exercises.Add(new Pyrra.Domain.Treinos.WorkoutPlanExercise {
-                Id = Guid.NewGuid(), UserId = UserId, DayOfWeek = Pyrra.Domain.Common.WeekDay.Domingo,
+                Id = Guid.NewGuid(), UserId = UserId, WorkoutPlanDayId = domingoDay.Id,
                 Type = Pyrra.Domain.Treinos.WorkoutType.Academia, ExerciseName = "Exercício antigo", Order = 0
             });
             nutritionItems.Items.Add(new Pyrra.Domain.Nutricao.NutritionPlanItem {
@@ -491,21 +495,23 @@ namespace Pyrra.Application.Tests.Zelo {
 
         [Fact]
         public async Task ConfirmEditAsync_Treino_SubstituiSoODiaProposto() {
-            var (service, _, _, _, assistant, _, _, workoutExercises, _, _) = Build();
+            var (service, _, _, _, assistant, _, workoutDays, workoutExercises, _, _) = Build();
             var sessionId = await ApplyDefaultPlanAsync(service);
-            var quartaBefore = workoutExercises.Exercises.Where(e => e.DayOfWeek == Pyrra.Domain.Common.WeekDay.Quarta).ToList();
+            var quartaId = workoutDays.Days.Single(d => d.UserId == UserId && d.DayOfWeek == Pyrra.Domain.Common.WeekDay.Quarta).Id;
+            var quartaBefore = workoutExercises.Exercises.Where(e => e.WorkoutPlanDayId == quartaId).ToList();
 
             assistant.NextChatResult = new ZeloChatContinuationResult(true, "Pode confirmar?", MakeWorkoutProposal());
             var result = await service.SendMessageAsync(UserId, sessionId, "troca terça pra pernas");
 
             await service.ConfirmEditAsync(UserId, sessionId, result.Reply!.Id);
 
-            var terca = workoutExercises.Exercises.Where(e => e.UserId == UserId && e.DayOfWeek == Pyrra.Domain.Common.WeekDay.Terca).ToList();
+            var tercaId = workoutDays.Days.Single(d => d.UserId == UserId && d.DayOfWeek == Pyrra.Domain.Common.WeekDay.Terca).Id;
+            var terca = workoutExercises.Exercises.Where(e => e.UserId == UserId && e.WorkoutPlanDayId == tercaId).ToList();
             Assert.Single(terca);
             Assert.Equal("Agachamento", terca[0].ExerciseName);
 
             // outro dia não foi tocado
-            var quartaAfter = workoutExercises.Exercises.Where(e => e.DayOfWeek == Pyrra.Domain.Common.WeekDay.Quarta).ToList();
+            var quartaAfter = workoutExercises.Exercises.Where(e => e.WorkoutPlanDayId == quartaId).ToList();
             Assert.Equal(quartaBefore.Select(e => e.Id), quartaAfter.Select(e => e.Id));
         }
 
@@ -570,9 +576,10 @@ namespace Pyrra.Application.Tests.Zelo {
 
         [Fact]
         public async Task DismissEditAsync_MarcaDescartadaSemAplicarNada() {
-            var (service, _, _, _, assistant, _, _, workoutExercises, _, messages) = Build();
+            var (service, _, _, _, assistant, _, workoutDays, workoutExercises, _, messages) = Build();
             var sessionId = await ApplyDefaultPlanAsync(service);
-            var tercaAntes = workoutExercises.Exercises.Where(e => e.DayOfWeek == Pyrra.Domain.Common.WeekDay.Terca).ToList();
+            var tercaId = workoutDays.Days.Single(d => d.UserId == UserId && d.DayOfWeek == Pyrra.Domain.Common.WeekDay.Terca).Id;
+            var tercaAntes = workoutExercises.Exercises.Where(e => e.WorkoutPlanDayId == tercaId).ToList();
 
             assistant.NextChatResult = new ZeloChatContinuationResult(true, "Pode confirmar?", MakeWorkoutProposal());
             var result = await service.SendMessageAsync(UserId, sessionId, "troca terça pra pernas");
@@ -580,7 +587,7 @@ namespace Pyrra.Application.Tests.Zelo {
             await service.DismissEditAsync(UserId, sessionId, result.Reply!.Id);
 
             Assert.Equal(ZeloEditStatus.Descartada, messages.Messages.Single(m => m.Id == result.Reply.Id).EditStatus);
-            var tercaDepois = workoutExercises.Exercises.Where(e => e.DayOfWeek == Pyrra.Domain.Common.WeekDay.Terca).ToList();
+            var tercaDepois = workoutExercises.Exercises.Where(e => e.WorkoutPlanDayId == tercaId).ToList();
             Assert.Equal(tercaAntes.Select(e => e.Id), tercaDepois.Select(e => e.Id));
         }
     }

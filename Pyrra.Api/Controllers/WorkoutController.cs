@@ -126,6 +126,24 @@ namespace Pyrra.Api.Controllers {
             return Ok(plan.Select(WorkoutPlanDayResponse.FromEntity));
         }
 
+        // troca dois dias de lugar: o backend só atualiza o DayOfWeek de cada WorkoutPlanDay, os
+        // exercícios (ligados por FK) acompanham sozinhos — não precisa reenviar nem realocar nada
+        [HttpPost("plano/trocar-dias")]
+        public async Task<ActionResult<IEnumerable<WorkoutPlanDayResponse>>> SwapPlanDays(SwapWorkoutPlanDaysRequest request, CancellationToken cancellationToken) {
+            if (!TryGetUserId(out var userId)) {
+                return Unauthorized();
+            }
+
+            try {
+                await _workoutService.SwapPlanDaysAsync(userId, request.DiaOrigem!.Value, request.DiaDestino!.Value, cancellationToken);
+            } catch (InvalidWorkoutException ex) {
+                return BadRequest(new { message = ex.Message });
+            }
+
+            var plan = await _workoutService.GetPlanWithExercisesAsync(userId, cancellationToken);
+            return Ok(plan.Select(WorkoutPlanDayResponse.FromEntity));
+        }
+
         // catálogo de templates prontos — não depende do usuário, mas fica sob [Authorize] igual ao resto do controller
         [HttpGet("templates")]
         public async Task<ActionResult<IEnumerable<WorkoutTemplateResponse>>> GetTemplates(CancellationToken cancellationToken) {

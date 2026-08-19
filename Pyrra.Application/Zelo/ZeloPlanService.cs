@@ -156,18 +156,19 @@ namespace Pyrra.Application.Zelo {
             var days = plan.WorkoutDays
                 .Select(d => new WorkoutPlanDay { DayOfWeek = d.DayOfWeek, Label = d.Label })
                 .ToList();
-            await _workoutPlanDayRepository.UpsertManyAsync(userId, days, cancellationToken);
+            var persistedDays = await _workoutPlanDayRepository.UpsertManyAsync(userId, days, cancellationToken);
+            var dayIdByDayOfWeek = persistedDays.ToDictionary(d => d.DayOfWeek, d => d.Id);
 
             var exercises = plan.WorkoutDays
                 .SelectMany(day => day.Exercises.Select(e => new WorkoutPlanExercise {
-                    Id           = Guid.NewGuid(),
-                    UserId       = userId,
-                    DayOfWeek    = day.DayOfWeek,
-                    Type         = e.Type,
-                    ExerciseName = e.ExerciseName,
-                    Sets         = e.Sets,
-                    Reps         = e.Reps,
-                    Order        = e.Order
+                    Id               = Guid.NewGuid(),
+                    UserId           = userId,
+                    WorkoutPlanDayId = dayIdByDayOfWeek[day.DayOfWeek],
+                    Type             = e.Type,
+                    ExerciseName     = e.ExerciseName,
+                    Sets             = e.Sets,
+                    Reps             = e.Reps,
+                    Order            = e.Order
                 }))
                 .ToList();
             await _workoutPlanExerciseRepository.ReplaceAllForUserAsync(userId, exercises, cancellationToken);
@@ -313,17 +314,18 @@ namespace Pyrra.Application.Zelo {
                            ?? throw new InvalidZeloPlanException("Essa proposta de edição não é mais válida.");
 
             if (proposal.Target == ZeloEditTarget.Treino) {
-                await _workoutPlanDayRepository.UpsertManyAsync(userId, new List<WorkoutPlanDay> {
+                var persistedDays = await _workoutPlanDayRepository.UpsertManyAsync(userId, new List<WorkoutPlanDay> {
                     new() { DayOfWeek = proposal.DayOfWeek, Label = proposal.Label }
                 }, cancellationToken);
+                var dayId = persistedDays[0].Id;
 
                 var exercises = (proposal.Exercises ?? Array.Empty<GeneratedWorkoutExercise>())
                     .Select(e => new WorkoutPlanExercise {
-                        Id = Guid.NewGuid(), UserId = userId, DayOfWeek = proposal.DayOfWeek,
+                        Id = Guid.NewGuid(), UserId = userId, WorkoutPlanDayId = dayId,
                         Type = e.Type, ExerciseName = e.ExerciseName, Sets = e.Sets, Reps = e.Reps, Order = e.Order
                     })
                     .ToList();
-                await _workoutPlanExerciseRepository.ReplaceForDayAsync(userId, proposal.DayOfWeek, exercises, cancellationToken);
+                await _workoutPlanExerciseRepository.ReplaceForDayAsync(userId, dayId, exercises, cancellationToken);
             } else {
                 if (proposal.MealType is null) {
                     throw new InvalidZeloPlanException("Essa proposta de edição não é mais válida.");
@@ -357,9 +359,12 @@ namespace Pyrra.Application.Zelo {
             var exercises = await _workoutPlanExerciseRepository.GetByUserAsync(userId, cancellationToken);
             var items     = await _nutritionPlanItemRepository.GetByUserAsync(userId, cancellationToken);
 
-            var labelByDay = days.ToDictionary(d => d.DayOfWeek, d => d.Label);
+            var labelByDay    = days.ToDictionary(d => d.DayOfWeek, d => d.Label);
+            var dayOfWeekById = days.ToDictionary(d => d.Id, d => d.DayOfWeek);
+
             var exercisesByDay = exercises
-                .GroupBy(e => e.DayOfWeek)
+                .Where(e => dayOfWeekById.ContainsKey(e.WorkoutPlanDayId))
+                .GroupBy(e => dayOfWeekById[e.WorkoutPlanDayId])
                 .ToDictionary(g => g.Key, g => (IReadOnlyList<GeneratedWorkoutExercise>)g
                     .OrderBy(e => e.Order)
                     .Select(e => new GeneratedWorkoutExercise(e.Type, e.ExerciseName, e.Sets, e.Reps, e.Order))

@@ -44,4 +44,8 @@ namespace Pyrra.Api.Dtos.Treinos {
         [Required][MaxLength(200)] string ExerciseName,
         int? Sets = null,
         int? Reps = null);
+
+    public record SwapWorkoutPlanDaysRequest(
+        [Required] WeekDay? DiaOrigem,
+        [Required] WeekDay? DiaDestino);
 }

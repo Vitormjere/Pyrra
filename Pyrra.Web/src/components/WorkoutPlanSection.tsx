@@ -10,6 +10,7 @@ import {
   getWorkoutPlan,
   removePlanExercise,
   saveWorkoutPlan,
+  swapWorkoutPlanDays,
 } from '../services/workoutService'
 import { formatPlannedExercise } from '../utils/format'
 import { getApiErrorMessage } from '../services/apiError'
@@ -203,8 +204,10 @@ export function WorkoutPlanSection() {
     }
   }
 
-  // troca label + exercícios entre dois dias e persiste — mesmo PUT de plano
-  // inteiro que o handleBlur usa, já que não existe endpoint de dia isolado
+  // troca dois dias de lugar. O backend só atualiza o WorkoutPlanDay.DayOfWeek de cada um — os
+  // exercícios (ligados por FK) acompanham sozinhos, então o front só precisa mandar os dois
+  // dias trocados, não reenviar label nem exercícios. A troca otimista abaixo é só visual,
+  // pra não esperar a rede antes de mostrar o resultado.
   async function swapDays(source: WeekDay, target: WeekDay) {
     if (source === target) return
 
@@ -227,7 +230,7 @@ export function WorkoutPlanSection() {
     setError(null)
 
     try {
-      const saved = await saveWorkoutPlan(swapped)
+      const saved = await swapWorkoutPlanDays(source, target)
       setDays(saved)
       savedLabels.current = Object.fromEntries(
         saved.map((item) => [item.dayOfWeek, item.label ?? '']),

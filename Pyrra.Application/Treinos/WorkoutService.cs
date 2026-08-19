@@ -125,18 +125,27 @@ namespace Pyrra.Application.Treinos {
             return await GetPlanAsync(userId, cancellationToken);
         }
 
+        public async Task SwapPlanDaysAsync(Guid userId, WeekDay dayA, WeekDay dayB, CancellationToken cancellationToken = default) {
+            if (!Enum.IsDefined(dayA) || !Enum.IsDefined(dayB)) {
+                throw new InvalidWorkoutException("Dia inválido.");
+            }
+
+            await _planRepository.SwapDaysAsync(userId, dayA, dayB, cancellationToken);
+        }
+
         public async Task<IReadOnlyList<WorkoutPlanDayWithExercises>> GetPlanWithExercisesAsync(Guid userId, CancellationToken cancellationToken = default) {
             var days = await GetPlanAsync(userId, cancellationToken);
 
-            // busca a semana inteira em uma única consulta
+            // busca a semana inteira em uma única consulta, agrupada pelo Id real do dia (não mais
+            // pelo DayOfWeek — é o que faz a troca de dias levar os exercícios junto)
             var exercises = await _planExerciseRepository.GetByUserAsync(userId, cancellationToken);
-            var byDay = exercises.GroupBy(e => e.DayOfWeek).ToDictionary(g => g.Key, g => g.ToList());
+            var byDayId = exercises.GroupBy(e => e.WorkoutPlanDayId).ToDictionary(g => g.Key, g => g.ToList());
 
             return days
                 .Select(day => new WorkoutPlanDayWithExercises(
                     day.DayOfWeek,
                     day.Label,
-                    byDay.TryGetValue(day.DayOfWeek, out var list)
+                    byDayId.TryGetValue(day.Id, out var list)
                         ? list
                         : (IReadOnlyList<WorkoutPlanExercise>)Array.Empty<WorkoutPlanExercise>()))
                 .ToList();
@@ -164,7 +173,11 @@ namespace Pyrra.Application.Treinos {
                 throw new InvalidWorkoutException("O número de repetições deve ser maior que zero.");
             }
 
-            var existing = await _planExerciseRepository.GetByUserAndDayAsync(userId, dayOfWeek, cancellationToken);
+            // garante uma linha real pro dia — quem nunca salvou label/exercício nele ainda não tem
+            // WorkoutPlanDay no banco, e o exercício precisa de um Id válido pra referenciar via FK
+            var day = await _planRepository.GetOrCreateAsync(userId, dayOfWeek, cancellationToken);
+
+            var existing = await _planExerciseRepository.GetByWorkoutPlanDayIdAsync(day.Id, cancellationToken);
 
             // usa o maior order para evitar posições repetidas
             var nextOrder = existing.Count == 0 ? 0 : existing.Max(e => e.Order) + 1;
@@ -172,15 +185,15 @@ namespace Pyrra.Application.Treinos {
             var isGym = type == WorkoutType.Academia;
 
             var exercise = new WorkoutPlanExercise {
-                Id           = Guid.NewGuid(),
-                UserId       = userId,
-                DayOfWeek    = dayOfWeek,
-                Type         = type,
-                ExerciseName = normalizedName,
+                Id               = Guid.NewGuid(),
+                UserId           = userId,
+                WorkoutPlanDayId = day.Id,
+                Type             = type,
+                ExerciseName     = normalizedName,
                 // ignora sets e reps em corrida
                 Sets = isGym ? sets : null,
-                Reps         = isGym ? reps : null,
-                Order        = nextOrder
+                Reps             = isGym ? reps : null,
+                Order            = nextOrder
             };
 
             await _planExerciseRepository.AddAsync(exercise, cancellationToken);
