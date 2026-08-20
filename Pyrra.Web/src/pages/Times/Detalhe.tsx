@@ -491,6 +491,8 @@ function PendingSubmissionRow({
   )
 }
 
+type MemberTab = 'chat' | 'membros'
+
 export function TimeDetalhe() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
@@ -510,6 +512,10 @@ export function TimeDetalhe() {
   const [busyId, setBusyId] = useState<string | null>(null)
 
   const [copied, setCopied] = useState(false)
+
+  // Chat e Membros em abas — times grandes (até 100 membros) empurravam o resto da página pra
+  // muito longe no mobile quando a lista ficava sempre visível abaixo do chat
+  const [memberTab, setMemberTab] = useState<MemberTab>('chat')
 
   // Banner: troca de cor/imagem
   const [bannerBusy, setBannerBusy] = useState(false)
@@ -1128,102 +1134,140 @@ export function TimeDetalhe() {
         )}
       </section>
 
-      {/* CHAT DO TIME — em grupo, visível só pra dono e membros (ver TeamChatController/TeamChatService) */}
-      <TeamChatPanel teamId={team.id} />
-
-      {/* MEMBROS */}
-      <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-medium text-slate-300">
+      {/* CHAT E MEMBROS — em abas: com times grandes (até 100 membros), a lista sempre visível
+          empurrava "Convidar amigo"/"Link de convite"/"Configurações" pra muito longe no mobile.
+          Mesmo padrão visual de abas usado em Perfil, Tarefas, Amigos, Treino, Hoje, Nutrição e
+          na própria listagem de Times. */}
+      <div role="tablist" className="flex gap-1 rounded-md bg-surface p-1">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={memberTab === 'chat'}
+          onClick={() => setMemberTab('chat')}
+          className={[
+            'flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition',
+            memberTab === 'chat'
+              ? 'bg-surface-hi text-ink'
+              : 'text-slate-400 hover:text-slate-200',
+          ].join(' ')}
+        >
+          Chat
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={memberTab === 'membros'}
+          onClick={() => setMemberTab('membros')}
+          className={[
+            'flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition',
+            memberTab === 'membros'
+              ? 'bg-surface-hi text-ink'
+              : 'text-slate-400 hover:text-slate-200',
+          ].join(' ')}
+        >
           Membros ({team.memberCount}/{team.memberLimit})
-        </h2>
-        <ul className={listClasses}>
-          {members.map((member) => (
-            <MemberRow
-              key={member.userId}
-              member={member}
-              busy={busyId === member.userId}
-              canRemove={team.isOwner && !member.isOwner}
-              onRemove={() => handleRemoveMember(member)}
-              canTransfer={team.isOwner && !member.isOwner}
-              onTransfer={() => handleTransfer(member)}
-            />
-          ))}
-        </ul>
-      </section>
+        </button>
+      </div>
 
-      {/* CONVIDAR AMIGO */}
-      <section className="flex flex-col gap-2">
-        {!showInvitePicker ? (
-          <button
-            type="button"
-            onClick={openInvitePicker}
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold text-ink ring-1 ring-line transition hover:bg-surface"
-          >
-            <UserPlus size={16} aria-hidden="true" />
-            Convidar amigo
-          </button>
-        ) : (
-          <div className="flex flex-col gap-2">
-            <h2 className="text-sm font-medium text-slate-300">Convidar amigo</h2>
-            {friends === null ? (
-              <Skeleton className="h-16" />
-            ) : availableFriends.length === 0 ? (
-              <p className="rounded-md bg-surface px-4 py-3 text-sm text-slate-500 ring-1 ring-line">
-                Nenhum amigo disponível para convidar — ou já estão no time, ou você ainda não tem amigos.
-              </p>
+      {memberTab === 'chat' && (
+        // visível só pra dono e membros (ver TeamChatController/TeamChatService)
+        <TeamChatPanel teamId={team.id} />
+      )}
+
+      {memberTab === 'membros' && (
+        <>
+          {/* MEMBROS */}
+          <section className="flex flex-col gap-2">
+            <ul className={listClasses}>
+              {members.map((member) => (
+                <MemberRow
+                  key={member.userId}
+                  member={member}
+                  busy={busyId === member.userId}
+                  canRemove={team.isOwner && !member.isOwner}
+                  onRemove={() => handleRemoveMember(member)}
+                  canTransfer={team.isOwner && !member.isOwner}
+                  onTransfer={() => handleTransfer(member)}
+                />
+              ))}
+            </ul>
+          </section>
+
+          {/* CONVIDAR AMIGO */}
+          <section className="flex flex-col gap-2">
+            {!showInvitePicker ? (
+              <button
+                type="button"
+                onClick={openInvitePicker}
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold text-ink ring-1 ring-line transition hover:bg-surface"
+              >
+                <UserPlus size={16} aria-hidden="true" />
+                Convidar amigo
+              </button>
             ) : (
-              <ul className={listClasses}>
-                {availableFriends.map((friend) => (
-                  <li key={friend.user.id} className="flex items-center gap-3 px-4 py-3">
-                    <Avatar name={friend.user.name} imageUrl={friend.user.profilePictureUrl} />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium text-ink">{friend.user.name}</p>
-                    </div>
-                    <button
-                      type="button"
-                      disabled={busyId === friend.user.id}
-                      onClick={() => handleInvite(friend.user.id)}
-                      className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-brand-green px-3 py-1.5 text-sm font-semibold text-brand-dark transition hover:brightness-95 disabled:opacity-60"
-                    >
-                      <UserPlus size={15} />
-                      Convidar
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <div className="flex flex-col gap-2">
+                <h2 className="text-sm font-medium text-slate-300">Convidar amigo</h2>
+                {friends === null ? (
+                  <Skeleton className="h-16" />
+                ) : availableFriends.length === 0 ? (
+                  <p className="rounded-md bg-surface px-4 py-3 text-sm text-slate-500 ring-1 ring-line">
+                    Nenhum amigo disponível para convidar — ou já estão no time, ou você ainda não tem amigos.
+                  </p>
+                ) : (
+                  <ul className={listClasses}>
+                    {availableFriends.map((friend) => (
+                      <li key={friend.user.id} className="flex items-center gap-3 px-4 py-3">
+                        <Avatar name={friend.user.name} imageUrl={friend.user.profilePictureUrl} />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-medium text-ink">{friend.user.name}</p>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={busyId === friend.user.id}
+                          onClick={() => handleInvite(friend.user.id)}
+                          className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-brand-green px-3 py-1.5 text-sm font-semibold text-brand-dark transition hover:brightness-95 disabled:opacity-60"
+                        >
+                          <UserPlus size={15} />
+                          Convidar
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             )}
-          </div>
-        )}
-      </section>
+          </section>
 
-      {/* LINK DE CONVITE */}
-      <section className="flex flex-col gap-2 rounded-md bg-surface px-4 py-3 ring-1 ring-line">
-        <div className="flex items-center gap-2 text-sm font-medium text-ink">
-          <Link2 size={16} className="text-brand-green" aria-hidden="true" />
-          Link de convite
-        </div>
-        <p className="text-xs text-slate-400">
-          Quem abrir esse link entra direto no time, respeitando o limite de membros ({team.memberCount}/{team.memberLimit}).
-        </p>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            readOnly
-            value={inviteUrl ?? ''}
-            aria-label="Link de convite do time"
-            onFocus={(event) => event.target.select()}
-            className="min-w-0 flex-1 rounded-md bg-surface-hi px-3 py-2 text-xs text-slate-300 ring-1 ring-line outline-none"
-          />
-          <button
-            type="button"
-            onClick={handleCopy}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-brand-green px-3 py-2 text-sm font-semibold text-brand-dark transition hover:brightness-95"
-          >
-            {copied ? <Check size={15} /> : <Copy size={15} />}
-            {copied ? 'Copiado' : 'Copiar'}
-          </button>
-        </div>
-      </section>
+          {/* LINK DE CONVITE */}
+          <section className="flex flex-col gap-2 rounded-md bg-surface px-4 py-3 ring-1 ring-line">
+            <div className="flex items-center gap-2 text-sm font-medium text-ink">
+              <Link2 size={16} className="text-brand-green" aria-hidden="true" />
+              Link de convite
+            </div>
+            <p className="text-xs text-slate-400">
+              Quem abrir esse link entra direto no time, respeitando o limite de membros ({team.memberCount}/{team.memberLimit}).
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                readOnly
+                value={inviteUrl ?? ''}
+                aria-label="Link de convite do time"
+                onFocus={(event) => event.target.select()}
+                className="min-w-0 flex-1 rounded-md bg-surface-hi px-3 py-2 text-xs text-slate-300 ring-1 ring-line outline-none"
+              />
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-brand-green px-3 py-2 text-sm font-semibold text-brand-dark transition hover:brightness-95"
+              >
+                {copied ? <Check size={15} /> : <Copy size={15} />}
+                {copied ? 'Copiado' : 'Copiar'}
+              </button>
+            </div>
+          </section>
+        </>
+      )}
 
       {/* CONFIGURAÇÕES DO TIME — só o dono vê o botão; abre o modal com banner/cor, visibilidade,
           categorias ativas e excluir time (ver TeamSettingsModal) */}
